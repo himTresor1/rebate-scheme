@@ -249,7 +249,7 @@ export const mockTaxiLicenseCheck = (licenseNumber: string) => {
       expiryDate: '2027-01-10',
       licenseType: 'Motorcycle Taxi',
       province: 'Kigali City',
-      status: 'Active',
+      licenseStatus: 'Active',
       checkedAt: new Date().toISOString()
     };
   } else {
