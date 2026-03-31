@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seed Database</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #023F40 0%, #035f60 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #023F40;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px;
+      margin-bottom: 25px;
+      border-radius: 8px;
+    }
+
+    .warning-title {
+      color: #92400e;
+      font-weight: 600;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .warning-text {
+      color: #78350f;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      background: #023F40;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    button:hover:not(:disabled) {
+      background: #035f60;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(2, 63, 64, 0.3);
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .status.loading {
+      display: block;
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+    }
+
+    .status.success {
+      display: block;
+      background: #d1fae5;
+      border-left: 4px solid #10b981;
+    }
+
+    .status.error {
+      display: block;
+      background: #fee2e2;
+      border-left: 4px solid #ef4444;
+    }
+
+    .status-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .status.loading .status-title {
+      color: #1e40af;
+    }
+
+    .status.success .status-title {
+      color: #065f46;
+    }
+
+    .status.error .status-title {
+      color: #991b1b;
+    }
+
+    .status-text {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .status.loading .status-text {
+      color: #1e3a8a;
+    }
+
+    .status.success .status-text {
+      color: #064e3b;
+    }
+
+    .status.error .status-text {
+      color: #7f1d1d;
+    }
+
+    .stats {
+      margin-top: 15px;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 15px;
+      border-radius: 6px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .stat-label {
+      color: #4b5563;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: #023F40;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #1e40af;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .credentials {
+      margin-top: 20px;
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .credentials-title {
+      font-weight: 600;
+      color: #023F40;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .credential-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 13px;
+    }
+
+    .credential-item:last-child {
+      border-bottom: none;
+    }
+
+    .credential-label {
+      color: #6b7280;
+      display: inline-block;
+      width: 120px;
+    }
+
+    .credential-value {
+      color: #023F40;
+      font-family: monospace;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌱 Seed Demo Database</h1>
+    <p class="subtitle">Initialize the database with demo data for testing</p>
+
+    <div class="warning">
+      <div class="warning-title">⚠️ Warning</div>
+      <div class="warning-text">
+        This will DELETE all existing data and create fresh demo data including users, 
+        applications, organizations, and all related records. This action cannot be undone.
+      </div>
+    </div>
+
+    <button id="seedBtn" onclick="seedDatabase()">
+      🚀 Seed Database Now
+    </button>
+
+    <div id="status" class="status"></div>
+
+    <div class="credentials">
+      <div class="credentials-title">📋 Demo Login Credentials</div>
+      <div class="credential-item">
+        <span class="credential-label">Admin:</span>
+        <span class="credential-value">admin@mfa.rw / Admin2024!</span>
+      </div>
+      <div class="credential-item">
+        <span class="credential-label">Analyst:</span>
+        <span class="credential-value">analyst1@mfa.rw / Analyst2024!</span>
+      </div>
+      <div class="credential-item">
+        <span class="credential-label">QA Team:</span>
+        <span class="credential-value">qa1@mfa.rw / QA2024!</span>
+      </div>
+      <div class="credential-item">
+        <span class="credential-label">CFO/Manager:</span>
+        <span class="credential-value">manager@mfa.rw / Manager2024!</span>
+      </div>
+      <div class="credential-item">
+        <span class="credential-label">Bank of Kigali:</span>
+        <span class="credential-value">admin@bankofkigali.rw / BoK2024!</span>
+      </div>
+      <div class="credential-item">
+        <span class="credential-label">Equity Bank:</span>
+        <span class="credential-value">admin@equitybank.rw / Equity2024!</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { projectId, publicAnonKey } from './utils/supabase/info.js';
+
+    window.seedDatabase = async function() {
+      const btn = document.getElementById('seedBtn');
+      const status = document.getElementById('status');
+      
+      btn.disabled = true;
+      status.className = 'status loading';
+      status.innerHTML = `
+        <div class="status-title">
+          <span class="spinner"></span>
+          Seeding Database...
+        </div>
+        <div class="status-text">
+          This may take 30-60 seconds. Please wait...<br>
+          Creating users, organizations, applications, and all demo data.
+        </div>
+      `;
+
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/seed-data`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          status.className = 'status success';
+          status.innerHTML = `
+            <div class="status-title">✅ Success!</div>
+            <div class="status-text">
+              ${result.message || 'Database seeded successfully!'}
+              <div class="stats">
+                <div class="stat-row">
+                  <span class="stat-label">Users Created:</span>
+                  <span class="stat-value">${result.stats?.users || 0}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Organizations:</span>
+                  <span class="stat-value">${result.stats?.organizations || 0}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Applications:</span>
+                  <span class="stat-value">${result.stats?.applications || 0}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Permissions:</span>
+                  <span class="stat-value">${result.stats?.permissions || 0}</span>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">Roles:</span>
+                  <span class="stat-value">${result.stats?.roles || 0}</span>
+                </div>
+              </div>
+              <br><br>
+              <strong>You can now login with the credentials above! 🎉</strong>
+            </div>
+          `;
+        } else {
+          throw new Error(result.error || 'Seeding failed');
+        }
+      } catch (error) {
+        status.className = 'status error';
+        status.innerHTML = `
+          <div class="status-title">❌ Error</div>
+          <div class="status-text">
+            Failed to seed database: ${error.message}<br><br>
+            Please check the browser console for more details.
+          </div>
+        `;
+        console.error('Seed error:', error);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
