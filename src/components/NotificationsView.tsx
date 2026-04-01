@@ -310,29 +310,29 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
           id: 'notif-22',
           type: 'success',
           title: 'Application Approved!',
-          message: 'Application #APP-2026-0834 has been approved. Please upload the signed lease agreement.',
+          message: 'Application #APP-2024-1006 has been approved. Please upload the signed lease agreement.',
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           read: false,
           actionable: true,
           actionLabel: 'Upload Lease',
-          actionUrl: '/my-applications'
+          actionData: { type: 'open-application', appId: 'application:APP-2024-1006' }
         },
         {
           id: 'notif-23',
           type: 'error',
           title: 'Lease Rejected - Correction Required',
-          message: 'Application #APP-2026-0798 - Lease rejected. Loan term mismatch. Please upload corrected version.',
+          message: 'Application #APP-2024-1008 - Lease rejected. Loan term mismatch. Please upload corrected version.',
           timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
           read: false,
           actionable: true,
           actionLabel: 'View Feedback',
-          actionUrl: '/my-applications'
+          actionData: { type: 'open-application', appId: 'application:APP-2024-1008' }
         },
         {
           id: 'notif-24',
           type: 'payment',
           title: 'Rebate Payment Received',
-          message: 'RWF 750,000 rebate for Application #APP-2026-0801 has been transferred to your account.',
+          message: 'RWF 750,000 rebate for Application APP-2024-1002 has been transferred to your account.',
           timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
           read: false
         },
@@ -340,12 +340,12 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
           id: 'notif-25',
           type: 'warning',
           title: 'Additional Information Required',
-          message: 'Application #APP-2026-0847 - Analyst requires RURA plate registration document.',
+          message: 'Application #APP-2024-1007 - Analyst requires RURA plate registration document.',
           timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
           read: true,
           actionable: true,
           actionLabel: 'Upload Document',
-          actionUrl: '/my-applications'
+          actionData: { type: 'open-application', appId: 'application:APP-2024-1007' }
         }
       );
     }
