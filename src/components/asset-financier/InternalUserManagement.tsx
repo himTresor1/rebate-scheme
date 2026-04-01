@@ -71,30 +71,74 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching staff for organizationId:', organizationId);
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/asset-financier/users?organizationId=${organizationId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
+      
+      // MOCK DATA for displaying UI functionality
+      setTimeout(() => {
+        setUsers([
+          {
+            id: 'staff-1',
+            name: 'Sarah Kimondo',
+            email: 'sarah.k@financecorp.rw',
+            phoneNumber: '+250 788 123 456',
+            role: 'ASSET_FINANCIER_OFFICER',
+            permissions: ['AF_SUBMIT_APPLICATIONS', 'AF_VIEW_OWN_APPLICATIONS', 'AF_EDIT_OWN_APPLICATIONS', 'AF_UPLOAD_DOCUMENTS', 'AF_RESPOND_TO_INFO_REQUESTS'],
+            createdAt: new Date().toISOString(),
+            createdBy: 'admin-1',
+            isActive: true,
+            applicationCount: 145,
+            pendingCount: 22,
+            approvedCount: 118,
+            rejectedCount: 5,
+            applications: [
+              { id: 'app-1', applicationNumber: 'APP-2024-1001', status: 'approved', riderName: 'Jean Claude Ndayisaba', vehicleBrand: 'Ampersand', vehicleModel: 'E-Moto V2', submittedAt: '2024-03-01', rebateAmount: 1500000 },
+              { id: 'app-2', applicationNumber: 'APP-2024-1002', status: 'under_review', riderName: 'Marie Claire Uwimana', vehicleBrand: 'TVS', vehicleModel: 'Electric XL', submittedAt: '2024-03-10', rebateAmount: 1200000 },
+              { id: 'app-3', applicationNumber: 'APP-2024-1005', status: 'info_requested', riderName: 'Eric Habimana', vehicleBrand: 'Spiro', vehicleModel: 'Commuter Base', submittedAt: '2024-03-11', rebateAmount: 1100000 },
+            ]
+          },
+          {
+            id: 'staff-2',
+            name: 'David Mugisha',
+            email: 'david.m@financecorp.rw',
+            phoneNumber: '+250 788 654 321',
+            role: 'ASSET_FINANCIER_STAFF',
+            permissions: ['AF_SUBMIT_APPLICATIONS', 'AF_VIEW_OWN_APPLICATIONS', 'AF_UPLOAD_DOCUMENTS'],
+            createdAt: new Date().toISOString(),
+            createdBy: 'admin-1',
+            isActive: true,
+            applicationCount: 42,
+            pendingCount: 18,
+            approvedCount: 20,
+            rejectedCount: 4,
+            applications: [
+              { id: 'app-4', applicationNumber: 'APP-2024-1023', status: 'submitted', riderName: 'Emmanuel Hakizimana', vehicleBrand: 'Spiro', vehicleModel: 'Commuter Pro', submittedAt: '2024-03-12', rebateAmount: 1400000 },
+              { id: 'app-5', applicationNumber: 'APP-2024-1025', status: 'pending_lease', riderName: 'Alice Mutoni', vehicleBrand: 'Ampersand', vehicleModel: 'E-Moto V2', submittedAt: '2024-03-13', rebateAmount: 1500000 },
+            ]
+          },
+          {
+            id: 'staff-3',
+            name: 'Grace Iradukunda',
+            email: 'grace.i@financecorp.rw',
+            phoneNumber: '+250 788 987 654',
+            role: 'ASSET_FINANCIER_STAFF',
+            permissions: ['AF_VIEW_OWN_APPLICATIONS'],
+            createdAt: new Date().toISOString(),
+            createdBy: 'admin-1',
+            isActive: false,
+            applicationCount: 12,
+            pendingCount: 0,
+            approvedCount: 11,
+            rejectedCount: 1,
+            applications: [
+              { id: 'app-6', applicationNumber: 'APP-2024-0980', status: 'approved', riderName: 'Patrick Ndagijimana', vehicleBrand: 'TVS', vehicleModel: 'Electric XL', submittedAt: '2024-01-15', rebateAmount: 1200000 },
+            ]
           }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Fetch users error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch users');
-      }
-
-      const data = await response.json();
-      console.log('Fetched users:', data.users);
-      setUsers(data.users || []);
+        ]);
+        setLoading(false);
+      }, 800);
+      
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast.error(error.message || 'Failed to load staff members');
-    } finally {
       setLoading(false);
     }
   };

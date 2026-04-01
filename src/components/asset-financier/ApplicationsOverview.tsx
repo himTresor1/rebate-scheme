@@ -19,6 +19,8 @@ interface Application {
   vehicleBrand: string;
   vehicleModel: string;
   rebateAmount: number;
+  submittedBy?: string;
+  documents?: any[];
 }
 
 interface ApplicationsOverviewProps {
@@ -46,29 +48,102 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
     try {
       setLoading(true);
       
-      // Get all applications from the general API
-      const data = await api.getAllApplications();
-      
-      // Filter applications for this organization
-      const orgApplications = data.filter((app: any) => 
-        app.organizationId === organizationId
-      );
-      
-      setApplications(orgApplications);
+      // Use mock data for the UI
+      setTimeout(() => {
+        const mockApps: any[] = [
+          {
+            id: 'application:APP-2024-1001',
+            applicantName: 'Jean Claude Ndayisaba',
+            applicantNationalId: '1199080012345678',
+            status: 'approved-pending-lease',
+            submittedAt: '2024-03-01T14:30:00Z',
+            vehicleBrand: 'Ampersand',
+            vehicleModel: 'E-Moto V2',
+            rebateAmount: 1500000,
+            submittedBy: 'Sarah Kimondo',
+            organizationId: organizationId,
+            documents: [
+              { name: 'National_ID_Copy.pdf', type: 'application/pdf', uploadedAt: '2024-03-01T14:25:00Z' },
+              { name: 'Motorcycle_Sales_Agreement.pdf', type: 'application/pdf', uploadedAt: '2024-03-01T14:26:00Z' },
+              { name: 'Sworn_Affidavit.pdf', type: 'application/pdf', uploadedAt: '2024-03-01T14:28:00Z' }
+            ],
+            nationalId: '1199080012345678',
+            phoneNumber: '+250 788 111 222',
+            email: 'jeanclaude@example.com',
+            motorcycleBrand: 'Ampersand',
+            motorcycleModel: 'E-Moto V2',
+            chassisNumber: 'AMP987654321',
+            batteryCapacity: '4 kWh',
+            yearOfManufacture: '2024',
+            purchasePrice: 3500000,
+            loanAmount: 2000000,
+            interestRate: 15,
+            loanTerm: 24,
+            monthlyRepayment: 95000
+          },
+          {
+            id: 'application:APP-2024-1002',
+            applicantName: 'Marie Claire Uwimana',
+            applicantNationalId: '1199570087654321',
+            status: 'under-review',
+            submittedAt: '2024-03-10T09:15:00Z',
+            vehicleBrand: 'TVS',
+            vehicleModel: 'Electric XL',
+            rebateAmount: 1200000,
+            submittedBy: 'Sarah Kimondo',
+            organizationId: organizationId,
+            documents: [
+              { name: 'National_ID_Claire.pdf', type: 'application/pdf', uploadedAt: '2024-03-10T09:10:00Z' },
+              { name: 'TVS_Sales_Agreement.pdf', type: 'application/pdf', uploadedAt: '2024-03-10T09:12:00Z' }
+            ],
+            nationalId: '1199570087654321',
+            phoneNumber: '+250 788 333 444',
+            motorcycleBrand: 'TVS',
+            motorcycleModel: 'Electric XL',
+            purchasePrice: 3000000,
+            loanAmount: 1800000,
+            loanTerm: 24,
+            monthlyRepayment: 85000
+          },
+          {
+            id: 'application:APP-2024-1005',
+            applicantName: 'Emmanuel Hakizimana',
+            applicantNationalId: '1198580044556677',
+            status: 'submitted',
+            submittedAt: '2024-03-12T16:45:00Z',
+            vehicleBrand: 'Spiro',
+            vehicleModel: 'Commuter Pro',
+            rebateAmount: 1400000,
+            submittedBy: 'David Mugisha',
+            organizationId: organizationId,
+            documents: [
+              { name: 'ID_Copy_Emmanuel.pdf', type: 'application/pdf', uploadedAt: '2024-03-12T16:40:00Z' },
+              { name: 'Spiro_Agreement.pdf', type: 'application/pdf', uploadedAt: '2024-03-12T16:42:00Z' }
+            ],
+            nationalId: '1198580044556677',
+            phoneNumber: '+250 788 555 666',
+            motorcycleBrand: 'Spiro',
+            motorcycleModel: 'Commuter Pro',
+            purchasePrice: 3200000,
+            loanAmount: 1800000,
+            loanTerm: 24,
+            monthlyRepayment: 85000
+          }
+        ];
+        setApplications(mockApps);
+        setLoading(false);
+      }, 600);
     } catch (error: any) {
       console.error('Error fetching applications:', error);
       toast.error(error.message || 'Failed to load applications');
-    } finally {
       setLoading(false);
     }
   };
 
   const handleViewApplication = async (app: Application) => {
     try {
-      // Fetch full application details
-      const allApps = await api.getAllApplications();
-      const fullApp = allApps.find((a: any) => a.id === app.id);
-      setSelectedApp(fullApp);
+      // With mock data, the app object already contains everything needed for the modal
+      setSelectedApp(app);
       setShowDetailsModal(true);
     } catch (error: any) {
       console.error('Error loading application details:', error);
@@ -309,6 +384,9 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                   Submitted
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Who Submitted Application
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -343,16 +421,20 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {application.submittedAt 
-                        ? new Date(application.submittedAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })
-                        : 'N/A'}
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1 text-gray-900">
+                        <Calendar className="w-3 h-3 text-gray-400" />
+                        {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : 'N/A'}
+                      </div>
+                      <span className="text-xs text-gray-500 ml-4">
+                        {application.submittedAt ? new Date(application.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                      </span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-medium text-gray-900">
+                      {application.submittedBy || 'N/A'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Button
@@ -484,6 +566,32 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                   </div>
                 </div>
               </div>
+
+              {/* Documents Submitted */}
+              {selectedApp.documents && selectedApp.documents.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 mb-3">Submitted Documents</h3>
+                  <div className="space-y-2">
+                    {selectedApp.documents.map((doc: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-white border rounded-lg hover:border-[#023F40] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-50 rounded-lg">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-[#023F40] hover:underline cursor-pointer">{doc.name}</p>
+                            <p className="text-xs text-gray-500">Uploaded {new Date(doc.uploadedAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-[#023F40]">
+                          <Eye className="w-4 h-4 mr-2"/>
+                          View
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Upload Signed Lease Section - Only show if status is approved-pending-lease */}
               {selectedApp.status === 'approved-pending-lease' && (
