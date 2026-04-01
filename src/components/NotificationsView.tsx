@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 
 interface NotificationsViewProps {
   user: User;
+  onAction?: (data: any) => void;
 }
 
 interface Notification {
@@ -34,9 +35,10 @@ interface Notification {
   actionable?: boolean;
   actionLabel?: string;
   actionUrl?: string;
+  actionData?: any;
 }
 
-export function NotificationsView({ user }: NotificationsViewProps) {
+export function NotificationsView({ user, onAction }: NotificationsViewProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   
   // Generate role-specific mock notifications
@@ -293,6 +295,17 @@ export function NotificationsView({ user }: NotificationsViewProps) {
     // Asset Financier Admin notifications
     if (user.role === 'ASSET_FINANCIER_ADMIN') {
       baseNotifications.push(
+        {
+          id: 'notif-22-new',
+          type: 'success',
+          title: 'Application Approved!',
+          message: 'Jean Claude Ndayisaba application has been approved, you can now upload signed lease.',
+          timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+          read: false,
+          actionable: true,
+          actionLabel: 'Upload Signed Lease',
+          actionData: { type: 'open-application', appId: 'application:APP-2024-1001' }
+        },
         {
           id: 'notif-22',
           type: 'success',
@@ -603,8 +616,12 @@ export function NotificationsView({ user }: NotificationsViewProps) {
                             size="sm"
                             className="bg-[#023F40] hover:bg-[#035f60] h-7 text-xs"
                             onClick={() => {
-                              toast.info(`Navigating to: ${notification.actionLabel}`);
                               markAsRead(notification.id);
+                              if (notification.actionData && onAction) {
+                                onAction(notification.actionData);
+                              } else {
+                                toast.info(`Navigating to: ${notification.actionLabel}`);
+                              }
                             }}
                           >
                             {notification.actionLabel}

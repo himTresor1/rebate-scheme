@@ -96,8 +96,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: Users, label: 'Internal Users', page: 'internal-users' },
-          { icon: Landmark, label: 'Bank Details', page: 'bank-details' },
+          { icon: Users, label: 'Manage Staff', page: 'internal-users' },
           { icon: FileText, label: 'Applications', page: 'applications' },
           { icon: FilePlus, label: 'Submit Application', page: 'submit' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }

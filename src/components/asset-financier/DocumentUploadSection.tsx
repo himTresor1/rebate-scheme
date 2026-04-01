@@ -17,6 +17,7 @@ interface Documents {
   nationalId?: DocumentStatus;
   taxiLicense?: DocumentStatus;
   coopOrReference?: DocumentStatus;
+  secondReference?: DocumentStatus;
   retrofitCompanyLetter?: DocumentStatus;
   retrofitOwnerLetter?: DocumentStatus;
   retrofitAgreement?: DocumentStatus;
@@ -97,6 +98,11 @@ export function DocumentUploadSection({
   ];
 
   const optionalDocs = [
+    { 
+      key: 'secondReference', 
+      label: 'Second Reference Letter',
+      description: 'Optional: An additional reference letter to strengthen the application'
+    },
     { 
       key: 'mobileMoneyStatements', 
       label: 'Mobile Money Statements',

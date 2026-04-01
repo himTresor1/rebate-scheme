@@ -26,9 +26,11 @@ interface Application {
 interface ApplicationsOverviewProps {
   organizationId: string;
   onNavigateToSubmit?: () => void;
+  autoOpenAppId?: string | null;
+  onClearAutoOpen?: () => void;
 }
 
-export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: ApplicationsOverviewProps) {
+export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoOpenAppId, onClearAutoOpen }: ApplicationsOverviewProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,6 +45,17 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
   useEffect(() => {
     fetchApplications();
   }, [organizationId, statusFilter]);
+
+  useEffect(() => {
+    if (autoOpenAppId && applications.length > 0) {
+      const targetApp = applications.find(app => app.id === autoOpenAppId);
+      if (targetApp) {
+        setSelectedApp(targetApp);
+        setShowDetailsModal(true);
+        if (onClearAutoOpen) onClearAutoOpen();
+      }
+    }
+  }, [autoOpenAppId, applications, onClearAutoOpen]);
 
   const fetchApplications = async () => {
     try {

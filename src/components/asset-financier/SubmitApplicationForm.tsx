@@ -690,7 +690,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               </label>
               <Select 
                 value={formData.repaymentFrequency || 'daily'}
-                onValueChange={(value) => setFormData({ ...formData, repaymentFrequency: value })}
+                onValueChange={(value: string) => setFormData({ ...formData, repaymentFrequency: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select frequency" />
@@ -865,6 +865,10 @@ function ReviewStep() {
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   <span className="text-gray-700">Coop Membership / Reference Letter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500">Second Reference Letter (Optional)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-gray-400" />

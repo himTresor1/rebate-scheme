@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { InternalUserManagement } from './InternalUserManagement';
-import { BankDetailsManagement } from './BankDetailsManagement';
 import { ApplicationsOverview } from './ApplicationsOverview';
 import { SubmitApplicationForm } from './SubmitApplicationForm';
 import { RepaymentTracking } from './RepaymentTracking';
@@ -75,11 +74,12 @@ export function AssetFinancierAdminDashboard({
   onNavigate 
 }: AssetFinancierAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'bank' | 'applications' | 'submit' | 'repayment'
+    'overview' | 'users' | 'applications' | 'submit' | 'repayment'
   >('overview');
   const [loading, setLoading] = useState(true);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [targetAppId, setTargetAppId] = useState<string | null>(null);
 
   // Debug logging
   console.log('AssetFinancierAdminDashboard rendering for user:', user);
@@ -114,10 +114,9 @@ export function AssetFinancierAdminDashboard({
 
   // Sync activeTab with currentPage from sidebar
   useEffect(() => {
-    const pageToTabMap: Record<string, 'overview' | 'users' | 'bank' | 'applications' | 'submit' | 'repayment'> = {
+    const pageToTabMap: Record<string, 'overview' | 'users' | 'applications' | 'submit' | 'repayment'> = {
       'dashboard': 'overview',
       'internal-users': 'users',
-      'bank-details': 'bank',
       'applications': 'applications',
       'submit': 'submit',
       'repayment': 'repayment'
@@ -150,7 +149,18 @@ export function AssetFinancierAdminDashboard({
       <PageHeader />
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentPage === 'notifications' && <NotificationsView user={user} />}
+        {currentPage === 'notifications' && (
+          <NotificationsView 
+            user={user}
+            onAction={(data) => {
+              if (data.type === 'open-application') {
+                setTargetAppId(data.appId);
+                setActiveTab('applications');
+                onNavigate('applications');
+              }
+            }}
+          />
+        )}
         
         {activeTab === 'overview' && currentPage === 'dashboard' && (
           <div className="space-y-6">
@@ -570,7 +580,6 @@ export function AssetFinancierAdminDashboard({
         )}
 
         {activeTab === 'users' && <InternalUserManagement organizationId={user.assetFinancierId || user.organizationId || user.id} />}
-        {activeTab === 'bank' && <BankDetailsManagement organizationId={user.assetFinancierId || user.organizationId || user.id} />}
         {activeTab === 'applications' && (
           <ApplicationsOverview 
             organizationId={user.assetFinancierId || user.organizationId || user.id}
@@ -578,6 +587,8 @@ export function AssetFinancierAdminDashboard({
               setActiveTab('submit');
               onNavigate('submit');
             }}
+            autoOpenAppId={targetAppId}
+            onClearAutoOpen={() => setTargetAppId(null)}
           />
         )}
         {activeTab === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
