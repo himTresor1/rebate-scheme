@@ -16,7 +16,7 @@ import { Demo } from './components/Demo';
 import { authService, User } from './utils/auth';
 import { Loader2 } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);

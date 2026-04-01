@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Eye, Filter, Clock, CheckCircle, AlertCircle, LayoutGrid, List } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';

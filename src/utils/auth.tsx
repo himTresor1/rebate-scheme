@@ -10,6 +10,7 @@ export interface User {
         'CLAIMS_OFFICER' | 'ASSET_FINANCIER_ADMIN';
   permissions?: string[]; // User's effective permissions
   organizationId?: string; // For Asset Financier Admins and staff
+  assetFinancierId?: string; // Optional property for Asset Financier user organization linking
   isActive?: boolean; // User account status
   createdAt?: string;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Loader2, CheckCircle, AlertCircle, FileText, User, Calendar, MapPin, Users } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface IdentityVerificationStepProps {
   formData: any;

@@ -5,7 +5,7 @@ import { OTPVerification } from './OTPVerification';
 import { ForcePasswordUpdate } from './ForcePasswordUpdate';
 import { AssetFinancierRegistration } from './AssetFinancierRegistration';
 import { authService } from '../../utils/auth';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Button } from '../ui/button';
 import { Loader2, Database } from 'lucide-react';

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { SeedDataButton } from './SeedDataButton';
 import { AssetFinancierRegistration } from './auth/AssetFinancierRegistration';
 import { authService, User } from '../utils/auth';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Shield, ArrowLeft, Palette } from 'lucide-react';
 

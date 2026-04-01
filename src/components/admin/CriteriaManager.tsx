@@ -4,7 +4,7 @@ import { Input } from '../ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { api } from '../../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Plus, Trash2, GripVertical, Edit2, Save, X, Eye } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';

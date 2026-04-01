@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Eye, UserPlus, Filter } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { TableSkeleton } from '../ui/skeletons';

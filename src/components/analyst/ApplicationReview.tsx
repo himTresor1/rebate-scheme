@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ArrowLeft, Save, CheckCircle, XCircle, FileText, AlertCircle } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { ScrollArea } from '../ui/scroll-area';

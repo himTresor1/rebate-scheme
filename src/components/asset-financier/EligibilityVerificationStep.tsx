@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Loader2, CheckCircle, AlertCircle, MapPin, Users, Home } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface EligibilityVerificationStepProps {
   formData: any;

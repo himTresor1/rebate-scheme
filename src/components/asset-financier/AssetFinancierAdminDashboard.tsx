@@ -9,7 +9,9 @@ import { NotificationsView } from '../NotificationsView';
 import { User } from '../../utils/auth';
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Button } from '../ui/button';
 import { 
   Users, 
   FileText, 
@@ -19,7 +21,9 @@ import {
   UserPlus, 
   DollarSign,
   TrendingUp,
-  Download
+  Download,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -74,6 +78,8 @@ export function AssetFinancierAdminDashboard({
     'overview' | 'users' | 'bank' | 'applications' | 'submit' | 'repayment'
   >('overview');
   const [loading, setLoading] = useState(true);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Debug logging
   console.log('AssetFinancierAdminDashboard rendering for user:', user);
@@ -133,10 +139,10 @@ export function AssetFinancierAdminDashboard({
   }, [activeTab]);
 
   const stats = {
-    totalStaff: 0,
-    activeApplications: 0,
-    approvedApplications: 0,
-    pendingReview: 0
+    totalStaff: 12,
+    activeApplications: 145,
+    approvedApplications: 89,
+    pendingReview: 34
   };
 
   return (
@@ -157,7 +163,7 @@ export function AssetFinancierAdminDashboard({
             ) : (
               <>
                 {/* Greeting */}
-                <Greeting user={user} />
+                <Greeting name={user.name} />
                 
                 <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Asset Financier Admin</h1>
 
@@ -282,6 +288,7 @@ export function AssetFinancierAdminDashboard({
                     </button>
 
                     <button
+                      onClick={() => setShowReportDialog(true)}
                       className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
                     >
                       <Download className="w-4 h-4 text-[#023F40] flex-shrink-0" />
@@ -471,7 +478,7 @@ export function AssetFinancierAdminDashboard({
                           <XAxis dataKey="month" stroke="#6b7280" />
                           <YAxis 
                             stroke="#6b7280"
-                            tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                            tickFormatter={(value: number) => `${(value / 1000000).toFixed(1)}M`}
                           />
                           <Tooltip 
                             contentStyle={{ 
@@ -507,7 +514,7 @@ export function AssetFinancierAdminDashboard({
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }: { name: string, percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                             outerRadius={100}
                             fill="#8884d8"
                             dataKey="value"
@@ -576,6 +583,77 @@ export function AssetFinancierAdminDashboard({
         {activeTab === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
         {activeTab === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
       </div>
+
+      {/* Download Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#023F40]">Download Standard Report</DialogTitle>
+            <DialogDescription>
+              Generate a comprehensive report containing real-time dashboard analytics and application data.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg space-y-3 border border-gray-100">
+              <h4 className="font-semibold text-sm text-gray-900 mb-2">Report Contents:</h4>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#023F40] mt-0.5" />
+                <span className="text-sm text-gray-600">Date of report generation</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#023F40] mt-0.5" />
+                <span className="text-sm text-gray-600">Dashboard graphs and analytics</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#023F40] mt-0.5" />
+                <div className="text-sm text-gray-600">
+                  <p>List of applications including:</p>
+                  <ul className="list-disc pl-4 mt-1 text-gray-500 space-y-0.5">
+                    <li>Applicant Name</li>
+                    <li>Proposed Rebate Amount</li>
+                    <li>Date Submitted</li>
+                    <li>Current Status</li>
+                    <li>Who Submitted Application</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReportDialog(false)} disabled={isDownloading}>
+              Cancel
+            </Button>
+            <Button 
+              className="bg-[#023F40] hover:bg-[#035f60]"
+              disabled={isDownloading}
+              onClick={() => {
+                setIsDownloading(true);
+                setTimeout(() => {
+                  toast.success('Report Downloaded Successfully!', {
+                    description: 'The report has been saved as Standard_Report.pdf'
+                  });
+                  setIsDownloading(false);
+                  setShowReportDialog(false);
+                }, 2000);
+              }}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

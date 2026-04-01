@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Search, Filter, FileText, Calendar, Eye, Upload, Loader2, CheckCircle2, X, AlertCircle, Plus } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Pagination, usePagination } from '../ui/pagination';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
@@ -55,7 +55,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
             id: 'application:APP-2024-1001',
             applicantName: 'Jean Claude Ndayisaba',
             applicantNationalId: '1199080012345678',
-            status: 'approved-pending-lease',
+            status: 'approved',
             submittedAt: '2024-03-01T14:30:00Z',
             vehicleBrand: 'Ampersand',
             vehicleModel: 'E-Moto V2',
@@ -85,7 +85,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
             id: 'application:APP-2024-1002',
             applicantName: 'Marie Claire Uwimana',
             applicantNationalId: '1199570087654321',
-            status: 'under-review',
+            status: 'submitted-to-rgf',
             submittedAt: '2024-03-10T09:15:00Z',
             vehicleBrand: 'TVS',
             vehicleModel: 'Electric XL',
@@ -109,7 +109,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
             id: 'application:APP-2024-1005',
             applicantName: 'Emmanuel Hakizimana',
             applicantNationalId: '1198580044556677',
-            status: 'submitted',
+            status: 'in-development',
             submittedAt: '2024-03-12T16:45:00Z',
             vehicleBrand: 'Spiro',
             vehicleModel: 'Commuter Pro',
@@ -128,6 +128,53 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
             loanAmount: 1800000,
             loanTerm: 24,
             monthlyRepayment: 85000
+          },
+          {
+            id: 'application:APP-2024-1006',
+            applicantName: 'Fiona Mutamba',
+            applicantNationalId: '1199340055667788',
+            status: 'approved',
+            submittedAt: '2024-03-14T10:20:00Z',
+            vehicleBrand: 'Ampersand',
+            vehicleModel: 'E-Moto V2',
+            rebateAmount: 1500000,
+            submittedBy: 'Sarah Kimondo',
+            organizationId: organizationId,
+            documents: [
+              { name: 'ID_Copy_Fiona.pdf', type: 'application/pdf', uploadedAt: '2024-03-14T10:15:00Z' },
+              { name: 'Ampersand_Agreement.pdf', type: 'application/pdf', uploadedAt: '2024-03-14T10:18:00Z' }
+            ]
+          },
+          {
+            id: 'application:APP-2024-1007',
+            applicantName: 'Peter Kamali',
+            applicantNationalId: '1199010022334455',
+            status: 'submitted-to-rgf',
+            submittedAt: '2024-03-15T11:00:00Z',
+            vehicleBrand: 'EV-Pro',
+            vehicleModel: 'Cargo Master',
+            rebateAmount: 1800000,
+            submittedBy: 'David Mugisha',
+            organizationId: organizationId,
+            documents: [
+              { name: 'ID_Copy_Peter.pdf', type: 'application/pdf', uploadedAt: '2024-03-15T10:55:00Z' },
+              { name: 'EVPro_Agreement.pdf', type: 'application/pdf', uploadedAt: '2024-03-15T10:58:00Z' }
+            ]
+          },
+          {
+            id: 'application:APP-2024-1008',
+            applicantName: 'Chantal Uwamahoro',
+            applicantNationalId: '1199650099887766',
+            status: 'rejected',
+            submittedAt: '2024-03-16T14:30:00Z',
+            vehicleBrand: 'TVS',
+            vehicleModel: 'Electric XL',
+            rebateAmount: 1200000,
+            submittedBy: 'David Mugisha',
+            organizationId: organizationId,
+            documents: [
+              { name: 'ID_Copy_Chantal.pdf', type: 'application/pdf', uploadedAt: '2024-03-16T14:25:00Z' }
+            ]
           }
         ];
         setApplications(mockApps);
@@ -217,14 +264,9 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
 
   const getStatusDisplay = (status: string) => {
     const statusMap: Record<string, string> = {
-      'submitted': 'Submitted',
-      'under-review': 'Under Review',
-      'manager-review': 'Manager Review',
-      'program-manager-review': 'Program Manager Review',
-      'approved-pending-lease': 'Approved - Pending Lease',
-      'lease-review': 'Lease Under Review',
-      'pending-payment': 'Pending Payment',
-      'payment-complete': 'Payment Complete',
+      'in-development': 'In Development',
+      'submitted-to-rgf': 'Submitted to RGF',
+      'approved': 'Approved',
       'rejected': 'Rejected'
     };
     return statusMap[status] || status.replace('_', ' ').replace('-', ' ');
@@ -257,14 +299,9 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      'submitted': 'bg-blue-100 text-blue-800',
-      'under-review': 'bg-yellow-100 text-yellow-800',
-      'manager-review': 'bg-yellow-100 text-yellow-800',
-      'program-manager-review': 'bg-yellow-100 text-yellow-800',
-      'approved-pending-lease': 'bg-green-100 text-green-800',
-      'lease-review': 'bg-blue-100 text-blue-800',
-      'pending-payment': 'bg-purple-100 text-purple-800',
-      'payment-complete': 'bg-green-100 text-green-800',
+      'in-development': 'bg-gray-100 text-gray-800',
+      'submitted-to-rgf': 'bg-blue-100 text-blue-800',
+      'approved': 'bg-green-100 text-green-800',
       'rejected': 'bg-red-100 text-red-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
@@ -315,14 +352,9 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
             className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#023F40]"
           >
             <option value="ALL">All Statuses</option>
-            <option value="submitted">Submitted</option>
-            <option value="under-review">Under Review</option>
-            <option value="manager-review">Manager Review</option>
-            <option value="program-manager-review">Program Manager Review</option>
-            <option value="approved-pending-lease">Approved - Pending Lease</option>
-            <option value="lease-review">Lease Under Review</option>
-            <option value="pending-payment">Pending Payment</option>
-            <option value="payment-complete">Payment Complete</option>
+            <option value="in-development">In Development</option>
+            <option value="submitted-to-rgf">Submitted to RGF</option>
+            <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
 
@@ -386,14 +418,15 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Who Submitted Application
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedApplications.map((application) => (
-                <tr key={application.id} className="hover:bg-gray-50">
+                <tr 
+                  key={application.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => handleViewApplication(application)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-medium text-[#023F40]">
                       {application.id.split(':')[1]?.substring(0, 8) || application.id.substring(0, 8)}
@@ -435,17 +468,6 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                     <span className="text-sm font-medium text-gray-900">
                       {application.submittedBy || 'N/A'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewApplication(application)}
-                      className="text-[#023F40] hover:text-[#035f60]"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
                   </td>
                 </tr>
               ))}
@@ -543,11 +565,11 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                     <p className="font-medium">RWF {parseInt(selectedApp.purchasePrice || 0).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Loan Amount</p>
+                    <p className="text-gray-500">Contract Amount</p>
                     <p className="font-medium">RWF {parseInt(selectedApp.loanAmount || 0).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Interest Rate</p>
+                    <p className="text-gray-500">Service Fee</p>
                     <p className="font-medium">{selectedApp.interestRate || 0}%</p>
                   </div>
                   <div>
@@ -555,7 +577,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                     <p className="font-medium">{selectedApp.loanTerm || 0} months</p>
                   </div>
                   <div>
-                    <p className="text-gray-500">Monthly Repayment</p>
+                    <p className="text-gray-500">Daily or Weekly Repayment</p>
                     <p className="font-medium">RWF {parseInt(selectedApp.monthlyRepayment || 0).toLocaleString()}</p>
                   </div>
                   <div>
@@ -593,8 +615,8 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit }: App
                 </div>
               )}
 
-              {/* Upload Signed Lease Section - Only show if status is approved-pending-lease */}
-              {selectedApp.status === 'approved-pending-lease' && (
+              {/* Upload Signed Lease Section - Only show if status is approved */}
+              {selectedApp.status === 'approved' && (
                 <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                   <Alert>
                     <AlertCircle className="h-4 w-4" />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { User as UserIcon, Mail, Power, PowerOff } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { TableSkeleton } from '../ui/skeletons';
