@@ -221,54 +221,6 @@ export function PageHeader() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="w-10 h-10 rounded-full bg-[#023F40] flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 mb-1">Office Location</p>
-                  <p className="text-gray-700">
-                    Rwanda Green Fund (RGF)
-                  </p>
-                  <p className="text-gray-700">
-                    Kigali, Rwanda
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Visit by appointment only
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Support Hours */}
-            <div className="bg-[#023F40]/5 p-4 rounded-lg border border-[#023F40]/10">
-              <h4 className="font-semibold text-[#023F40] mb-2">Support Hours</h4>
-              <div className="space-y-1 text-sm text-gray-700">
-                <p><span className="font-medium">Monday - Friday:</span> 8:00 AM - 5:00 PM</p>
-                <p><span className="font-medium">Saturday - Sunday:</span> Closed</p>
-                <p className="text-xs text-gray-600 mt-2">
-                  * Emergency support available for critical system issues
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-3">Additional Resources</h4>
-              <div className="grid grid-cols-1 gap-2">
-                <button className="text-left px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <p className="font-medium text-sm text-[#023F40]">User Guide & Documentation</p>
-                  <p className="text-xs text-gray-600">Access comprehensive system tutorials</p>
-                </button>
-                <button className="text-left px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <p className="font-medium text-sm text-[#023F40]">Frequently Asked Questions</p>
-                  <p className="text-xs text-gray-600">Find answers to common questions</p>
-                </button>
-                <button className="text-left px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <p className="font-medium text-sm text-[#023F40]">Submit a Support Ticket</p>
-                  <p className="text-xs text-gray-600">Report issues or request assistance</p>
-                </button>
-              </div>
             </div>
           </div>
         </DialogContent>
