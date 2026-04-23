@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Users, CheckCircle, TrendingUp, ArrowUp, Settings, Shield, Key, ScrollText, Building2 } from 'lucide-react';
+import { FileText, Users, CheckCircle, TrendingUp, ArrowUp, Settings, Shield, Key, ScrollText, Building2, GitBranch } from 'lucide-react';
 import { ApplicationManager } from './ApplicationManager';
 import { CriteriaManager } from './CriteriaManager';
 import { UserManager } from './UserManager';
@@ -8,6 +8,7 @@ import { PermissionManagement } from './PermissionManagement';
 import { AuditLogs } from './AuditLogs';
 import { PendingRegistrations } from './PendingRegistrations';
 import { InvitationManager } from './InvitationManager';
+import { WorkflowManager } from './WorkflowManager';
 import { NotificationsView } from '../NotificationsView';
 import { DashboardStatsSkeleton, QuickActionsGridSkeleton } from '../ui/skeletons';
 import type { User } from '../../types/auth';
@@ -56,6 +57,8 @@ export function AdminDashboard({ user, currentPage, onNavigate }: AdminDashboard
         return isAdmin ? <PendingRegistrations /> : <div>Access Denied</div>;
       case 'invitations':
         return isAdmin ? <InvitationManager /> : <div>Access Denied</div>;
+      case 'workflows':
+        return <WorkflowManager user={user} />;
       case 'profile':
         return <ProfileSettings user={user} onUpdate={async (updates) => {
           // Handle profile update
@@ -451,6 +454,13 @@ export function AdminDashboard({ user, currentPage, onNavigate }: AdminDashboard
                 >
                   <Building2 className="w-4 h-4 text-[#023F40] flex-shrink-0" />
                   <span className="font-medium text-gray-900 text-sm">Invitations</span>
+                </button>
+                <button 
+                  onClick={() => onNavigate?.('workflows')}
+                  className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+                >
+                  <GitBranch className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+                  <span className="font-medium text-gray-900 text-sm">Workflow Management</span>
                 </button>
               </div>
             </motion.div>

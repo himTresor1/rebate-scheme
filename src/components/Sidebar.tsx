@@ -24,7 +24,8 @@ import {
   ChevronRight,
   FileCheck,
   Upload,
-  Bell
+  Bell,
+  GitBranch
 } from 'lucide-react';
 import { User } from '../utils/auth';
 import { MenuItem } from '../types';
@@ -86,6 +87,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: Mail, label: 'Invitations', page: 'invitations' },
           { icon: Shield, label: 'Roles', page: 'roles' },
           { icon: Key, label: 'Permissions', page: 'permissions' },
+          { icon: GitBranch, label: 'Workflow Management', page: 'workflows' },
           { icon: ScrollText, label: 'Audit Logs', page: 'audit' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
