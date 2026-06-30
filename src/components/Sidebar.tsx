@@ -131,6 +131,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: CheckSquare, label: 'QA Decisions', page: 'approvals' },
           { icon: FileText, label: 'Recommended Rebates', page: 'flagged' },
+          { icon: DollarSign, label: 'Advance Funding', page: 'advance-funding' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -139,7 +140,6 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: DollarSign, label: 'Finance Tracking', page: 'finance-tracking' },
-          { icon: FileText, label: 'Payment History', page: 'payment-history' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         

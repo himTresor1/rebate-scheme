@@ -58,6 +58,7 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
   const [processing, setProcessing] = useState(false);
   const [sortBy, setSortBy] = useState<string>('score');
   const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [advanceDecisionNotes, setAdvanceDecisionNotes] = useState('');
 
   useEffect(() => {
     loadApplications();
@@ -194,10 +195,85 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     );
   }
 
+  if (currentPage === 'advance-funding') {
+    const projections = [
+      { financier: 'Bank of Kigali', historicalRetailCost: 240000000, projectedRetailCost: 280000000, recommendedEscrow: 51000000, qaStatus: 'Recommended' },
+      { financier: 'Equity Bank Rwanda', historicalRetailCost: 180000000, projectedRetailCost: 215000000, recommendedEscrow: 38700000, qaStatus: 'Recommended' },
+      { financier: 'Vision Finance Company', historicalRetailCost: 130000000, projectedRetailCost: 155000000, recommendedEscrow: 27900000, qaStatus: 'Pending QA' },
+    ];
+
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Program Manager'} />
+        <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Advance Funding Approval</h1>
+        <p className="text-sm text-gray-600 mt-1">6-month AF escrow projections reviewed by QA and approved by CFO.</p>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Projected Escrow Requirements</CardTitle>
+            <CardDescription>Historical and projected lease retail values used to determine advance rebate escrow.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-600">
+                  <th className="pb-3 pr-3">Asset Financier</th>
+                  <th className="pb-3 pr-3">Historical retail cost</th>
+                  <th className="pb-3 pr-3">Projected retail cost</th>
+                  <th className="pb-3 pr-3">QA recommended escrow</th>
+                  <th className="pb-3">QA status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projections.map((p) => (
+                  <tr key={p.financier} className="border-b last:border-0">
+                    <td className="py-3 pr-3 font-medium">{p.financier}</td>
+                    <td className="py-3 pr-3">RWF {p.historicalRetailCost.toLocaleString()}</td>
+                    <td className="py-3 pr-3">RWF {p.projectedRetailCost.toLocaleString()}</td>
+                    <td className="py-3 pr-3">RWF {p.recommendedEscrow.toLocaleString()}</td>
+                    <td className="py-3">
+                      <Badge className={p.qaStatus === 'Recommended' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+                        {p.qaStatus}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>CFO Decision Note</CardTitle>
+            <CardDescription>Capture rationale for approved or adjusted advance funding amounts.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={advanceDecisionNotes}
+              onChange={(e) => setAdvanceDecisionNotes(e.target.value)}
+              placeholder="Document approval rationale, adjustments, and conditions for disbursement..."
+              rows={4}
+            />
+            <div className="flex gap-2">
+              <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={() => toast.success('Advance funding approval recorded')}>
+                Approve advances
+              </Button>
+              <Button variant="outline" onClick={() => toast.info('Returned to QA for updates')}>
+                Return to QA
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
-      <Greeting user={user} />
+      <Greeting name={user.name || 'Program Manager'} />
       <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">QA Decision Dashboard</h1>
       <p className="text-sm text-gray-600 mt-1">E-Moto Quality Assurance — record weekly rebate decisions with mandatory rationale.</p>
 

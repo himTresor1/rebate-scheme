@@ -4,7 +4,11 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { FileText, Filter, Bike, Clock, DollarSign } from 'lucide-react';
+import { FileText, Filter, Bike, Clock, DollarSign, Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { toast } from 'sonner';
 
 interface RebateRecord {
   ticketNumber: string;
@@ -34,8 +38,14 @@ export function RebateStatusView({
   const [filterWoman, setFilterWoman] = useState<string>('all');
   const [filterRetrofit, setFilterRetrofit] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [records, setRecords] = useState<RebateRecord[]>(MOCK_RECORDS);
+  const [editTarget, setEditTarget] = useState<RebateRecord | null>(null);
+  const [editBrand, setEditBrand] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [requestRefund, setRequestRefund] = useState(false);
 
-  const filtered = MOCK_RECORDS.filter((r) => {
+  const filtered = records.filter((r) => {
     if (filterWoman === 'yes' && !r.isWoman) return false;
     if (filterWoman === 'no' && r.isWoman) return false;
     if (filterRetrofit === 'yes' && r.vehicleType !== 'Retrofit') return false;
@@ -44,9 +54,41 @@ export function RebateStatusView({
     return true;
   });
 
-  const waitingCount = MOCK_RECORDS.filter((r) => r.possessionStatus === 'waiting-af-confirmation').length;
-  const escrowCount = MOCK_RECORDS.filter((r) => r.possessionStatus === 'in-escrow').length;
-  const disbursedCount = MOCK_RECORDS.filter((r) => r.possessionStatus === 'disbursed').length;
+  const waitingCount = records.filter((r) => r.possessionStatus === 'waiting-af-confirmation').length;
+  const escrowCount = records.filter((r) => r.possessionStatus === 'in-escrow').length;
+  const disbursedCount = records.filter((r) => r.possessionStatus === 'disbursed').length;
+
+  const openEditDialog = (record: RebateRecord) => {
+    setEditTarget(record);
+    setEditBrand('Ampersand');
+    setEditAmount(String(record.rebateAmount));
+    setEditReason('');
+    setRequestRefund(false);
+  };
+
+  const saveLeaseAmendment = () => {
+    if (!editTarget) return;
+    if (!editReason.trim()) {
+      toast.error('Please provide a reason for lease changes');
+      return;
+    }
+    setRecords((prev) =>
+      prev.map((r) =>
+        r.ticketNumber === editTarget.ticketNumber
+          ? {
+              ...r,
+              rebateAmount: Number(editAmount) || r.rebateAmount,
+            }
+          : r
+      )
+    );
+    toast.success('Lease amendment submitted for RGF review', {
+      description: requestRefund
+        ? 'Refund request included with amendment rationale.'
+        : 'Brand/amount change captured with rationale.',
+    });
+    setEditTarget(null);
+  };
 
   const statusBadge = (status: RebateRecord['possessionStatus']) => {
     switch (status) {
@@ -70,7 +112,7 @@ export function RebateStatusView({
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">Total submitted</p>
-            <p className="text-2xl font-bold text-[#023F40]">{MOCK_RECORDS.length}</p>
+            <p className="text-2xl font-bold text-[#023F40]">{records.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -141,6 +183,7 @@ export function RebateStatusView({
                 <th className="pb-3 pr-4">Days</th>
                 <th className="pb-3 pr-4">Rebate (RWF)</th>
                 <th className="pb-3">Status</th>
+                <th className="pb-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -154,6 +197,12 @@ export function RebateStatusView({
                   <td className="py-3 pr-4">{r.daysSinceSubmission}</td>
                   <td className="py-3 pr-4">{r.rebateAmount.toLocaleString()}</td>
                   <td className="py-3">{statusBadge(r.possessionStatus)}</td>
+                  <td className="py-3">
+                    <Button variant="outline" size="sm" onClick={() => openEditDialog(r)}>
+                      <Pencil className="w-3 h-3 mr-1" />
+                      Amend
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -164,8 +213,60 @@ export function RebateStatusView({
       <div className="flex flex-wrap gap-3 text-sm text-gray-600">
         <span className="flex items-center gap-1"><Bike className="w-4 h-4" /> E-motos provided: {disbursedCount}</span>
         <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> No e-moto yet: {escrowCount + waitingCount}</span>
-        <span className="flex items-center gap-1"><DollarSign className="w-4 h-4" /> Total rebate to date: RWF {MOCK_RECORDS.reduce((s, r) => s + r.rebateAmount, 0).toLocaleString()}</span>
+        <span className="flex items-center gap-1"><DollarSign className="w-4 h-4" /> Total rebate to date: RWF {records.reduce((s, r) => s + r.rebateAmount, 0).toLocaleString()}</span>
       </div>
+
+      <Dialog open={!!editTarget} onOpenChange={() => setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Amend Lease Data</DialogTitle>
+            <DialogDescription>
+              Update lease details if brand, rebate amount, or refund status has changed after submission.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="brand">E-Moto Brand</Label>
+              <Select value={editBrand} onValueChange={setEditBrand}>
+                <SelectTrigger id="brand">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ampersand">Ampersand</SelectItem>
+                  <SelectItem value="Spiro">Spiro</SelectItem>
+                  <SelectItem value="Safi">Safi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="amount">Rebate Amount (RWF)</Label>
+              <Input id="amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded border">
+              <span className="text-sm">Request refund adjustment</span>
+              <input
+                type="checkbox"
+                checked={requestRefund}
+                onChange={(e) => setRequestRefund(e.target.checked)}
+                className="h-4 w-4"
+              />
+            </div>
+            <div>
+              <Label htmlFor="reason">Rationale for change *</Label>
+              <Textarea
+                id="reason"
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="Explain why this lease data changed..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
+            <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={saveLeaseAmendment}>Submit amendment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -399,8 +399,12 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       return;
     }
 
-    if ((decision === 'reject' || isAnalystRole) && !notes.trim() && !rejectionReason.trim()) {
-      toast.error(isAnalystRole ? 'Please provide a mandatory rationale for your recommendation' : 'Please provide a rejection reason');
+    if (!notes.trim() || notes.trim().length < 20) {
+      toast.error('Rationale is mandatory for all decisions (minimum 20 characters)');
+      return;
+    }
+    if (decision === 'reject' && !rejectionReason.trim()) {
+      toast.error('Please provide a rejection reason');
       return;
     }
 
@@ -1513,7 +1517,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
               </Button>
               <Button 
                 onClick={() => handleComplete('approve')}
-                disabled={saving}
+                disabled={saving || notes.trim().length < 20}
                 className="bg-[#6DB27F] hover:bg-[#5da170]"
               >
                 {saving ? 'Submitting...' : `Confirm ${approveLabel}`}

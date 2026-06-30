@@ -35,6 +35,34 @@ export function FinanceDashboard({ user, currentPage }: FinanceDashboardProps) {
     );
   }
 
+  if (user.role === 'DESIGNATED_FINANCE_OFFICER' && (currentPage === 'dashboard' || currentPage === 'payment-history')) {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Finance User'} />
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Finance Off-line Tracking of Disbursements</CardTitle>
+            <CardDescription>
+              At launch, finance access is limited to tracking and reconciliation visibility. Payment execution capabilities are deferred pending bank guidance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm text-gray-700">
+              <p>Use <strong>Finance Tracking</strong> from the sidebar to monitor:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Rebates waiting for AF possession confirmation</li>
+                <li>Escrow-eligible disbursements</li>
+                <li>Total disbursements to date</li>
+              </ul>
+              <p className="text-amber-700">Note: online payment processing remains hidden in this launch profile.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Show payment view for DESIGNATED_FINANCE_OFFICER when on pending-payments page
   if (user.role === 'DESIGNATED_FINANCE_OFFICER' && currentPage === 'pending-payments') {
     return (
@@ -80,7 +108,7 @@ export function FinanceDashboard({ user, currentPage }: FinanceDashboardProps) {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
-      <Greeting user={user} />
+      <Greeting name={user.name || 'Finance User'} />
       <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Finance & Disbursement</h1>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

@@ -37,6 +37,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
   const [ticketNumber] = useState(() => generateTicketPreview());
   const [showMissingDialog, setShowMissingDialog] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -100,13 +101,16 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     if (!formData.model) missing.push('E-Moto Model');
     if (!formData.purchasePrice) missing.push('Retail Cost of E-Moto (RWF)');
     if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
-    if (!formData.documents?.financialNeedAffidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
+    if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
     if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
     if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
       missing.push('ICE-Moto Engine Disposal Agreement');
     }
     return missing;
   };
+
+  const DUPLICATE_NATIONAL_IDS = ['1199080012345678', '1199570087654321'];
+  const isPotentialDuplicate = () => DUPLICATE_NATIONAL_IDS.includes(formData.nationalId.trim());
 
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {
@@ -158,6 +162,10 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     if (missing.length > 0) {
       setMissingFields(missing);
       setShowMissingDialog(true);
+      return;
+    }
+    if (isPotentialDuplicate()) {
+      setShowDuplicateDialog(true);
       return;
     }
 
@@ -331,6 +339,37 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
             <DialogFooter>
               <Button onClick={() => setShowMissingDialog(false)} className="bg-[#023F40] hover:bg-[#035f60]">
                 OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-700">
+                <AlertCircle className="w-5 h-5" />
+                Possible duplicate rebate detected
+              </DialogTitle>
+              <DialogDescription>
+                Another rebate appears to exist for this National ID. Please review before submitting to reduce duplicate rebate risk.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              National ID: <span className="font-semibold">{formData.nationalId || 'N/A'}</span>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDuplicateDialog(false)}>
+                Go back
+              </Button>
+              <Button
+                className="bg-red-700 hover:bg-red-800"
+                onClick={async () => {
+                  setShowDuplicateDialog(false);
+                  toast.error('Submission blocked pending duplicate review');
+                }}
+              >
+                Acknowledge
               </Button>
             </DialogFooter>
           </DialogContent>

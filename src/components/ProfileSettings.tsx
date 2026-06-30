@@ -33,7 +33,7 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
   const [profileData, setProfileData] = useState({
     name: user.name || '',
     email: user.email || '',
-    phone: user.phone || '',
+    phone: (user as any).phone || '',
   });
   
   const [passwordData, setPasswordData] = useState({
@@ -43,6 +43,11 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
   });
 
   const [silentSms, setSilentSms] = useState(false);
+  const [marketingLinks, setMarketingLinks] = useState({
+    website: '',
+    appLink: '',
+    whatsapp: '',
+  });
   const [notifyPrefs, setNotifyPrefs] = useState({
     email: true,
     sms: true,
@@ -51,6 +56,7 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
   });
 
   const isRgfStaff = !['ASSET_FINANCIER_ADMIN', 'applicant', 'CLAIMS_OFFICER'].includes(user.role);
+  const isAssetFinancierRole = ['ASSET_FINANCIER_ADMIN', 'applicant', 'CLAIMS_OFFICER'].includes(user.role);
 
   const handleProfileUpdate = async () => {
     setLoading(true);
@@ -105,6 +111,10 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
     toast.success('Notification preferences saved', {
       description: silentSms ? 'SMS notifications are in silent mode' : 'Changes take effect immediately',
     });
+  };
+
+  const handleSaveMarketingLinks = () => {
+    toast.success('Marketing outreach links saved');
   };
 
   const getRoleTitle = () => {
@@ -199,6 +209,49 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
               </div>
             </div>
           </Card>
+
+          {isAssetFinancierRole && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-[#023F40] mb-4">Rebate App Marketing Links</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Configure links used in your outreach channels (website, app, WhatsApp).
+              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="website-link">Website Link</Label>
+                  <Input
+                    id="website-link"
+                    value={marketingLinks.website}
+                    onChange={(e) => setMarketingLinks({ ...marketingLinks, website: e.target.value })}
+                    placeholder="https://your-af-site.rw/rebate"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="app-link">Mobile App Link</Label>
+                  <Input
+                    id="app-link"
+                    value={marketingLinks.appLink}
+                    onChange={(e) => setMarketingLinks({ ...marketingLinks, appLink: e.target.value })}
+                    placeholder="https://play.google.com/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp-link">WhatsApp Channel/Contact</Label>
+                  <Input
+                    id="whatsapp-link"
+                    value={marketingLinks.whatsapp}
+                    onChange={(e) => setMarketingLinks({ ...marketingLinks, whatsapp: e.target.value })}
+                    placeholder="https://wa.me/2507xxxxxxx"
+                  />
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <Button onClick={handleSaveMarketingLinks} className="bg-[#023F40] hover:bg-[#035f60]">
+                    Save Outreach Links
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6 mt-6">

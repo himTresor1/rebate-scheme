@@ -36,10 +36,12 @@ interface Notification {
   actionLabel?: string;
   actionUrl?: string;
   actionData?: any;
+  channel?: 'email' | 'sms' | 'in-app';
 }
 
 export function NotificationsView({ user, onAction }: NotificationsViewProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | 'email' | 'sms' | 'in-app'>('all');
   
   // Generate role-specific mock notifications
   const getMockNotifications = (): Notification[] => {
@@ -201,8 +203,8 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         {
           id: 'notif-14',
           type: 'warning',
-          title: 'M&E Investigation Loop Initiated',
-          message: 'Application #APP-2026-0789 flagged for field verification by M&E team.',
+          title: 'Escrow Reconciliation Reminder',
+          message: 'Application #APP-2026-0789 requires possession verification follow-up before disbursement.',
           timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
           read: true,
           actionable: true,
@@ -480,6 +482,9 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
   const filteredNotifications = filter === 'unread' 
     ? notifications.filter(n => !n.read)
     : notifications;
+  const channelFilteredNotifications = channelFilter === 'all'
+    ? filteredNotifications
+    : filteredNotifications.filter(n => (n.channel || 'in-app') === channelFilter);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -511,8 +516,21 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         </div>
       </div>
 
+      {unreadCount > 0 && (
+        <Card className="border-[#023F40]/20 bg-[#023F40]/5">
+          <CardContent className="p-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-[#023F40]">
+              Pop-up alert: you have {unreadCount} unread notifications. Please open and review them.
+            </p>
+            <Button variant="outline" size="sm" onClick={markAllAsRead}>
+              Mark all read
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b">
+      <div className="flex flex-wrap items-center gap-2 border-b pb-2">
         <Button
           variant={filter === 'all' ? 'default' : 'ghost'}
           size="sm"
@@ -537,10 +555,17 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
             </Badge>
           )}
         </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-500">Channel</span>
+          <Button size="sm" variant={channelFilter === 'all' ? 'default' : 'ghost'} onClick={() => setChannelFilter('all')} className={channelFilter === 'all' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>All</Button>
+          <Button size="sm" variant={channelFilter === 'email' ? 'default' : 'ghost'} onClick={() => setChannelFilter('email')} className={channelFilter === 'email' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>Email</Button>
+          <Button size="sm" variant={channelFilter === 'sms' ? 'default' : 'ghost'} onClick={() => setChannelFilter('sms')} className={channelFilter === 'sms' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>SMS</Button>
+          <Button size="sm" variant={channelFilter === 'in-app' ? 'default' : 'ghost'} onClick={() => setChannelFilter('in-app')} className={channelFilter === 'in-app' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>In-App</Button>
+        </div>
       </div>
 
       {/* Notifications List */}
-      {filteredNotifications.length === 0 ? (
+      {channelFilteredNotifications.length === 0 ? (
         <Card>
           <CardContent className="p-12">
             <div className="text-center">
@@ -558,7 +583,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredNotifications.map((notification) => (
+          {channelFilteredNotifications.map((notification) => (
             <Card
               key={notification.id}
               className="border border-gray-200 bg-white transition-all hover:shadow-md"
@@ -598,6 +623,9 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Clock className="w-3 h-3" />
                         {formatTimestamp(notification.timestamp)}
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {notification.channel || 'in-app'}
+                        </Badge>
                       </div>
 
                       <div className="flex items-center gap-2">
