@@ -178,6 +178,16 @@ interface ApiCheckState {
 }
 
 export function ApplicationReviewEnhanced({ application, user, onBack }: ApplicationReviewEnhancedProps) {
+  const isAnalystRole = user.role === 'analyst' || user.role === 'REBATE_ANALYST';
+  const isQARole = user.role === 'E_MOTO_PROGRAM_MANAGER' || user.role === 'cfo';
+  const approveLabel = isAnalystRole ? 'Recommend Approval' : isQARole ? 'QA Approve' : 'Approve';
+  const rejectLabel = isAnalystRole ? 'Recommend Rejection' : isQARole ? 'QA Reject' : 'Reject';
+  const rationaleLabel = isAnalystRole
+    ? 'Rationale for Recommendation'
+    : isQARole
+    ? 'Rationale for QA Decision'
+    : 'Decision Rationale';
+
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   
   // NEW: Enhanced evaluations with comments and documents
@@ -389,8 +399,8 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       return;
     }
 
-    if (decision === 'reject' && !rejectionReason.trim()) {
-      toast.error('Please provide a rejection reason');
+    if ((decision === 'reject' || isAnalystRole) && !notes.trim() && !rejectionReason.trim()) {
+      toast.error(isAnalystRole ? 'Please provide a mandatory rationale for your recommendation' : 'Please provide a rejection reason');
       return;
     }
 
@@ -405,7 +415,17 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
         score
       });
       
-      toast.success(decision === 'approve' ? 'Application approved and sent to QA' : 'Application rejected');
+      toast.success(
+        decision === 'approve'
+          ? isAnalystRole
+            ? 'Recommendation submitted to QA Team'
+            : isQARole
+            ? 'QA decision recorded'
+            : 'Application approved and sent to QA'
+          : isAnalystRole
+          ? 'Rejection recommendation submitted to QA Team'
+          : 'Application rejected'
+      );
       onBack();
     } catch (error: any) {
       toast.error(error.message || 'Failed to complete review');
@@ -528,10 +548,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                         <MessageCircle className="w-4 h-4 mr-2" />
                         Ask for Clarification
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowForwardToMEDialog(true)} className="cursor-pointer">
-                        <Search className="w-4 h-4 mr-2" />
-                        Forward to M&E
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -543,7 +559,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                   className="bg-red-600 hover:bg-red-700"
                 >
                   <XCircle className="w-4 h-4 mr-2" />
-                  Reject
+                  {rejectLabel}
                 </Button>
                 <Button 
                   onClick={() => setShowApproveDialog(true)} 
@@ -551,7 +567,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                   className="bg-[#6DB27F] hover:bg-[#5da170]"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve
+                  {approveLabel}
                 </Button>
               </div>
             )}
@@ -1475,9 +1491,13 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Application</DialogTitle>
+            <DialogTitle>{approveLabel}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this application and send it to QA review?
+              {isAnalystRole
+                ? 'Submit your recommendation to the QA Team. Final rebate decisions are made by QA only.'
+                : isQARole
+                ? 'Record the QA Team approval decision. Rationale must be documented.'
+                : 'Are you sure you want to approve this application and send it to QA review?'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1496,7 +1516,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                 disabled={saving}
                 className="bg-[#6DB27F] hover:bg-[#5da170]"
               >
-                {saving ? 'Approving...' : 'Confirm Approval'}
+                {saving ? 'Submitting...' : `Confirm ${approveLabel}`}
               </Button>
             </div>
           </div>
@@ -1507,14 +1527,16 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Application</DialogTitle>
+            <DialogTitle>{rejectLabel}</DialogTitle>
             <DialogDescription>
-              Please provide a clear reason for rejecting this application.
+              {isAnalystRole
+                ? 'Provide mandatory rationale for your rejection recommendation to the QA Team.'
+                : 'Please provide a clear reason for rejecting this rebate application.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="rejectionReason">Rejection Reason *</Label>
+              <Label htmlFor="rejectionReason">{rationaleLabel} *</Label>
               <Textarea
                 id="rejectionReason"
                 value={rejectionReason}
@@ -1534,7 +1556,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                 disabled={saving || !rejectionReason.trim()}
                 variant="destructive"
               >
-                {saving ? 'Rejecting...' : 'Confirm Rejection'}
+                {saving ? 'Submitting...' : `Confirm ${rejectLabel}`}
               </Button>
             </div>
           </div>

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=18.0.0 <23.0.0",
+    "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
   "dependencies": {
@@ -70,6 +70,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postinstall": "echo 'Dependencies installed successfully'"
+    "postinstall": "echo 'Dependencies installed successfully'",
+    "deploy:server": "npx supabase functions deploy make-server-324f6e20 --project-ref cwiopwupujshcdadhvve --no-verify-jwt"
   }
 }

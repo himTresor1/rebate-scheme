@@ -198,7 +198,8 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
       <Greeting user={user} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">CFO Dashboard</h1>
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">QA Decision Dashboard</h1>
+      <p className="text-sm text-gray-600 mt-1">E-Moto Quality Assurance — record weekly rebate decisions with mandatory rationale.</p>
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

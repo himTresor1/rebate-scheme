@@ -1,0 +1,8 @@
+# Supabase local/dev config for edge function deployment
+project_id = "cwiopwupujshcdadhvve"
+
+[api]
+enabled = true
+
+[functions.make-server-324f6e20]
+verify_jwt = false

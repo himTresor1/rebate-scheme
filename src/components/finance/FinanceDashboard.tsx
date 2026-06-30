@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { User } from '../../utils/auth';
 import { FinanceInitiatorView } from './FinanceInitiatorView';
 import { FinanceApproverView } from './FinanceApproverView';
+import { FinanceTrackingView } from './FinanceTrackingView';
 import { PaymentProcessingView } from './PaymentProcessingView';
 import { DeliveryConfirmationView } from './DeliveryConfirmationView';
 import { FinanceOfficerPaymentView } from './FinanceOfficerPaymentView';
@@ -23,6 +24,16 @@ interface FinanceDashboardProps {
 
 export function FinanceDashboard({ user, currentPage }: FinanceDashboardProps) {
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Finance tracking view (read-only per revised spec)
+  if (currentPage === 'finance-tracking') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <FinanceTrackingView />
+      </div>
+    );
+  }
 
   // Show payment view for DESIGNATED_FINANCE_OFFICER when on pending-payments page
   if (user.role === 'DESIGNATED_FINANCE_OFFICER' && currentPage === 'pending-payments') {

@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import { InternalUserManagement } from './InternalUserManagement';
 import { ApplicationsOverview } from './ApplicationsOverview';
 import { SubmitApplicationForm } from './SubmitApplicationForm';
+import { RebateStatusView } from './RebateStatusView';
+import { PossessionConfirmationView } from './PossessionConfirmationView';
 import { RepaymentTracking } from './RepaymentTracking';
 import { NotificationsView } from '../NotificationsView';
 import { User } from '../../utils/auth';
@@ -74,7 +76,7 @@ export function AssetFinancierAdminDashboard({
   onNavigate 
 }: AssetFinancierAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'applications' | 'submit' | 'repayment'
+    'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession'
   >('overview');
   const [loading, setLoading] = useState(true);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -114,12 +116,14 @@ export function AssetFinancierAdminDashboard({
 
   // Sync activeTab with currentPage from sidebar
   useEffect(() => {
-    const pageToTabMap: Record<string, 'overview' | 'users' | 'applications' | 'submit' | 'repayment'> = {
+    const pageToTabMap: Record<string, 'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession'> = {
       'dashboard': 'overview',
       'internal-users': 'users',
       'applications': 'applications',
       'submit': 'submit',
-      'repayment': 'repayment'
+      'repayment': 'repayment',
+      'rebate-status': 'rebate-status',
+      'possession': 'possession',
     };
     
     const newTab = pageToTabMap[currentPage] || 'overview';
@@ -592,6 +596,8 @@ export function AssetFinancierAdminDashboard({
           />
         )}
         {activeTab === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+        {activeTab === 'rebate-status' && <RebateStatusView />}
+        {activeTab === 'possession' && <PossessionConfirmationView />}
         {activeTab === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
       </div>
 

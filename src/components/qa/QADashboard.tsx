@@ -12,6 +12,7 @@ import { QAReview } from './QAReview';
 import { FinancierGroupedView } from '../shared/FinancierGroupedView';
 import { Greeting } from '../ui/Greeting';
 import { LeaseReviewView } from './LeaseReviewView';
+import { RebateStatusView } from '../asset-financier/RebateStatusView';
 import { PageHeader } from '../PageHeader';
 
 interface Application {
@@ -112,6 +113,19 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   const pendingReview = sortedApps.filter(app => app.status === 'manager-review');
   const approved = sortedApps.filter(app => app.status === 'program-manager-review');
 
+  // Show possession analysis for Rebate Manager (RGF view)
+  if (currentPage === 'possession-analysis') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <RebateStatusView
+          title="Analysis of Individual E-Moto Possession"
+          description="Cross-AF view of rebate applications and whether individuals have received their e-moto (escrow vs disbursed)."
+        />
+      </div>
+    );
+  }
+
   // Show lease review view if currentPage is 'lease-review'
   if (currentPage === 'lease-review') {
     return <LeaseReviewView user={user} />;
@@ -139,7 +153,8 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
       <Greeting user={user} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Quality Assurance Dashboard</h1>
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Status</h1>
+      <p className="text-sm text-gray-600 mt-1">Rebate Team pipeline — check AF submissions and notify QA of issues.</p>
 
       {/* Filters */}
       <Card className="mb-6">

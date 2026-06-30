@@ -9,7 +9,7 @@ export function SeedDataButton() {
   const [loading, setLoading] = useState(false);
 
   const handleSeedData = async () => {
-    if (!confirm('⚠️ This will DELETE all existing data and create fresh demo data.\n\n✅ Creates:\n- 17+ demo users (Analysts, QA, CFO, Asset Financiers)\n- 18+ applications at all workflow stages\n- 4 Asset Financier organizations\n- Complete workflow data with evaluations\n\n📝 Login Credentials After Seeding:\n• Admin: admin@mfa.rw / Admin2024!\n• Analyst: analyst1@mfa.rw / Analyst2024!\n• QA: qa1@mfa.rw / QA2024!\n• CFO/Manager: manager@mfa.rw / Manager2024!\n• Financier: admin@bankofkigali.rw / BoK2024!\n\nContinue?')) {
+    if (!confirm('⚠️ This will DELETE all existing data and create fresh demo data.\n\n✅ Creates:\n- 18 demo users (Analysts, Managers, Finance, Asset Financiers)\n- 46 applications at all workflow stages\n- 4 Asset Financier organizations\n- Complete workflow data with evaluations\n\n📝 Login Credentials After Seeding:\n• Admin: admin@mfa.rw / SecureAdmin@2026\n• Analyst: analyst1@mfa.rw / SecureAnalyst@2026\n• Manager: manager1@mfa.rw / SecureManager@2026\n• Financier: admin@bankofkigali.rw / SecureBoK@2026\n\nContinue?')) {
       return;
     }
 
@@ -101,11 +101,11 @@ export function SeedDataButton() {
           `✅ ${data.stats.organizations} organizations created\n` +
           `✅ ${data.stats.criteria} eligibility criteria\n\n` +
           `📝 LOGIN CREDENTIALS:\n` +
-          `Admin: admin@mfa.rw / Admin2024!\n` +
-          `Analyst: analyst1@mfa.rw / Analyst2024!\n` +
-          `QA: qa1@mfa.rw / QA2024!\n` +
-          `Manager: manager@mfa.rw / Manager2024!\n` +
-          `Financier: admin@bankofkigali.rw / BoK2024!`,
+          `Admin: admin@mfa.rw / SecureAdmin@2026\n` +
+          `Analyst: analyst1@mfa.rw / SecureAnalyst@2026\n` +
+          `Manager: manager1@mfa.rw / SecureManager@2026\n` +
+          `Program Manager: program.manager@mfa.rw / SecureProgram@2026\n` +
+          `Financier: admin@bankofkigali.rw / SecureBoK@2026`,
           { duration: 15000 }
         );
       } else {

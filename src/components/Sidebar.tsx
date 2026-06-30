@@ -24,6 +24,7 @@ import {
   ChevronRight,
   FileCheck,
   Upload,
+  Bike,
   Bell,
   GitBranch
 } from 'lucide-react';
@@ -98,9 +99,10 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
+          { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
+          { icon: FileText, label: 'Rebate Status', page: 'rebate-status' },
+          { icon: Bike, label: 'E-Moto Possession', page: 'possession' },
           { icon: Users, label: 'Manage Staff', page: 'internal-users' },
-          { icon: FileText, label: 'Applications', page: 'applications' },
-          { icon: FilePlus, label: 'Submit Application', page: 'submit' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -108,8 +110,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: FileText, label: 'Assigned Applications', page: 'assigned' },
-          { icon: ClipboardList, label: 'Review Queue', page: 'queue' },
+          { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'queue' },
+          { icon: FileText, label: 'Assigned Rebates', page: 'assigned' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -117,9 +119,9 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: CheckSquare, label: 'Manager Review Queue', page: 'review-queue' },
-          { icon: FileCheck, label: 'Lease Review', page: 'lease-review' },
-          { icon: FileText, label: 'All Applications', page: 'applications' },
+          { icon: FileText, label: 'Rebate Review Status', page: 'review-queue' },
+          { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
+          { icon: FileText, label: 'All Rebates', page: 'applications' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -127,8 +129,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: FileText, label: 'Pending Approvals', page: 'approvals' },
-          { icon: CheckSquare, label: 'Flagged Applications', page: 'flagged' },
+          { icon: CheckSquare, label: 'QA Decisions', page: 'approvals' },
+          { icon: FileText, label: 'Recommended Rebates', page: 'flagged' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -136,7 +138,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: DollarSign, label: 'Pending Payments', page: 'pending-payments' },
+          { icon: DollarSign, label: 'Finance Tracking', page: 'finance-tracking' },
           { icon: FileText, label: 'Payment History', page: 'payment-history' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];

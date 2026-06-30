@@ -110,7 +110,8 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
       <Greeting user={user} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">My Application Queue</h1>
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Pipeline</h1>
+      <p className="text-sm text-gray-600 mt-1">Check AF documentation, record eligibility results, and recommend to QA (no final decisions).</p>
 
       {/* Filters */}
       <Card className="mb-6">

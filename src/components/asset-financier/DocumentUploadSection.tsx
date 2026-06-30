@@ -13,6 +13,9 @@ interface DocumentStatus {
 }
 
 interface Documents {
+  signedLease?: DocumentStatus;
+  afFinancialNeed?: DocumentStatus;
+  iceDisposalAgreement?: DocumentStatus;
   affidavit?: DocumentStatus;
   nationalId?: DocumentStatus;
   taxiLicense?: DocumentStatus;
@@ -68,33 +71,38 @@ export function DocumentUploadSection({
 
   const mandatoryDocs = [
     { 
-      key: 'affidavit', 
-      label: 'Signed Affidavit',
-      description: 'Terms and Conditions for receiving the Subsidy'
+      key: 'signedLease', 
+      label: 'Signed Lease with Retail Cost of E-Moto',
+      description: 'Signed lease documenting retail cost (RWF)'
     },
     { 
-      key: 'coopOrReference', 
-      label: 'Coop Membership OR Reference Letter',
-      description: 'Cooperative membership letter or personal reference'
-    }
+      key: 'affidavit', 
+      label: 'Individual Affidavit — Financial Need',
+      description: 'Applicant attestation of financial need to acquire e-moto'
+    },
+    { 
+      key: 'afFinancialNeed', 
+      label: 'AF Confirmation of Financial Need',
+      description: 'Your confirmation that the applicant required financial support'
+    },
+    { 
+      key: 'nationalId', 
+      label: 'National ID',
+      description: 'Uploaded copy of National ID'
+    },
   ];
 
   const retrofitDocs = [
-    { 
-      key: 'retrofitCompanyLetter', 
+    {
+      key: 'iceDisposalAgreement',
+      label: 'ICE-Moto Engine Disposal Agreement',
+      description: 'Individual agreement to provide ICE-moto engine for disposal'
+    },
+    {
+      key: 'retrofitCompanyLetter',
       label: 'E-Moto Company Letter',
       description: 'Signed letter confirming retrofit service'
     },
-    { 
-      key: 'retrofitOwnerLetter', 
-      label: 'Engine Disposal Agreement',
-      description: 'Signed letter from ICE-moto owner agreeing to engine disposal'
-    },
-    { 
-      key: 'retrofitAgreement', 
-      label: 'Retrofit Agreement',
-      description: 'Signed agreement for retrofit service'
-    }
   ];
 
   const optionalDocs = [

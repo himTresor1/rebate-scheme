@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -14,6 +14,15 @@ import { toast } from 'sonner';
 import { vehicleBrands, getModelsByBrand, VehicleModel } from '../../utils/vehicleDatabase';
 import { api } from '../../utils/api';
 import { DocumentUploadSection } from './DocumentUploadSection';
+import { calculateRebateAmount, generateTicketPreview, getRebateRateLabel } from '../../utils/rebateCalculation';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 
 
 interface SubmitApplicationFormProps {
@@ -25,12 +34,16 @@ type ApplicationStep = 'identity' | 'vehicle' | 'documents' | 'review';
 export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormProps) {
   const [currentStep, setCurrentStep] = useState<ApplicationStep>('identity');
   const [loading, setLoading] = useState(false);
+  const [ticketNumber] = useState(() => generateTicketPreview());
+  const [showMissingDialog, setShowMissingDialog] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   
   // Form data state
   const [formData, setFormData] = useState({
     // Identity
     firstName: '',
     lastName: '',
+    isWoman: '',
     phoneNumber: '',
     email: '',
     tin: '',
@@ -62,9 +75,37 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
-  const canProceed = () => {
-    // Allow proceeding from all steps without validation
-    return true;
+  const rebatePreview = useMemo(() => {
+    const retail = parseFloat(formData.purchasePrice) || 0;
+    return calculateRebateAmount(retail, {
+      isWoman: formData.isWoman === 'yes',
+      isRetrofit: formData.isRetrofit,
+    });
+  }, [formData.purchasePrice, formData.isWoman, formData.isRetrofit]);
+
+  useEffect(() => {
+    if (rebatePreview > 0) {
+      setFormData((prev) => ({ ...prev, rebateAmount: String(rebatePreview) }));
+    }
+  }, [rebatePreview]);
+
+  const getMissingMandatoryFields = (): string[] => {
+    const missing: string[] = [];
+    if (!formData.firstName.trim()) missing.push('First Name');
+    if (!formData.lastName.trim()) missing.push('Last Name');
+    if (!formData.nationalId.trim()) missing.push('National ID');
+    if (!formData.isWoman) missing.push('Woman? (dropdown)');
+    if (!formData.driversLicense.trim()) missing.push('Motorcycle License');
+    if (!formData.brand) missing.push('E-Moto Supplier');
+    if (!formData.model) missing.push('E-Moto Model');
+    if (!formData.purchasePrice) missing.push('Retail Cost of E-Moto (RWF)');
+    if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
+    if (!formData.documents?.financialNeedAffidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
+    if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
+    if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
+      missing.push('ICE-Moto Engine Disposal Agreement');
+    }
+    return missing;
   };
 
   const handleNext = () => {
@@ -113,6 +154,13 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
   };
 
   const handleSubmit = async () => {
+    const missing = getMissingMandatoryFields();
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowMissingDialog(true);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -132,11 +180,13 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
         yearOfManufacture: formData.yearOfManufacture || '2024',
         chassisNumber: formData.chassisNumber || '',
         loanAmount: formData.loanAmount || '3000000',
-        rebateAmount: formData.rebateAmount || '450000',
+        rebateAmount: formData.rebateAmount || String(rebatePreview) || '450000',
         loanTerm: formData.loanTerm || '24',
         repaymentFrequency: formData.repaymentFrequency || 'daily',
         monthlyRepayment: formData.monthlyRepayment || '4167',
         isRetrofit: formData.isRetrofit,
+        isWoman: formData.isWoman === 'yes',
+        ticketNumber,
         documents: formData.documents,
         status: 'submitted'
       };
@@ -148,6 +198,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
       setFormData({
         firstName: '',
         lastName: '',
+        isWoman: '',
         phoneNumber: '',
         email: '',
         tin: '',
@@ -182,10 +233,15 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     <div className="space-y-6">
       {/* Header */}
       <div className="mt-6">
-        <h2 className="text-lg sm:text-xl text-[#023F40]">Submit Rebate Application</h2>
+        <h2 className="text-lg sm:text-xl text-[#023F40]">Submit Rebate Requirements</h2>
         <p className="text-gray-600 mt-1">
-          Complete all steps to submit a new rider rebate application
+          Submit leases with documentation for individuals who required financial support (rebates) to meet your e-moto financing requirements.
         </p>
+        <div className="mt-3 inline-flex items-center gap-2 bg-[#023F40]/5 border border-[#023F40]/20 rounded-lg px-3 py-2 text-sm">
+          <span className="text-gray-600">Ticket Number:</span>
+          <span className="font-semibold text-[#023F40]">{ticketNumber}</span>
+          <span className="text-xs text-gray-500">(assigned on submit)</span>
+        </div>
       </div>
 
       {/* Progress Steps */}
@@ -248,7 +304,37 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
             onRetrofitToggle={handleRetrofitToggle}
           />
         )}
-        {currentStep === 'review' && <ReviewStep />}
+        {currentStep === 'review' && (
+          <ReviewStep
+            formData={formData}
+            ticketNumber={ticketNumber}
+            rebatePreview={rebatePreview}
+          />
+        )}
+
+        <Dialog open={showMissingDialog} onOpenChange={setShowMissingDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-800">
+                <AlertCircle className="w-5 h-5" />
+                Missing required information
+              </DialogTitle>
+              <DialogDescription>
+                Please fill in the following mandatory fields and documents, then hit SUBMIT again.
+              </DialogDescription>
+            </DialogHeader>
+            <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+              {missingFields.map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+            <DialogFooter>
+              <Button onClick={() => setShowMissingDialog(false)} className="bg-[#023F40] hover:bg-[#035f60]">
+                OK
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Navigation Buttons */}
         <div className="flex gap-3 pt-6 border-t border-gray-200 mt-6">
@@ -276,7 +362,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
               disabled={loading}
               className="bg-[#023F40] hover:bg-[#035f60]"
             >
-              Submit Application
+              SUBMIT
             </Button>
           )}
         </div>
@@ -407,7 +493,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              First Name *
+              First Name(s) *
             </label>
             <Input 
               type="text" 
@@ -418,7 +504,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Last Name *
+              Last Name(s) *
             </label>
             <Input 
               type="text" 
@@ -426,6 +512,43 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Woman? *
+            </label>
+            <Select
+              value={formData.isWoman}
+              onValueChange={(value) => setFormData({ ...formData, isWoman: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Retrofit? *
+            </label>
+            <Select
+              value={formData.isRetrofit ? 'yes' : 'no'}
+              onValueChange={(value) => setFormData({ ...formData, isRetrofit: value === 'yes' })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">No — New E-Moto</SelectItem>
+                <SelectItem value="yes">Yes — Retrofit</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -522,12 +645,14 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
     setModels(getModelsByBrand(value));
     setModel('');
     setSelectedModel(null);
+    setFormData((prev: any) => ({ ...prev, brand: value, model: '' }));
   };
 
   const handleModelChange = (value: string) => {
     setModel(value);
     const found = models.find(m => m.model === value);
     setSelectedModel(found || null);
+    setFormData((prev: any) => ({ ...prev, model: value }));
   };
 
   return (
@@ -627,11 +752,11 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Purchase Price (RWF) *
+                Retail Cost of E-Moto / Retrofit (RWF) *
               </label>
               <Input
                 type="number"
-                placeholder="3,000,000"
+                placeholder="1,000,000"
                 value={formData.purchasePrice}
                 onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
               />
@@ -652,16 +777,19 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Proposed Rebate Amount (RWF) *
+                Rebate Amount (RWF) — auto-calculated
               </label>
               <Input
                 type="number"
-                placeholder="450,000"
+                readOnly
+                className="bg-gray-50 font-semibold text-[#023F40]"
                 value={formData.rebateAmount}
-                onChange={(e) => setFormData({ ...formData, rebateAmount: e.target.value })}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Typically in the range of 5–25% of retail e-Moto price
+                {getRebateRateLabel({
+                  isWoman: formData.isWoman === 'yes',
+                  isRetrofit: formData.isRetrofit,
+                })} of retail cost
               </p>
             </div>
             <div>
@@ -734,147 +862,91 @@ function DocumentsStep({ isRetrofit, documents, onDocumentUpload, onDocumentRemo
   );
 }
 
-function ReviewStep() {
+function ReviewStep({
+  formData,
+  ticketNumber,
+  rebatePreview,
+}: {
+  formData: any;
+  ticketNumber: string;
+  rebatePreview: number;
+}) {
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">Step 4: Review & Submit</h3>
+      <h3 className="font-medium text-gray-900">Review & Submit</h3>
       <p className="text-sm text-gray-600">
-        Review all information before submitting the application.
+        Review all lease and rebate information before submitting to RGF.
       </p>
 
       <div className="mt-6 space-y-4">
         <div className="bg-gray-50 rounded-lg p-6">
-          <h4 className="font-medium text-gray-900 mb-4 text-base">Application Summary</h4>
+          <h4 className="font-medium text-gray-900 mb-4 text-base">Rebate Submission Summary</h4>
           
-          {/* Rider Information */}
           <div className="mb-6">
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Rider Information</h5>
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Ticket & Applicant</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Full Name:</span>
-                <span className="font-medium">John Doe</span>
+                <span className="text-gray-600">Ticket Number:</span>
+                <span className="font-medium text-[#023F40]">{ticketNumber}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-200 pb-1.5">
+                <span className="text-gray-600">Name:</span>
+                <span className="font-medium">{formData.firstName} {formData.lastName}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
                 <span className="text-gray-600">National ID:</span>
-                <span className="font-medium">1 XXXX X XXXXXXX X XX</span>
+                <span className="font-medium">{formData.nationalId || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Phone Number:</span>
-                <span className="font-medium">+250 XXX XXX XXX</span>
+                <span className="text-gray-600">Woman:</span>
+                <span className="font-medium">{formData.isWoman === 'yes' ? 'Yes' : formData.isWoman === 'no' ? 'No' : '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Driver's License:</span>
-                <span className="font-medium">DL-2024-XXXXXX</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Email:</span>
-                <span className="font-medium">rider@example.com</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">TIN:</span>
-                <span className="font-medium">123456789</span>
+                <span className="text-gray-600">Retrofit:</span>
+                <span className="font-medium">{formData.isRetrofit ? 'Yes' : 'No'}</span>
               </div>
             </div>
           </div>
 
-          {/* Vehicle Information */}
           <div className="mb-6">
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Vehicle Information</h5>
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">E-Moto & Rebate</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">E-Moto Brand:</span>
-                <span className="font-medium">Ampersand</span>
+                <span className="text-gray-600">E-Moto Supplier:</span>
+                <span className="font-medium">{formData.brand || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
                 <span className="text-gray-600">Model:</span>
-                <span className="font-medium">Moto</span>
+                <span className="font-medium">{formData.model || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Chassis Number:</span>
-                <span className="font-medium">CH-123456789</span>
+                <span className="text-gray-600">Retail Cost:</span>
+                <span className="font-medium">{formData.purchasePrice ? `${Number(formData.purchasePrice).toLocaleString()} RWF` : '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Year of Manufacture:</span>
-                <span className="font-medium">2024</span>
+                <span className="text-gray-600">Rebate Amount:</span>
+                <span className="font-semibold text-[#023F40]">{rebatePreview > 0 ? `${rebatePreview.toLocaleString()} RWF` : '—'}</span>
               </div>
             </div>
           </div>
 
-          {/* Financing Details */}
-          <div>
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Financing Details</h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Purchase Price:</span>
-                <span className="font-medium">3,000,000 RWF</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Total Contract Repayment:</span>
-                <span className="font-medium">2,550,000 RWF</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Proposed Rebate Amount:</span>
-                <span className="font-medium text-green-600">450,000 RWF (15%)</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Contract Term:</span>
-                <span className="font-medium">24 months</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Repayment Frequency:</span>
-                <span className="font-medium">Daily</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Repayment Amount:</span>
-                <span className="font-medium">4,167 RWF</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Documents Status */}
           <div className="mt-6 pt-6 border-t border-gray-300">
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Documents Status</h5>
-            
-            {/* Identity Documents */}
-            <div className="mb-4">
-              <h6 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Identity Documents</h6>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-gray-700">National ID Document</span>
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Mandatory Documents</h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              {['signedLease', 'affidavit', 'afFinancialNeed', 'nationalId'].map((key) => (
+                <div key={key} className="flex items-center gap-2">
+                  {formData.documents?.[key]?.uploaded ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                  )}
+                  <span className={formData.documents?.[key]?.uploaded ? 'text-gray-700' : 'text-amber-700'}>
+                    {key === 'signedLease' ? 'Signed Lease' :
+                     key === 'affidavit' ? 'Individual Affidavit' :
+                     key === 'afFinancialNeed' ? 'AF Financial Need Confirmation' : 'National ID'}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-gray-700">Driver's License Document</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-500">Taxi License (RURA) - Optional</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Application Documents */}
-            <div>
-              <h6 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Application Documents</h6>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-gray-700">Signed Affidavit</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-gray-700">Coop Membership / Reference Letter</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-500">Second Reference Letter (Optional)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-500">Mobile Money Statements (Optional)</span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

@@ -4,13 +4,29 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card } from './ui/card';
-import { UserCircle, Mail, Phone, Lock, Save, Camera } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { UserCircle, Mail, Phone, Lock, Save, Camera, Bell, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ProfileSettingsProps {
   user: User;
   onUpdate: (updates: Partial<User>) => Promise<void>;
 }
+
+const NOTIFICATION_EVENTS = [
+  { id: 'submitted', label: 'Application Submitted' },
+  { id: 'approved', label: 'RGF Application Approved' },
+  { id: 'rejected', label: 'Application Rejected' },
+  { id: 'possession', label: 'Possession Confirmation Required' },
+  { id: 'deadline', label: 'Deadline Reminders' },
+];
+
+const MOCK_ACTIVITY = [
+  { action: 'Logged in', date: '01-05-2026', time: '08:04', ip: '41.186.12.4' },
+  { action: 'Updated notification settings', date: '03-05-2026', time: '10:12', ip: '42.186.12.4' },
+  { action: 'Reviewed Application REB-002', date: '03-05-2026', time: '11:03', ip: '42.186.12.4' },
+];
 
 export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
   const [loading, setLoading] = useState(false);
@@ -25,6 +41,16 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
     newPassword: '',
     confirmPassword: '',
   });
+
+  const [silentSms, setSilentSms] = useState(false);
+  const [notifyPrefs, setNotifyPrefs] = useState({
+    email: true,
+    sms: true,
+    inApp: true,
+    events: Object.fromEntries(NOTIFICATION_EVENTS.map((e) => [e.id, true])) as Record<string, boolean>,
+  });
+
+  const isRgfStaff = !['ASSET_FINANCIER_ADMIN', 'applicant', 'CLAIMS_OFFICER'].includes(user.role);
 
   const handleProfileUpdate = async () => {
     setLoading(true);
@@ -51,7 +77,6 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
 
     setLoading(true);
     try {
-      // Call password change endpoint
       const response = await fetch('/api/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,6 +101,12 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
     }
   };
 
+  const handleSaveNotificationPrefs = () => {
+    toast.success('Notification preferences saved', {
+      description: silentSms ? 'SMS notifications are in silent mode' : 'Changes take effect immediately',
+    });
+  };
+
   const getRoleTitle = () => {
     switch (user.role) {
       case 'admin': return 'Administrator';
@@ -85,203 +116,225 @@ export function ProfileSettings({ user, onUpdate }: ProfileSettingsProps) {
       case 'CLAIMS_OFFICER': return 'Claims Officer';
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';
-      case 'qa': return 'QA Team';
-      case 'QA_TEAM': return 'QA Team';
-      case 'cfo': return 'Chief Financial Officer';
       case 'REBATE_MANAGER': return 'Rebate Manager';
-      case 'finance': return 'Finance Officer';
-      case 'FINANCE_OFFICER': return 'Finance Officer';
-      case 'management': return 'Management';
-      case 'M_E_OFFICER': return 'M&E Officer';
+      case 'E_MOTO_PROGRAM_MANAGER': return 'E-Moto Program Manager (QA)';
+      case 'DESIGNATED_FINANCE_OFFICER': return 'Finance Officer';
+      case 'ME_TEAM': return 'M&E Team';
+      case 'EXTERNAL_REVIEWER': return 'External Reviewer';
       default: return 'User';
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Profile Picture Section */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-[#023F40] mb-4">Profile Picture</h3>
-        <div className="flex items-center gap-6">
-          <div className="w-24 h-24 bg-[#023F40]/10 rounded-full flex items-center justify-center">
-            <UserCircle className="w-16 h-16 text-[#023F40]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm text-gray-600 mb-3">Upload a profile picture to personalize your account</p>
-            <Button variant="outline" className="gap-2" disabled>
-              <Camera className="w-4 h-4" />
-              Upload Photo
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <Tabs defaultValue="profile">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="activity">Activity Log</TabsTrigger>
+        </TabsList>
 
-      {/* Personal Information */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-[#023F40] mb-4">Personal Information</h3>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <div className="relative">
-                <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  id="name"
-                  type="text"
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                  className="pl-10"
-                  placeholder="Enter your full name"
-                />
+        <TabsContent value="profile" className="space-y-6 mt-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-[#023F40] mb-4">Profile Picture</h3>
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 bg-[#023F40]/10 rounded-full flex items-center justify-center">
+                <UserCircle className="w-16 h-16 text-[#023F40]" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 mb-3">Upload a profile picture to personalize your account</p>
+                <Button variant="outline" className="gap-2" disabled>
+                  <Camera className="w-4 h-4" />
+                  Upload Photo
+                </Button>
               </div>
             </div>
+          </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                  className="pl-10"
-                  placeholder="your.email@example.com"
-                />
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-[#023F40] mb-4">Personal Information</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={profileData.name}
+                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={profileData.phone}
+                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                    placeholder="+250 XXX XXX XXX"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Input type="text" value={getRoleTitle()} disabled className="bg-gray-50" />
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end">
+                <Button onClick={handleProfileUpdate} disabled={loading} className="bg-[#023F40] hover:bg-[#035f60] gap-2">
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </Button>
               </div>
             </div>
-          </div>
+          </Card>
+        </TabsContent>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={profileData.phone}
-                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                  className="pl-10"
-                  placeholder="+250 XXX XXX XXX"
-                />
+        <TabsContent value="notifications" className="space-y-6 mt-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-[#023F40] mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Notification Preferences
+            </h3>
+
+            {isRgfStaff && (
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-6">
+                <div>
+                  <p className="font-medium text-gray-900">Silent SMS Mode</p>
+                  <p className="text-sm text-gray-600">Suppress SMS alerts while keeping email and in-app notifications</p>
+                </div>
+                <Switch checked={silentSms} onCheckedChange={setSilentSms} />
               </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <p className="text-sm font-medium text-gray-700">Channels</p>
+              {[
+                { key: 'email', label: 'Email' },
+                { key: 'sms', label: 'SMS' },
+                { key: 'inApp', label: 'In-App' },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">{label}</span>
+                  <Switch
+                    checked={notifyPrefs[key as keyof typeof notifyPrefs] as boolean}
+                    onCheckedChange={(checked) => setNotifyPrefs({ ...notifyPrefs, [key]: checked })}
+                  />
+                </div>
+              ))}
             </div>
 
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Input
-                type="text"
-                value={getRoleTitle()}
-                disabled
-                className="bg-gray-50"
-              />
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700">Event Types</p>
+              {NOTIFICATION_EVENTS.map((event) => (
+                <div key={event.id} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">{event.label}</span>
+                  <Switch
+                    checked={notifyPrefs.events[event.id]}
+                    onCheckedChange={(checked) =>
+                      setNotifyPrefs({
+                        ...notifyPrefs,
+                        events: { ...notifyPrefs.events, [event.id]: checked },
+                      })
+                    }
+                  />
+                </div>
+              ))}
             </div>
-          </div>
 
-          <div className="pt-4 flex justify-end">
-            <Button
-              onClick={handleProfileUpdate}
-              disabled={loading || !profileData.name || !profileData.email}
-              className="bg-[#023F40] hover:bg-[#035f60] gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save Changes
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Change Password */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-[#023F40] mb-4">Change Password</h3>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current Password *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                id="currentPassword"
-                type="password"
-                value={passwordData.currentPassword}
-                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                className="pl-10"
-                placeholder="Enter current password"
-              />
+            <div className="pt-6 flex justify-end">
+              <Button onClick={handleSaveNotificationPrefs} className="bg-[#023F40] hover:bg-[#035f60]">
+                Save Preferences
+              </Button>
             </div>
-          </div>
+          </Card>
+        </TabsContent>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <TabsContent value="security" className="space-y-6 mt-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-[#023F40] mb-4">Change Password</h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password *</Label>
                 <Input
-                  id="newPassword"
+                  id="currentPassword"
                   type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="pl-10"
-                  placeholder="Enter new password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                 />
               </div>
-              <p className="text-xs text-gray-500">Minimum 8 characters</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="pl-10"
-                  placeholder="Confirm new password"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password *</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="pt-4 flex justify-end">
+                <Button onClick={handlePasswordChange} disabled={loading} className="bg-[#023F40] hover:bg-[#035f60] gap-2">
+                  <Lock className="w-4 h-4" />
+                  Update Password
+                </Button>
               </div>
             </div>
-          </div>
+          </Card>
+        </TabsContent>
 
-          <div className="pt-4 flex justify-end">
-            <Button
-              onClick={handlePasswordChange}
-              disabled={
-                loading ||
-                !passwordData.currentPassword ||
-                !passwordData.newPassword ||
-                !passwordData.confirmPassword
-              }
-              className="bg-[#023F40] hover:bg-[#035f60] gap-2"
-            >
-              <Lock className="w-4 h-4" />
-              Update Password
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Account Information */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-[#023F40] mb-4">Account Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-gray-500">User ID</p>
-            <p className="font-medium text-gray-900">{user.id}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Account Type</p>
-            <p className="font-medium text-gray-900">{getRoleTitle()}</p>
-          </div>
-          {user.organizationId && (
-            <div>
-              <p className="text-gray-500">Organization ID</p>
-              <p className="font-medium text-gray-900">{user.organizationId}</p>
+        <TabsContent value="activity" className="space-y-6 mt-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-[#023F40] mb-4 flex items-center gap-2">
+              <ScrollText className="w-5 h-5" />
+              Audit & Activity Log
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-gray-600">
+                    <th className="pb-3 pr-4">Action</th>
+                    <th className="pb-3 pr-4">Date</th>
+                    <th className="pb-3 pr-4">Time</th>
+                    <th className="pb-3">IP Address</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MOCK_ACTIVITY.map((entry, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="py-3 pr-4">{entry.action}</td>
+                      <td className="py-3 pr-4">{entry.date}</td>
+                      <td className="py-3 pr-4">{entry.time}</td>
+                      <td className="py-3">{entry.ip}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-      </Card>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

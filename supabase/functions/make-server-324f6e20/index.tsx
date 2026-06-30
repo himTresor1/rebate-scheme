@@ -4073,7 +4073,6 @@ Deno.serve((req) => {
   const url = new URL(req.url);
   let path = url.pathname;
 
-  // Normalize Supabase edge function paths to the app's route prefix
   if (path.startsWith('/functions/v1/make-server-324f6e20')) {
     path = path.replace('/functions/v1', '');
   } else if (!path.startsWith('/make-server-324f6e20')) {
