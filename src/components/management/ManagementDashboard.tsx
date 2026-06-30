@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
+import { NotificationsView } from '../NotificationsView';
 
 interface Application {
   id: string;
@@ -40,6 +41,7 @@ interface Evaluation {
 interface Criterion {
   id: string;
   text: string;
+  enabled?: boolean;
 }
 
 interface ManagementDashboardProps {
@@ -213,10 +215,61 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
     );
   }
 
+  if (currentPage === 'notifications') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <NotificationsView user={user} />
+      </div>
+    );
+  }
+
+  if (currentPage === 'applications') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Reviewer'} />
+        <h1 className="text-lg sm:text-xl text-[#023F40] mt-6 mb-4">View Applications</h1>
+        <Card>
+          <CardHeader>
+            <CardTitle>All rebate applications</CardTitle>
+            <CardDescription>Read-only list for external reviewers and M&E staff.</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-600">
+                  <th className="pb-3 pr-3">Company</th>
+                  <th className="pb-3 pr-3">Registration</th>
+                  <th className="pb-3 pr-3">Rebate Amount</th>
+                  <th className="pb-3 pr-3">Status</th>
+                  <th className="pb-3">Submitted</th>
+                </tr>
+              </thead>
+              <tbody>
+                {applications.map((app) => (
+                  <tr key={app.id} className="border-b last:border-0">
+                    <td className="py-3 pr-3 font-medium">{app.companyName}</td>
+                    <td className="py-3 pr-3">{app.registrationNumber}</td>
+                    <td className="py-3 pr-3">{Number(app.rebateAmount || 0).toLocaleString()} RWF</td>
+                    <td className="py-3 pr-3">
+                      <Badge variant="outline">{app.status}</Badge>
+                    </td>
+                    <td className="py-3">{formatDate(app.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
-      <Greeting user={user} />
+      <Greeting name={user.name || 'Reviewer'} />
       
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-6">
         <h1 className="text-lg sm:text-xl text-[#023F40]">Management Dashboard</h1>
