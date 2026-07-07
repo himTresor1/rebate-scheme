@@ -1,4 +1,4 @@
-import { ApplicationReviewEnhanced } from '../analyst/ApplicationReviewEnhanced';
+import { RebateVerificationView } from './RebateVerificationView';
 import { User } from '../../utils/auth';
 
 interface Application {
@@ -32,7 +32,7 @@ interface QAReviewProps {
 
 export function QAReview({ application, user, onBack }: QAReviewProps) {
   return (
-    <ApplicationReviewEnhanced
+    <RebateVerificationView
       application={application}
       user={user}
       onBack={onBack}

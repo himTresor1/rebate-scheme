@@ -54,6 +54,13 @@ export function PossessionConfirmationView() {
   const pending = records.filter((r) => !r.hasPossession);
   const provided = records.filter((r) => r.hasPossession);
 
+  const reportTitle =
+    filter === 'provided'
+      ? `Possession confirmed (${provided.length})`
+      : filter === 'all'
+      ? `All possession records (${records.length})`
+      : `Default report: No e-moto provided yet (${pending.length})`;
+
   const baseFiltered = (filter === 'pending' ? pending : filter === 'provided' ? provided : records)
     .filter((r) => {
       if (filterWoman === 'yes' && !r.isWoman) return false;
@@ -210,7 +217,7 @@ export function PossessionConfirmationView() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-base flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4" />
-              Default report: No e-moto provided yet ({pending.length})
+              {reportTitle}
             </CardTitle>
           </div>
         </CardHeader>

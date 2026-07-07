@@ -19,6 +19,8 @@ import { User } from '../../utils/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { WeeklyDisbursementReport } from '../qa/WeeklyDisbursementReport';
+import { QATeamWeeklyReview } from '../qa/QATeamWeeklyReview';
+import { NotificationsView } from '../NotificationsView';
 import { PageHeader } from '../PageHeader';
 import { CFOReview } from './CFOReview';
 import { FinancierGroupedView } from '../shared/FinancierGroupedView';
@@ -46,9 +48,10 @@ interface Evaluation {
 interface CFODashboardProps {
   user: User;
   currentPage: string;
+  onNavigate?: (page: string) => void;
 }
 
-export function CFODashboard({ user, currentPage }: CFODashboardProps) {
+export function CFODashboard({ user, currentPage, onNavigate }: CFODashboardProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [evaluations, setEvaluations] = useState<Record<string, Evaluation>>({});
   const [loading, setLoading] = useState(true);
@@ -200,7 +203,64 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <PageHeader />
-        <WeeklyDisbursementReport />
+        <WeeklyDisbursementReport mode="cfo-authorization" />
+      </div>
+    );
+  }
+
+  if (currentPage === 'approvals') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Program Manager'} />
+        <div className="mt-6">
+          <QATeamWeeklyReview />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentPage === 'flagged') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Program Manager'} />
+        <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Recommended Rebates</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Rebates verified by Rebate Team and awaiting or included in QA weekly review.
+        </p>
+        <Card className="mt-6">
+          <CardContent className="pt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-gray-600">
+                  <th className="pb-2 pr-3">Ticket</th>
+                  <th className="pb-2 pr-3">AF</th>
+                  <th className="pb-2 pr-3">Applicant</th>
+                  <th className="pb-2 pr-3">Amount</th>
+                  <th className="pb-2 pr-3">Rebate Team</th>
+                  <th className="pb-2">QA status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { ticket: 'REB-001', af: 'Bboxx', applicant: 'Jean Claude Ndayisaba', amount: 150000, team: 'Verified', qa: 'In weekly batch' },
+                  { ticket: 'REB-002', af: 'REM', applicant: 'Grace UWASE', amount: 200000, team: 'Verified', qa: 'Excluded — no possession' },
+                  { ticket: 'REB-004', af: 'Bboxx', applicant: 'Jean HABIMANA', amount: 150000, team: 'Verified', qa: 'In weekly batch' },
+                ].map((r) => (
+                  <tr key={r.ticket} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-medium">{r.ticket}</td>
+                    <td className="py-2 pr-3">{r.af}</td>
+                    <td className="py-2 pr-3">{r.applicant}</td>
+                    <td className="py-2 pr-3">RWF {r.amount.toLocaleString()}</td>
+                    <td className="py-2 pr-3"><Badge className="bg-green-100 text-green-800">{r.team}</Badge></td>
+                    <td className="py-2">{r.qa}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -217,7 +277,9 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
         <PageHeader />
         <Greeting name={user.name || 'Program Manager'} />
         <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Advance Funding Approval</h1>
-        <p className="text-sm text-gray-600 mt-1">6-month AF escrow projections reviewed by QA and approved by CFO.</p>
+        <p className="text-sm text-gray-600 mt-1">
+          QA Team recommends 6-month AF escrow projections; CFO authorizes advance rebate funding before AF possession and weekly disbursement cycles.
+        </p>
 
         <Card className="mt-6">
           <CardHeader>
@@ -280,239 +342,102 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     );
   }
 
+  if (currentPage === 'notifications') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <NotificationsView user={user} />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
       <Greeting name={user.name || 'Program Manager'} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Program Manager Dashboard</h1>
-      <p className="text-sm text-gray-600 mt-1">Monitor approved rebates and manage advance funding. Final per-case decisions are made by the Rebate Manager.</p>
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">QA Team Dashboard</h1>
+      <p className="text-sm text-gray-600 mt-1">Accountable for weekly disbursement review before CFO authorization.</p>
 
       <Card className="mb-6 border-blue-200 bg-blue-50">
         <CardContent className="pt-6 text-sm text-blue-900">
-          Per-case approve/reject is handled by the Rebate Manager. Use <strong>Advance Funding</strong> for CFO disbursement authorization workflows.
+          Per-case verification is done by the <strong>Rebate Team</strong> (1 business day SLA). QA Team confirms weekly batches and submits disbursement requests to the CFO. AFs are notified after CFO authorization.
         </CardContent>
       </Card>
 
-      {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Pending Approval</p>
-                <p className="text-2xl font-bold">{pendingApps.length}</p>
-              </div>
-              <FileCheck className="w-8 h-8 text-blue-500" />
-            </div>
+            <p className="text-sm text-gray-600">Awaiting QA review</p>
+            <p className="text-2xl font-bold">3</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Amount</p>
-                <p className="text-2xl font-bold">${(totalPendingAmount / 1000).toFixed(0)}K</p>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
-            </div>
+            <p className="text-sm text-gray-600">In weekly batch</p>
+            <p className="text-2xl font-bold text-green-600">2</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Avg Score</p>
-                <p className="text-2xl font-bold">{avgScore.toFixed(0)}%</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-purple-500" />
-            </div>
+            <p className="text-sm text-gray-600">Weekly total</p>
+            <p className="text-2xl font-bold">RWF 300,000</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Flagged</p>
-                <p className="text-2xl font-bold">{flaggedApps.length}</p>
-              </div>
-              <Flag className="w-8 h-8 text-red-500" />
-            </div>
+            <p className="text-sm text-gray-600">Excluded (no possession)</p>
+            <p className="text-2xl font-bold text-amber-600">1</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-3">
-            <div className="flex-1">
-              <label className="text-xs sm:text-sm font-medium mb-2 block">Sort By</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="score">Score (High to Low)</SelectItem>
-                  <SelectItem value="amount">Amount (High to Low)</SelectItem>
-                  <SelectItem value="flagged">Flagged First</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1">
-              <label className="text-xs sm:text-sm font-medium mb-2 block">Score Range</label>
-              <Select value={scoreFilter} onValueChange={setScoreFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Scores</SelectItem>
-                  <SelectItem value="high">High (80%+)</SelectItem>
-                  <SelectItem value="medium">Medium (60-79%)</SelectItem>
-                  <SelectItem value="low">Low (&lt;60%)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              onClick={() => setShowBatchDialog(true)}
-              disabled={true}
-              className="w-full"
-              title="Final decisions are made by Rebate Manager"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Batch Approve (disabled — Manager decides)
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-[#023F40]" />
+              QA Team Review
+            </CardTitle>
+            <CardDescription>Weekly accountability check and batch inclusion before CFO request.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">3 verified rebates ready · 2 with possession confirmed</p>
+            <Button className="w-full bg-[#023F40] hover:bg-[#035f60]" onClick={() => onNavigate?.('approvals')}>
+              Open QA Team Review
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Applications Tabs */}
-      <Tabs defaultValue="pending">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending">
-            Pending Review ({pendingApps.length})
-          </TabsTrigger>
-          <TabsTrigger value="flagged">
-            Flagged ({flaggedApps.length})
-          </TabsTrigger>
-          <TabsTrigger value="approved">
-            Approved ({approvedApps.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pending" className="space-y-4 mt-6">
-          {pendingApps.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <FileCheck className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No applications pending approval</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <FinancierGroupedView
-              applications={pendingApps}
-              renderApplicationCard={(app) => (
-                <CFOApplicationCard
-                  key={app.id}
-                  app={app}
-                  evaluation={evaluations[app.id]}
-                  formatDate={formatDate}
-                  onReview={() => setSelectedApp(app)}
-                  isSelected={selectedForBatch.includes(app.id)}
-                  onToggleSelect={toggleSelection}
-                />
-              )}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="flagged" className="space-y-4 mt-6">
-          {flaggedApps.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Flag className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No flagged applications</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <FinancierGroupedView
-              applications={flaggedApps}
-              renderApplicationCard={(app) => (
-                <CFOApplicationCard
-                  key={app.id}
-                  app={app}
-                  evaluation={evaluations[app.id]}
-                  formatDate={formatDate}
-                  onReview={() => setSelectedApp(app)}
-                  isSelected={selectedForBatch.includes(app.id)}
-                  onToggleSelect={toggleSelection}
-                />
-              )}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="approved" className="space-y-4 mt-6">
-          {approvedApps.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No approved applications yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <FinancierGroupedView
-              applications={approvedApps}
-              renderApplicationCard={(app) => (
-                <CFOApplicationCard
-                  key={app.id}
-                  app={app}
-                  evaluation={evaluations[app.id]}
-                  formatDate={formatDate}
-                  onReview={() => setSelectedApp(app)}
-                  showViewOnly
-                />
-              )}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* Batch Approve Dialog */}
-      <Dialog open={showBatchDialog} onOpenChange={setShowBatchDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Batch Approve Applications</DialogTitle>
-            <DialogDescription>
-              You are about to approve {selectedForBatch.length} application(s). This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Approval Notes (Optional)</Label>
-              <Textarea
-                value={batchNotes}
-                onChange={(e) => setBatchNotes(e.target.value)}
-                placeholder="Add any conditions or notes for this batch approval..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBatchDialog(false)}>
-              Cancel
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileCheck className="w-5 h-5 text-[#023F40]" />
+              CFO Weekly Report
+            </CardTitle>
+            <CardDescription>Authorize weekly disbursement and notify Asset Financiers.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">Week ending 01 June 2026 · pending signature</p>
+            <Button variant="outline" className="w-full" onClick={() => onNavigate?.('weekly-report')}>
+              Open weekly report
             </Button>
-            <Button onClick={handleBatchApprove} disabled={processing}>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Approve {selectedForBatch.length} Application(s)
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#023F40]" />
+              Advance Funding
+            </CardTitle>
+            <CardDescription>6-month AF escrow projections — QA recommends, CFO approves.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">3 AFs · RWF 117.6M total recommended escrow</p>
+            <Button variant="outline" className="w-full" onClick={() => onNavigate?.('advance-funding')}>
+              Review advance funding
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

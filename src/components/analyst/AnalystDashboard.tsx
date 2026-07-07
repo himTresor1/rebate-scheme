@@ -13,7 +13,8 @@ import { ApplicationReviewEnhanced } from './ApplicationReviewEnhanced';
 import { FinancierGroupedView } from '../shared/FinancierGroupedView';
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
-import { getSlaBadge } from '../../utils/slaBadges';
+import { NotificationsView } from '../NotificationsView';
+import { withDemoPipelineFallback } from '../../utils/demoPipelineData';
 
 interface Application {
   id: string;
@@ -57,7 +58,10 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     try {
       const data = await api.getAllApplications();
       // Filter applications assigned to this analyst
-      const myApps = data.filter((app: Application) => app.assignedTo === user.id);
+      const myApps = withDemoPipelineFallback(
+        data.filter((app: Application) => app.assignedTo === user.id || app.assignedTo === 'demo-analyst'),
+        true
+      );
       setApplications(myApps);
     } catch (error: any) {
       toast.error('Failed to load applications');
@@ -150,6 +154,15 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
+  if (currentPage === 'notifications') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <NotificationsView user={user} />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -158,12 +171,17 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
+  const showAssignedOnly = currentPage === 'assigned';
+  const defaultTab = showAssignedOnly ? 'assigned' : 'assigned';
+
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
-      <Greeting user={user} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Pipeline</h1>
-      <p className="text-sm text-gray-600 mt-1">Check AF documentation, record eligibility results, and recommend to QA (no final decisions).</p>
+      <Greeting name={user.name || 'Analyst'} />
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">
+        {showAssignedOnly ? 'Assigned Rebates' : 'Rebate Review Pipeline'}
+      </h1>
+      <p className="text-sm text-gray-600 mt-1">Check AF documentation, record eligibility results, and recommend to Rebate Team (no final decisions).</p>
 
       {/* Filters */}
       <Card className="mb-6">
@@ -202,7 +220,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="assigned">New — not opened</SelectItem>
                 <SelectItem value="under-review">Rebate team in process</SelectItem>
-                <SelectItem value="manager-review">Sent to manager</SelectItem>
+                <SelectItem value="manager-review">Sent to Rebate Team</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
@@ -269,12 +287,14 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
       </Card>
 
       {/* Applications Tabs */}
-      <Tabs defaultValue="assigned">
-        <TabsList className="flex flex-col sm:grid sm:grid-cols-3 w-full gap-2 sm:gap-0 h-auto sm:h-10">
+      <Tabs defaultValue={defaultTab}>
+        <TabsList className={`flex flex-col sm:grid w-full gap-2 sm:gap-0 h-auto sm:h-10 ${showAssignedOnly ? 'sm:grid-cols-1' : 'sm:grid-cols-3'}`}>
           <TabsTrigger value="assigned" className="flex items-center gap-2 w-full justify-center">
             <Clock className="w-4 h-4" />
             New ({assignedApps.length})
           </TabsTrigger>
+          {!showAssignedOnly && (
+          <>
           <TabsTrigger value="in-review" className="flex items-center gap-2 w-full justify-center">
             <AlertCircle className="w-4 h-4" />
             In Progress ({inReviewApps.length})
@@ -283,6 +303,8 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
             <CheckCircle className="w-4 h-4" />
             Completed ({completedApps.length})
           </TabsTrigger>
+          </>
+          )}
         </TabsList>
 
         <TabsContent value="assigned" className="space-y-4 mt-6">
@@ -308,6 +330,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
           )}
         </TabsContent>
 
+        {!showAssignedOnly && (
         <TabsContent value="in-review" className="space-y-4 mt-6">
           {inReviewApps.length === 0 ? (
             <Card>
@@ -330,7 +353,9 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
             />
           )}
         </TabsContent>
+        )}
 
+        {!showAssignedOnly && (
         <TabsContent value="completed" className="space-y-4 mt-6">
           {completedApps.length === 0 ? (
             <Card>
@@ -354,6 +379,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
             />
           )}
         </TabsContent>
+        )}
       </Tabs>
     </div>
   );
@@ -385,7 +411,7 @@ function ApplicationCard({ app, formatDate, onReview, showReviewOnly }: Applicat
               <Badge variant={statusColors[app.status] as any}>
                 {app.status === 'assigned' && 'New'}
                 {app.status === 'under-review' && 'In Progress'}
-                {app.status === 'manager-review' && 'Sent to Manager'}
+                {app.status === 'manager-review' && 'Sent to Rebate Team'}
                 {app.status === 'rejected' && 'Rejected'}
               </Badge>
               {getSlaBadge(daysSince, app.status !== 'assigned')}
@@ -396,7 +422,7 @@ function ApplicationCard({ app, formatDate, onReview, showReviewOnly }: Applicat
                 <span className="font-medium">Registration:</span> {app.registrationNumber}
               </div>
               <div>
-                <span className="font-medium">Amount:</span> ${parseFloat(app.rebateAmount).toLocaleString()}
+                <span className="font-medium">Amount:</span> RWF {parseFloat(app.rebateAmount).toLocaleString()}
               </div>
               <div>
                 <span className="font-medium">Assigned:</span> {formatDate(app.assignedAt || app.createdAt)}

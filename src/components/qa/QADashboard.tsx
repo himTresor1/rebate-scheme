@@ -16,6 +16,8 @@ import { RebateStatusView } from '../asset-financier/RebateStatusView';
 import { RebateReassignmentPipeline } from './RebateReassignmentPipeline';
 import { PageHeader } from '../PageHeader';
 import { getSlaBadge } from '../../utils/slaBadges';
+import { NotificationsView } from '../NotificationsView';
+import { withDemoPipelineFallback } from '../../utils/demoPipelineData';
 
 interface Application {
   id: string;
@@ -53,8 +55,11 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
     try {
       const data = await api.getAllApplications();
       // Filter Manager review applications
-      const qaApps = data.filter((app: Application) => 
-        ['manager-review', 'approved-pending-lease', 'approved', 'lease-review'].includes(app.status)
+      const qaApps = withDemoPipelineFallback(
+        data.filter((app: Application) =>
+          ['manager-review', 'qa-review', 'program-manager-review', 'approved-pending-lease', 'approved', 'lease-review'].includes(app.status)
+        ),
+        true
       );
       setApplications(qaApps);
 
@@ -73,6 +78,8 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
       evalResults.forEach(({ id, evaluation }) => {
         if (evaluation) {
           evalMap[id] = evaluation;
+        } else {
+          evalMap[id] = { score: 85, evaluatorId: 'demo' };
         }
       });
       setEvaluations(evalMap);
@@ -113,7 +120,8 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   });
 
   const pendingReview = sortedApps.filter(app => app.status === 'manager-review');
-  const approved = sortedApps.filter(app => ['approved-pending-lease', 'approved'].includes(app.status));
+  const sentToQA = sortedApps.filter(app => ['qa-review', 'program-manager-review', 'approved-pending-lease'].includes(app.status));
+  const approved = sortedApps.filter(app => app.status === 'approved');
 
   // Show reassignment pipeline for Rebate Manager
   if (currentPage === 'reassignment') {
@@ -144,6 +152,15 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
     return <LeaseReviewView user={user} />;
   }
 
+  if (currentPage === 'notifications') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <NotificationsView user={user} />
+      </div>
+    );
+  }
+
   if (selectedApp) {
     return (
       <QAReview
@@ -165,9 +182,9 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
-      <Greeting user={user} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Status</h1>
-      <p className="text-sm text-gray-600 mt-1">Rebate Manager pipeline — review analyst recommendations and record final approve/reject decisions.</p>
+      <Greeting name={user.name || 'Rebate Manager'} />
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Pipeline</h1>
+      <p className="text-sm text-gray-600 mt-1">Rebate Team pipeline — verify documentation within 1 business day and forward verified cases to QA Team for weekly disbursement review.</p>
 
       {/* Filters */}
       <Card className="mb-6">
@@ -192,14 +209,18 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
 
       {/* Applications Tabs */}
       <Tabs defaultValue="pending">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="pending" className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
-            Pending Manager Decision ({pendingReview.length})
+            Awaiting verification ({pendingReview.length})
+          </TabsTrigger>
+          <TabsTrigger value="qa" className="flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Sent to QA Team ({sentToQA.length})
           </TabsTrigger>
           <TabsTrigger value="approved" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
-            Approved ({approved.length})
+            CFO disbursement complete ({approved.length})
           </TabsTrigger>
         </TabsList>
 
@@ -208,7 +229,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
             <Card>
               <CardContent className="p-12 text-center">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No applications awaiting Rebate Manager decision</p>
+                <p className="text-gray-600">No applications awaiting Rebate Team verification</p>
               </CardContent>
             </Card>
           ) : (
@@ -221,6 +242,31 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
                   evaluation={evaluations[app.id]}
                   formatDate={formatDate}
                   onReview={() => setSelectedApp(app)}
+                />
+              )}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="qa" className="space-y-4 mt-6">
+          {sentToQA.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Eye className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-600">No cases forwarded to QA Team yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <FinancierGroupedView
+              applications={sentToQA}
+              renderApplicationCard={(app) => (
+                <QAApplicationCard
+                  key={app.id}
+                  app={app}
+                  evaluation={evaluations[app.id]}
+                  formatDate={formatDate}
+                  onReview={() => setSelectedApp(app)}
+                  showViewOnly
                 />
               )}
             />
@@ -295,7 +341,7 @@ function QAApplicationCard({ app, evaluation, formatDate, onReview, showViewOnly
                 <span className="font-medium">Registration:</span> {app.registrationNumber}
               </div>
               <div>
-                <span className="font-medium">Amount:</span> ${parseFloat(app.rebateAmount).toLocaleString()}
+                <span className="font-medium">Amount:</span> RWF {parseFloat(app.rebateAmount).toLocaleString()}
               </div>
               <div>
                 <span className="font-medium">Reviewed:</span> {formatDate(app.lastReviewedAt || app.createdAt)}
@@ -308,7 +354,7 @@ function QAApplicationCard({ app, evaluation, formatDate, onReview, showViewOnly
 
           <Button onClick={onReview} className="w-full sm:w-auto">
             <Eye className="w-4 h-4 mr-2" />
-            {showViewOnly ? 'View' : 'Review'}
+            {showViewOnly ? 'View' : 'Open verification'}
           </Button>
         </div>
       </CardContent>

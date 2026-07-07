@@ -148,11 +148,11 @@ export default function App() {
         {user?.role === 'SYSTEM_ADMIN' && <AdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'applicant' && <ApplicantDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'ASSET_FINANCIER_ADMIN' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
-        {user?.role === 'CLAIMS_OFFICER' && <ApplicantDashboard user={user} currentPage={currentPage} />}
+        {user?.role === 'CLAIMS_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'analyst' && <AnalystDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'REBATE_ANALYST' && <AnalystDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'REBATE_MANAGER' && <RebateManagerDashboard user={user} currentPage={currentPage} />}
-        {user?.role === 'E_MOTO_PROGRAM_MANAGER' && <ProgramManagerDashboard user={user} currentPage={currentPage} />}
+        {user?.role === 'E_MOTO_PROGRAM_MANAGER' && <ProgramManagerDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'DESIGNATED_FINANCE_OFFICER' && <FinanceDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'ME_TEAM' && <ExternalReviewerDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'EXTERNAL_REVIEWER' && <ExternalReviewerDashboard user={user} currentPage={currentPage} />}

@@ -161,8 +161,8 @@ export function AssetFinancierAdminDashboard({
       <PageHeader />
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentPage === 'notifications' && (
-          <NotificationsView 
+        {currentPage === 'notifications' ? (
+          <NotificationsView
             user={user}
             onAction={(data) => {
               if (data.type === 'open-application') {
@@ -172,8 +172,8 @@ export function AssetFinancierAdminDashboard({
               }
             }}
           />
-        )}
-        
+        ) : (
+          <>
         {activeTab === 'overview' && currentPage === 'dashboard' && (
           <div className="space-y-6">
             {loading ? (
@@ -591,8 +591,8 @@ export function AssetFinancierAdminDashboard({
           </div>
         )}
 
-        {activeTab === 'users' && <InternalUserManagement organizationId={user.assetFinancierId || user.organizationId || user.id} />}
-        {activeTab === 'applications' && (
+        {activeTab === 'users' && currentPage === 'internal-users' && <InternalUserManagement organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+        {activeTab === 'applications' && currentPage === 'applications' && (
           <ApplicationsOverview 
             organizationId={user.assetFinancierId || user.organizationId || user.id}
             onNavigateToSubmit={() => {
@@ -603,14 +603,16 @@ export function AssetFinancierAdminDashboard({
             onClearAutoOpen={() => setTargetAppId(null)}
           />
         )}
-        {activeTab === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
-        {activeTab === 'rebate-status' && <RebateStatusView />}
-        {activeTab === 'possession' && <PossessionConfirmationView />}
-        {activeTab === 'marketing-proposal' && <MarketingProposalForm organizationName={user.organization || 'your AF'} />}
-        {activeTab === 'af-permissions' && <AfPermissionsView />}
-        {activeTab === 'client-transfer' && <ClientTransferForm />}
-        {activeTab === 'background-info' && <RebateBackgroundInfo />}
-        {activeTab === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+        {activeTab === 'submit' && currentPage === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+        {activeTab === 'rebate-status' && currentPage === 'rebate-status' && <RebateStatusView />}
+        {activeTab === 'possession' && currentPage === 'possession' && <PossessionConfirmationView />}
+        {activeTab === 'marketing-proposal' && currentPage === 'marketing-proposal' && <MarketingProposalForm organizationName={user.organization || 'your AF'} />}
+        {activeTab === 'af-permissions' && currentPage === 'af-permissions' && <AfPermissionsView />}
+        {activeTab === 'client-transfer' && currentPage === 'client-transfer' && <ClientTransferForm />}
+        {activeTab === 'background-info' && currentPage === 'background-info' && <RebateBackgroundInfo />}
+        {activeTab === 'repayment' && currentPage === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+          </>
+        )}
       </div>
 
       {/* Download Report Dialog */}

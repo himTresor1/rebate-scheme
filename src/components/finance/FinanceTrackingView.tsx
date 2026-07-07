@@ -168,6 +168,42 @@ export function FinanceTrackingView() {
         <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Offline wiring by RGF Finance</span>
         <span className="flex items-center gap-1"><DollarSign className="w-4 h-4" /> System verifies disbursed amounts</span>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Escrow reconciliation (view-only)</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-600">
+                <th className="pb-2 pr-3">AF</th>
+                <th className="pb-2 pr-3">Escrow balance</th>
+                <th className="pb-2 pr-3">Authorized this week</th>
+                <th className="pb-2 pr-3">Disbursed</th>
+                <th className="pb-2">Remaining</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { af: 'Bboxx', escrow: 45000000, authorized: 300000, disbursed: 150000, remaining: 44550000 },
+                { af: 'REM', escrow: 32000000, authorized: 200000, disbursed: 0, remaining: 31800000 },
+              ].map((r) => (
+                <tr key={r.af} className="border-b last:border-0">
+                  <td className="py-2 pr-3 font-medium">{r.af}</td>
+                  <td className="py-2 pr-3">RWF {r.escrow.toLocaleString()}</td>
+                  <td className="py-2 pr-3">RWF {r.authorized.toLocaleString()}</td>
+                  <td className="py-2 pr-3">RWF {r.disbursed.toLocaleString()}</td>
+                  <td className="py-2">RWF {r.remaining.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-500 mt-4">
+            Finance reconciliation and top-up tracking per spec slides 33–38 — detailed bank integration deferred for discussion.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -33,6 +33,7 @@ import { MenuItem } from '../types';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { ProfileSettings } from './ProfileSettings';
+import { getAfPermissionLevel } from '../utils/afPermissions';
 
 interface SidebarProps {
   user: User;
@@ -95,8 +96,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         
         return adminItems;
         
-      case 'applicant':
-        return [
+      case 'applicant': {
+        const allAfItems = [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
@@ -109,6 +110,14 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: Users, label: 'Manage Staff', page: 'internal-users' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
+        const permission = getAfPermissionLevel(user.email);
+        if (role === 'CLAIMS_OFFICER' || permission === 'internal-proposal') {
+          return allAfItems.filter((item) =>
+            ['dashboard', 'notifications', 'marketing-proposal', 'rebate-status', 'profile'].includes(item.page)
+          );
+        }
+        return allAfItems;
+      }
         
       case 'analyst':
         return [
@@ -123,7 +132,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: FileText, label: 'Rebate Review Status', page: 'review-queue' },
+          { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'review-queue' },
           { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
           { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
           { icon: FileText, label: 'All Rebates', page: 'applications' },
@@ -134,9 +143,9 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: CheckSquare, label: 'QA Decisions', page: 'approvals' },
+          { icon: CheckSquare, label: 'QA Team Review', page: 'approvals' },
           { icon: FileText, label: 'Recommended Rebates', page: 'flagged' },
-          { icon: ScrollText, label: 'Weekly Report', page: 'weekly-report' },
+          { icon: ScrollText, label: 'CFO Weekly Report', page: 'weekly-report' },
           { icon: DollarSign, label: 'Advance Funding', page: 'advance-funding' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -181,8 +190,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       case 'CLAIMS_OFFICER': return 'Claims Officer';
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';
-      case 'REBATE_MANAGER': return 'Rebate Manager';
-      case 'E_MOTO_PROGRAM_MANAGER': return 'E-Moto Program Manager';
+      case 'REBATE_MANAGER': return 'Rebate Team (Manager)';
+      case 'E_MOTO_PROGRAM_MANAGER': return 'QA Team (Program Manager)';
       case 'DESIGNATED_FINANCE_OFFICER': return 'Designated Finance Officer';
       case 'ME_TEAM': return 'M&E Team';
       case 'EXTERNAL_REVIEWER': return 'External Reviewer';

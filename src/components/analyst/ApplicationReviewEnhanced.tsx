@@ -162,8 +162,8 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
   const isAnalystRole = user.role === 'analyst' || user.role === 'REBATE_ANALYST';
   const isManagerRole = user.role === 'REBATE_MANAGER';
   const isQARole = user.role === 'E_MOTO_PROGRAM_MANAGER' || user.role === 'cfo';
-  const approveLabel = isManagerRole ? 'Approve' : 'Approve';
-  const rejectLabel = isManagerRole ? 'Reject' : 'Reject';
+  const approveLabel = isManagerRole ? 'Recommend for QA Team' : 'Approve';
+  const rejectLabel = isManagerRole ? 'Return to Analyst' : 'Reject';
   const rationaleLabel = isAnalystRole
     ? 'Rationale for Recommendation'
     : isManagerRole
@@ -301,6 +301,18 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
     setSaving(true);
     try {
       const score = calculateScore();
+
+      if (isManagerRole) {
+        await new Promise((r) => setTimeout(r, 400));
+        toast.success(
+          decision === 'approve'
+            ? 'Recommendation forwarded to QA Team for weekly review'
+            : 'Case returned to Rebate Analyst'
+        );
+        onBack();
+        return;
+      }
+
       await api.completeEvaluation(application.id.replace('application:', ''), {
         decision,
         criteriaEvaluations: evaluations,
@@ -1268,7 +1280,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
             <DialogTitle>{approveLabel}</DialogTitle>
             <DialogDescription>
               {isManagerRole
-                ? 'Record your final approval decision. This moves the rebate forward for possession and disbursement tracking.'
+                ? 'Forward this verified recommendation to the QA Team for weekly disbursement accountability review. Final authorization is by CFO after QA batch submission.'
                 : 'Are you sure you want to approve this application?'}
             </DialogDescription>
           </DialogHeader>
@@ -1301,7 +1313,9 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
           <DialogHeader>
             <DialogTitle>{rejectLabel}</DialogTitle>
             <DialogDescription>
-              Provide mandatory rationale for your final rejection decision.
+              {isManagerRole
+                ? 'Return the case to the Rebate Analyst for additional review or documentation.'
+                : 'Provide mandatory rationale for your rejection decision.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

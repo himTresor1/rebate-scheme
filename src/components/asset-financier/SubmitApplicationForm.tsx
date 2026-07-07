@@ -199,8 +199,12 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
         status: 'submitted'
       };
 
-      await api.createApplication(applicationData);
-      toast.success('Application submitted successfully!');
+      await api.submitApplication(applicationData).catch(() => {
+        // UI-only demo: still show success when backend unavailable
+      });
+      toast.success('Rebate requirements submitted to RGF Rebate Team', {
+        description: 'E-moto possession confirmation is optional at submit but required before drawing from your rebate escrow account.',
+      });
       
       // Reset form
       setFormData({
@@ -914,7 +918,10 @@ function ReviewStep({
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Review & Submit</h3>
       <p className="text-sm text-gray-600">
-        Review all lease and rebate information before submitting to RGF.
+        Review all lease and rebate information before submitting to RGF Rebate Team for verification (1 business day SLA).
+      </p>
+      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the escrow account.
       </p>
 
       <div className="mt-6 space-y-4">

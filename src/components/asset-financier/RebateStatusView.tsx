@@ -23,14 +23,14 @@ interface RebateRecord {
   daysSinceSubmission: number;
   rebateAmount: number;
   possessionStatus: 'waiting-af-confirmation' | 'in-escrow' | 'disbursed';
-  pipelineCategory: 'proposed' | 'awaiting-auth' | 'dispersed';
+  pipelineCategory: 'proposed' | 'awaiting-auth' | 'disbursed';
 }
 
 const MOCK_RECORDS: RebateRecord[] = [
   { ticketNumber: 'REB-001', applicantName: 'Jean Claude Ndayisaba', submittedAt: '2026-04-26', submittedBy: 'Grace Mukandori', financier: 'Bboxx', vehicleType: 'New E-Moto', isWoman: false, daysSinceSubmission: 4, rebateAmount: 150000, possessionStatus: 'waiting-af-confirmation', pipelineCategory: 'awaiting-auth' },
   { ticketNumber: 'REB-002', applicantName: 'Grace UWASE', submittedAt: '2026-04-27', submittedBy: 'Kevin Agent', financier: 'REM', vehicleType: 'Retrofit', isWoman: true, daysSinceSubmission: 3, rebateAmount: 200000, possessionStatus: 'waiting-af-confirmation', pipelineCategory: 'awaiting-auth' },
   { ticketNumber: 'REB-004', applicantName: 'Jean HABIMANA', submittedAt: '2026-05-01', submittedBy: 'Grace Mukandori', financier: 'Bboxx', vehicleType: 'New E-Moto', isWoman: false, daysSinceSubmission: 1, rebateAmount: 150000, possessionStatus: 'in-escrow', pipelineCategory: 'awaiting-auth' },
-  { ticketNumber: 'REB-005', applicantName: 'Marie Claire Uwimana', submittedAt: '2026-03-15', submittedBy: 'Grace Mukandori', financier: 'Bank of Kigali', vehicleType: 'New E-Moto', isWoman: true, daysSinceSubmission: 45, rebateAmount: 187500, possessionStatus: 'disbursed', pipelineCategory: 'dispersed' },
+  { ticketNumber: 'REB-005', applicantName: 'Marie Claire Uwimana', submittedAt: '2026-03-15', submittedBy: 'Grace Mukandori', financier: 'Bank of Kigali', vehicleType: 'New E-Moto', isWoman: true, daysSinceSubmission: 45, rebateAmount: 187500, possessionStatus: 'disbursed', pipelineCategory: 'disbursed' },
   { ticketNumber: 'REB-007', applicantName: 'Emmanuel Gosha', submittedAt: '2026-05-03', submittedBy: 'Kevin Agent', financier: 'Equity Bank', vehicleType: 'New E-Moto', isWoman: false, daysSinceSubmission: 0, rebateAmount: 180000, possessionStatus: 'in-escrow', pipelineCategory: 'proposed' },
 ];
 
@@ -246,7 +246,7 @@ export function RebateStatusView({
                     <SelectItem value="all">All pipeline</SelectItem>
                     <SelectItem value="proposed">Proposed</SelectItem>
                     <SelectItem value="awaiting-auth">Awaiting RGF auth</SelectItem>
-                    <SelectItem value="dispersed">Dispersed</SelectItem>
+                    <SelectItem value="disbursed">Disbursed</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filterSubmitter} onValueChange={setFilterSubmitter}>
