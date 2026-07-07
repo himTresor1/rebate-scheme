@@ -4,24 +4,31 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
-import { Eye, Filter, Clock, CheckCircle, AlertCircle, LayoutGrid, List } from 'lucide-react';
+import { Eye, Filter, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Input } from '../ui/input';
 import { ApplicationReviewEnhanced } from './ApplicationReviewEnhanced';
 import { FinancierGroupedView } from '../shared/FinancierGroupedView';
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
+import { getSlaBadge } from '../../utils/slaBadges';
 
 interface Application {
   id: string;
   companyName: string;
+  applicantName?: string;
   registrationNumber: string;
   rebateAmount: string;
   status: string;
   createdAt: string;
   assignedAt?: string;
   assignedTo?: string;
+  isRetrofit?: boolean;
+  eligibilityCheck?: {
+    nationalIdCheck?: { gender?: string };
+  };
 }
 
 interface AnalystDashboardProps {
@@ -33,9 +40,14 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-  const [sortBy, setSortBy] = useState<string>('date');
+  const [sortBy, setSortBy] = useState<string>('date-oldest');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped');
+  const [filterDateRange, setFilterDateRange] = useState<string>('all');
+  const [filterWoman, setFilterWoman] = useState<string>('all');
+  const [filterRetrofit, setFilterRetrofit] = useState<string>('all');
+  const [filterFinancier, setFilterFinancier] = useState<string>('all');
+  const [filterSla, setFilterSla] = useState<string>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadApplications();
@@ -68,18 +80,58 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     loadApplications();
   };
 
-  // Filter applications by status
-  let filteredApps = applications;
-  if (filterStatus !== 'all') {
-    filteredApps = applications.filter(app => app.status === filterStatus);
-  }
+  const isWomanApplicant = (app: Application) =>
+    app.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
+
+  const daysSinceReceipt = (app: Application) =>
+    Math.floor((Date.now() - new Date(app.assignedAt || app.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+
+  const financiers = [...new Set(applications.map((a) => a.companyName))].sort();
+
+  // Filter applications
+  let filteredApps = applications.filter((app) => {
+    if (filterStatus !== 'all' && app.status !== filterStatus) return false;
+    if (filterFinancier !== 'all' && app.companyName !== filterFinancier) return false;
+    if (filterWoman === 'yes' && !isWomanApplicant(app)) return false;
+    if (filterWoman === 'no' && isWomanApplicant(app)) return false;
+    if (filterRetrofit === 'yes' && !app.isRetrofit) return false;
+    if (filterRetrofit === 'no' && app.isRetrofit) return false;
+    const days = daysSinceReceipt(app);
+    if (filterDateRange === 'day' && days > 1) return false;
+    if (filterDateRange === 'week' && days > 7) return false;
+    if (filterDateRange === 'month' && days > 30) return false;
+    if (filterDateRange === 'year' && days > 365) return false;
+    if (filterSla === 'over-2' && days <= 2) return false;
+    if (filterSla === 'not-opened' && app.status !== 'assigned') return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const name = (app.applicantName || app.companyName).toLowerCase();
+      if (!name.includes(q) && !app.registrationNumber.toLowerCase().includes(q) && !app.id.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // Sort applications
   const sortedApps = [...filteredApps].sort((a, b) => {
-    if (sortBy === 'date') {
+    if (sortBy === 'date-oldest') {
+      return new Date(a.assignedAt || a.createdAt).getTime() - new Date(b.assignedAt || b.createdAt).getTime();
+    }
+    if (sortBy === 'date-newest') {
       return new Date(b.assignedAt || b.createdAt).getTime() - new Date(a.assignedAt || a.createdAt).getTime();
-    } else if (sortBy === 'amount') {
+    }
+    if (sortBy === 'amount-high') {
       return parseFloat(b.rebateAmount) - parseFloat(a.rebateAmount);
+    }
+    if (sortBy === 'amount-low') {
+      return parseFloat(a.rebateAmount) - parseFloat(b.rebateAmount);
+    }
+    if (sortBy === 'days-high') {
+      return daysSinceReceipt(b) - daysSinceReceipt(a);
+    }
+    if (sortBy === 'days-low') {
+      return daysSinceReceipt(a) - daysSinceReceipt(b);
     }
     return 0;
   });
@@ -115,21 +167,104 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
 
       {/* Filters */}
       <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-3">
-            <div className="flex-1">
-              <label className="text-xs sm:text-sm font-medium mb-2 block">Sort By</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date Assigned</SelectItem>
-                  <SelectItem value="amount">Rebate Amount</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Filters &amp; Sort
+          </CardTitle>
+          <CardDescription>Narrow the rebate review pipeline by status, date, applicant type, and SLA.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Input
+              placeholder="Search applicant, ticket, or registration..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-oldest">Date received (oldest first)</SelectItem>
+                <SelectItem value="date-newest">Date received (newest first)</SelectItem>
+                <SelectItem value="days-high">Days since receipt (high to low)</SelectItem>
+                <SelectItem value="days-low">Days since receipt (low to high)</SelectItem>
+                <SelectItem value="amount-high">Rebate amount (high to low)</SelectItem>
+                <SelectItem value="amount-low">Rebate amount (low to high)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="assigned">New — not opened</SelectItem>
+                <SelectItem value="under-review">Rebate team in process</SelectItem>
+                <SelectItem value="manager-review">Sent to manager</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterSla} onValueChange={setFilterSla}>
+              <SelectTrigger>
+                <SelectValue placeholder="SLA" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All SLA</SelectItem>
+                <SelectItem value="not-opened">Not opened yet</SelectItem>
+                <SelectItem value="over-2">Over 2 days since received</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Select value={filterDateRange} onValueChange={setFilterDateRange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All dates</SelectItem>
+                <SelectItem value="day">Today</SelectItem>
+                <SelectItem value="week">Last 7 days</SelectItem>
+                <SelectItem value="month">Last 30 days</SelectItem>
+                <SelectItem value="year">Last 12 months</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterWoman} onValueChange={setFilterWoman}>
+              <SelectTrigger>
+                <SelectValue placeholder="Women" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All applicants</SelectItem>
+                <SelectItem value="yes">Women only</SelectItem>
+                <SelectItem value="no">Non-women</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
+              <SelectTrigger>
+                <SelectValue placeholder="Retrofit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="yes">Retrofit only</SelectItem>
+                <SelectItem value="no">New e-moto only</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterFinancier} onValueChange={setFilterFinancier}>
+              <SelectTrigger>
+                <SelectValue placeholder="Asset financier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All financiers</SelectItem>
+                {financiers.map((f) => (
+                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-xs text-gray-500">
+            Showing {sortedApps.length} of {applications.length} assigned applications
+          </p>
         </CardContent>
       </Card>
 
@@ -232,6 +367,7 @@ interface ApplicationCardProps {
 }
 
 function ApplicationCard({ app, formatDate, onReview, showReviewOnly }: ApplicationCardProps) {
+  const daysSince = Math.floor((Date.now() - new Date(app.assignedAt || app.createdAt).getTime()) / (1000 * 60 * 60 * 24));
   const statusColors: Record<string, string> = {
     assigned: 'default',
     'under-review': 'secondary',
@@ -245,13 +381,14 @@ function ApplicationCard({ app, formatDate, onReview, showReviewOnly }: Applicat
         <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
           <div className="flex-1 w-full">
             <div className="flex flex-wrap items-center gap-3 mb-3">
-              <h3 className="text-lg font-medium">{app.companyName}</h3>
+              <h3 className="text-lg font-medium">{app.applicantName || app.companyName}</h3>
               <Badge variant={statusColors[app.status] as any}>
                 {app.status === 'assigned' && 'New'}
                 {app.status === 'under-review' && 'In Progress'}
                 {app.status === 'manager-review' && 'Sent to Manager'}
                 {app.status === 'rejected' && 'Rejected'}
               </Badge>
+              {getSlaBadge(daysSince, app.status !== 'assigned')}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600">

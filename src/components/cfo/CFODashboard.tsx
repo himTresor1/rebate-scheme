@@ -18,6 +18,7 @@ import {
 import { User } from '../../utils/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { WeeklyDisbursementReport } from '../qa/WeeklyDisbursementReport';
 import { PageHeader } from '../PageHeader';
 import { CFOReview } from './CFOReview';
 import { FinancierGroupedView } from '../shared/FinancierGroupedView';
@@ -68,7 +69,7 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     try {
       const data = await api.getAllApplications();
       const cfoApps = data.filter((app: Application) =>
-        ['program-manager-review', 'approved-pending-lease', 'approved'].includes(app.status)
+        ['approved-pending-lease', 'approved'].includes(app.status)
       );
       setApplications(cfoApps);
 
@@ -142,7 +143,7 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
   };
 
   // Filter and sort applications
-  let filteredApps = applications.filter(app => app.status === 'program-manager-review');
+  let filteredApps = applications.filter(app => app.status === 'approved-pending-lease');
 
   if (scoreFilter !== 'all') {
     filteredApps = filteredApps.filter(app => {
@@ -191,6 +192,15 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <p>Loading applications...</p>
+      </div>
+    );
+  }
+
+  if (currentPage === 'weekly-report') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <WeeklyDisbursementReport />
       </div>
     );
   }
@@ -274,8 +284,14 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <PageHeader />
       <Greeting name={user.name || 'Program Manager'} />
-      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">QA Decision Dashboard</h1>
-      <p className="text-sm text-gray-600 mt-1">E-Moto Quality Assurance — record weekly rebate decisions with mandatory rationale.</p>
+      <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Program Manager Dashboard</h1>
+      <p className="text-sm text-gray-600 mt-1">Monitor approved rebates and manage advance funding. Final per-case decisions are made by the Rebate Manager.</p>
+
+      <Card className="mb-6 border-blue-200 bg-blue-50">
+        <CardContent className="pt-6 text-sm text-blue-900">
+          Per-case approve/reject is handled by the Rebate Manager. Use <strong>Advance Funding</strong> for CFO disbursement authorization workflows.
+        </CardContent>
+      </Card>
 
       {/* Statistics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -363,11 +379,12 @@ export function CFODashboard({ user, currentPage }: CFODashboardProps) {
 
             <Button
               onClick={() => setShowBatchDialog(true)}
-              disabled={selectedForBatch.length === 0}
+              disabled={true}
               className="w-full"
+              title="Final decisions are made by Rebate Manager"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
-              Batch Approve ({selectedForBatch.length})
+              Batch Approve (disabled — Manager decides)
             </Button>
           </div>
         </CardContent>

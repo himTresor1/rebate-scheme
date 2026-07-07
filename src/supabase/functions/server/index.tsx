@@ -792,7 +792,7 @@ app.post("/make-server-324f6e20/evaluations/:applicationId/complete", async (c) 
       }
     } else if (userProfile.role === 'qa' || userProfile.role === 'REBATE_MANAGER') {
       if (decision === 'approve') {
-        newStatus = 'program-manager-review';
+        newStatus = 'approved-pending-lease';
       } else if (decision === 'reject') {
         newStatus = 'rejected';
       } else if (decision === 'send-back') {

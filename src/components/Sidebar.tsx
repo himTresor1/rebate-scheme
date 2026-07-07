@@ -102,6 +102,10 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
           { icon: FileText, label: 'Rebate Status', page: 'rebate-status' },
           { icon: Bike, label: 'E-Moto Possession', page: 'possession' },
+          { icon: FilePlus, label: 'Marketing Proposal', page: 'marketing-proposal' },
+          { icon: Users, label: 'AF Permissions', page: 'af-permissions' },
+          { icon: FileText, label: 'Client Transfer', page: 'client-transfer' },
+          { icon: ScrollText, label: 'Background Info', page: 'background-info' },
           { icon: Users, label: 'Manage Staff', page: 'internal-users' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -121,6 +125,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: FileText, label: 'Rebate Review Status', page: 'review-queue' },
           { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
+          { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
           { icon: FileText, label: 'All Rebates', page: 'applications' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -131,6 +136,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: CheckSquare, label: 'QA Decisions', page: 'approvals' },
           { icon: FileText, label: 'Recommended Rebates', page: 'flagged' },
+          { icon: ScrollText, label: 'Weekly Report', page: 'weekly-report' },
           { icon: DollarSign, label: 'Advance Funding', page: 'advance-funding' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];

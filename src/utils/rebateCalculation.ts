@@ -8,7 +8,7 @@ export function calculateRebateAmount(
 ): number {
   if (!retailCostRwf || retailCostRwf <= 0) return 0;
 
-  let rate = 0.15; // new e-moto
+  let rate = 0.18; // new e-moto (men)
   if (options.isRetrofit) rate = 0.2;
   if (options.isWoman) rate = 0.25;
 
@@ -18,7 +18,7 @@ export function calculateRebateAmount(
 export function getRebateRateLabel(options: { isWoman: boolean; isRetrofit: boolean }): string {
   if (options.isWoman) return '25% (women applicant)';
   if (options.isRetrofit) return '20% (retrofit)';
-  return '15% (new e-moto)';
+  return '18% (new e-moto)';
 }
 
 export function generateTicketPreview(): string {

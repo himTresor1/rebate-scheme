@@ -13,7 +13,9 @@ import { FinancierGroupedView } from '../shared/FinancierGroupedView';
 import { Greeting } from '../ui/Greeting';
 import { LeaseReviewView } from './LeaseReviewView';
 import { RebateStatusView } from '../asset-financier/RebateStatusView';
+import { RebateReassignmentPipeline } from './RebateReassignmentPipeline';
 import { PageHeader } from '../PageHeader';
+import { getSlaBadge } from '../../utils/slaBadges';
 
 interface Application {
   id: string;
@@ -52,7 +54,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
       const data = await api.getAllApplications();
       // Filter Manager review applications
       const qaApps = data.filter((app: Application) => 
-        ['manager-review', 'program-manager-review', 'lease-review'].includes(app.status)
+        ['manager-review', 'approved-pending-lease', 'approved', 'lease-review'].includes(app.status)
       );
       setApplications(qaApps);
 
@@ -111,7 +113,17 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   });
 
   const pendingReview = sortedApps.filter(app => app.status === 'manager-review');
-  const approved = sortedApps.filter(app => app.status === 'program-manager-review');
+  const approved = sortedApps.filter(app => ['approved-pending-lease', 'approved'].includes(app.status));
+
+  // Show reassignment pipeline for Rebate Manager
+  if (currentPage === 'reassignment') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <RebateReassignmentPipeline />
+      </div>
+    );
+  }
 
   // Show possession analysis for Rebate Manager (RGF view)
   if (currentPage === 'possession-analysis') {
@@ -121,6 +133,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
         <RebateStatusView
           title="Analysis of Individual E-Moto Possession"
           description="Cross-AF view of rebate applications and whether individuals have received their e-moto (escrow vs disbursed)."
+          mode="possession-analysis"
         />
       </div>
     );
@@ -154,7 +167,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
       <PageHeader />
       <Greeting user={user} />
       <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Rebate Review Status</h1>
-      <p className="text-sm text-gray-600 mt-1">Rebate Team pipeline — check AF submissions and notify QA of issues.</p>
+      <p className="text-sm text-gray-600 mt-1">Rebate Manager pipeline — review analyst recommendations and record final approve/reject decisions.</p>
 
       {/* Filters */}
       <Card className="mb-6">
@@ -182,7 +195,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pending" className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
-            Pending Review ({pendingReview.length})
+            Pending Manager Decision ({pendingReview.length})
           </TabsTrigger>
           <TabsTrigger value="approved" className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4" />
@@ -195,7 +208,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
             <Card>
               <CardContent className="p-12 text-center">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No applications pending QA review</p>
+                <p className="text-gray-600">No applications awaiting Rebate Manager decision</p>
               </CardContent>
             </Card>
           ) : (
@@ -219,7 +232,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
             <Card>
               <CardContent className="p-12 text-center">
                 <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-600">No applications approved for CFO</p>
+                <p className="text-gray-600">No applications approved yet</p>
               </CardContent>
             </Card>
           ) : (
@@ -253,6 +266,7 @@ interface QAApplicationCardProps {
 
 function QAApplicationCard({ app, evaluation, formatDate, onReview, showViewOnly }: QAApplicationCardProps) {
   const score = evaluation?.score || 0;
+  const daysSince = Math.floor((Date.now() - new Date(app.lastReviewedAt || app.createdAt).getTime()) / (1000 * 60 * 60 * 24));
   
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600 bg-green-50 border-green-200';
@@ -267,6 +281,7 @@ function QAApplicationCard({ app, evaluation, formatDate, onReview, showViewOnly
           <div className="flex-1 w-full">
             <div className="flex flex-wrap items-center gap-3 mb-3">
               <h3 className="text-lg font-medium">{app.companyName}</h3>
+              {getSlaBadge(daysSince, app.status !== 'manager-review')}
               {app.flaggedForCFO && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />

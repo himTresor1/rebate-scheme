@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Bike, Bell, CheckCircle2, Filter } from 'lucide-react';
+import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { FinancingDetailsView } from '../shared/FinancingDetailsView';
+import { Input } from '../ui/input';
 import {
   Dialog,
   DialogContent,
@@ -33,29 +35,82 @@ const MOCK_RECORDS: PossessionRecord[] = [
   { ticketNumber: 'REB-003', applicantName: 'Alice Mutoni', submittedAt: '2026-03-20', vehicleType: 'New E-Moto', brand: 'Spiro', isWoman: true, daysSinceSubmission: 12, rebateAmount: 175000, hasPossession: true },
 ];
 
+type SortOption = 'date-oldest' | 'date-newest' | 'days-high' | 'days-low' | 'amount-high' | 'amount-low' | 'name-az';
+
 export function PossessionConfirmationView() {
   const [records, setRecords] = useState(MOCK_RECORDS);
   const [filter, setFilter] = useState('pending');
+  const [sortBy, setSortBy] = useState<SortOption>('date-oldest');
+  const [filterWoman, setFilterWoman] = useState('all');
+  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterDateRange, setFilterDateRange] = useState('all');
+  const [search, setSearch] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<PossessionRecord | null>(null);
+  const [detailTarget, setDetailTarget] = useState<PossessionRecord | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [possessionProofName, setPossessionProofName] = useState('');
+  const [possessionDate, setPossessionDate] = useState('');
 
   const pending = records.filter((r) => !r.hasPossession);
   const provided = records.filter((r) => r.hasPossession);
 
-  const displayed = filter === 'pending' ? pending : filter === 'provided' ? provided : records;
+  const baseFiltered = (filter === 'pending' ? pending : filter === 'provided' ? provided : records)
+    .filter((r) => {
+      if (filterWoman === 'yes' && !r.isWoman) return false;
+      if (filterWoman === 'no' && r.isWoman) return false;
+      if (filterRetrofit === 'yes' && r.vehicleType !== 'Retrofit') return false;
+      if (filterRetrofit === 'no' && r.vehicleType === 'Retrofit') return false;
+      if (filterDateRange === 'day' && r.daysSinceSubmission > 1) return false;
+      if (filterDateRange === 'week' && r.daysSinceSubmission > 7) return false;
+      if (filterDateRange === 'month' && r.daysSinceSubmission > 30) return false;
+      if (filterDateRange === 'year' && r.daysSinceSubmission > 365) return false;
+      if (search && !r.applicantName.toLowerCase().includes(search.toLowerCase()) && !r.ticketNumber.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+
+  const displayed = [...baseFiltered].sort((a, b) => {
+    switch (sortBy) {
+      case 'date-oldest':
+        return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+      case 'date-newest':
+        return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+      case 'days-high':
+        return b.daysSinceSubmission - a.daysSinceSubmission;
+      case 'days-low':
+        return a.daysSinceSubmission - b.daysSinceSubmission;
+      case 'amount-high':
+        return b.rebateAmount - a.rebateAmount;
+      case 'amount-low':
+        return a.rebateAmount - b.rebateAmount;
+      case 'name-az':
+        return a.applicantName.localeCompare(b.applicantName);
+      default:
+        return 0;
+    }
+  });
 
   const handleConfirmPossession = async () => {
     if (!confirmTarget) return;
+    if (!possessionProofName) {
+      toast.error('Signed AF/Client possession confirmation is required');
+      return;
+    }
+    if (!possessionDate) {
+      toast.error('Date of e-moto possession is required');
+      return;
+    }
     setConfirming(true);
     await new Promise((r) => setTimeout(r, 800));
     setRecords((prev) =>
       prev.map((r) => (r.ticketNumber === confirmTarget.ticketNumber ? { ...r, hasPossession: true } : r))
     );
     toast.success('RGF notified of e-moto possession', {
-      description: `${confirmTarget.applicantName} — AF may access escrow for RWF ${confirmTarget.rebateAmount.toLocaleString()}`,
+      description: `${confirmTarget.applicantName} — possession proof received (${possessionProofName}), date ${possessionDate}`,
     });
     setConfirming(false);
     setConfirmTarget(null);
+    setPossessionProofName('');
+    setPossessionDate('');
   };
 
   return (
@@ -90,28 +145,80 @@ export function PossessionConfirmationView() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Default report: No e-moto provided yet ({pending.length})
-            </CardTitle>
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Filters &amp; Sort
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Input placeholder="Search name or ticket..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger><SelectValue placeholder="Sort by" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">Pending possession</SelectItem>
+                <SelectItem value="date-oldest">Date received (oldest first)</SelectItem>
+                <SelectItem value="date-newest">Date received (newest first)</SelectItem>
+                <SelectItem value="days-high">Days since receipt (high to low)</SelectItem>
+                <SelectItem value="days-low">Days since receipt (low to high)</SelectItem>
+                <SelectItem value="amount-high">Rebate amount (high to low)</SelectItem>
+                <SelectItem value="amount-low">Rebate amount (low to high)</SelectItem>
+                <SelectItem value="name-az">Applicant name (A–Z)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger><SelectValue placeholder="Possession" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Not yet in possession</SelectItem>
                 <SelectItem value="provided">E-moto provided</SelectItem>
                 <SelectItem value="all">All rebates</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filterDateRange} onValueChange={setFilterDateRange}>
+              <SelectTrigger><SelectValue placeholder="Date range" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All dates</SelectItem>
+                <SelectItem value="day">Today</SelectItem>
+                <SelectItem value="week">Last 7 days</SelectItem>
+                <SelectItem value="month">Last 30 days</SelectItem>
+                <SelectItem value="year">Last 12 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select value={filterWoman} onValueChange={setFilterWoman}>
+              <SelectTrigger><SelectValue placeholder="Women" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All applicants</SelectItem>
+                <SelectItem value="yes">Women only</SelectItem>
+                <SelectItem value="no">Non-women</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
+              <SelectTrigger><SelectValue placeholder="Retrofit" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="yes">Retrofit only</SelectItem>
+                <SelectItem value="no">New e-moto only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4" />
+              Default report: No e-moto provided yet ({pending.length})
+            </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-auto px-4 sm:px-6 pb-6">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-gray-600">
-                <th className="pb-3 pr-4">Applicant</th>
+                <th className="pb-3 pr-4 pl-2">Applicant</th>
                 <th className="pb-3 pr-4">Ticket</th>
                 <th className="pb-3 pr-4">Submitted</th>
                 <th className="pb-3 pr-4">Type</th>
@@ -119,21 +226,22 @@ export function PossessionConfirmationView() {
                 <th className="pb-3 pr-4">Women</th>
                 <th className="pb-3 pr-4">Days</th>
                 <th className="pb-3 pr-4">Rebate (RWF)</th>
-                <th className="pb-3">Notify RGF</th>
+                <th className="pb-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {displayed.map((r) => (
                 <tr key={r.ticketNumber} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="py-3 pr-4 font-medium">{r.applicantName}</td>
-                  <td className="py-3 pr-4 text-[#023F40]">{r.ticketNumber}</td>
-                  <td className="py-3 pr-4">{r.submittedAt}</td>
-                  <td className="py-3 pr-4">{r.vehicleType}</td>
-                  <td className="py-3 pr-4">{r.brand}</td>
-                  <td className="py-3 pr-4">{r.isWoman ? 'Yes' : 'No'}</td>
-                  <td className="py-3 pr-4">{r.daysSinceSubmission}</td>
-                  <td className="py-3 pr-4">{r.rebateAmount.toLocaleString()}</td>
-                  <td className="py-3">
+                  <td className="py-4 pr-4 pl-2 font-medium">{r.applicantName}</td>
+                  <td className="py-4 pr-4 text-[#023F40]">{r.ticketNumber}</td>
+                  <td className="py-4 pr-4">{r.submittedAt}</td>
+                  <td className="py-4 pr-4">{r.vehicleType}</td>
+                  <td className="py-4 pr-4">{r.brand}</td>
+                  <td className="py-4 pr-4">{r.isWoman ? 'Yes' : 'No'}</td>
+                  <td className="py-4 pr-4">{r.daysSinceSubmission}</td>
+                  <td className="py-4 pr-4">{r.rebateAmount.toLocaleString()}</td>
+                  <td className="py-4 flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setDetailTarget(r)}>Details</Button>
                     {r.hasPossession ? (
                       <Badge className="bg-green-100 text-green-800">
                         <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -157,7 +265,36 @@ export function PossessionConfirmationView() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!confirmTarget} onOpenChange={() => setConfirmTarget(null)}>
+      <Dialog open={!!detailTarget} onOpenChange={() => setDetailTarget(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {detailTarget && (
+            <FinancingDetailsView
+              embedded
+              data={{
+                ticketNumber: detailTarget.ticketNumber,
+                applicantName: detailTarget.applicantName,
+                status: detailTarget.hasPossession ? 'Possession confirmed' : 'Awaiting possession',
+                isWoman: detailTarget.isWoman,
+                vehicleType: detailTarget.vehicleType,
+                financier: 'Bank of Kigali',
+                submittedAt: detailTarget.submittedAt,
+                rebateAmount: detailTarget.rebateAmount,
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!confirmTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmTarget(null);
+            setPossessionProofName('');
+            setPossessionDate('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm e-moto possession</DialogTitle>
@@ -171,6 +308,36 @@ export function PossessionConfirmationView() {
             <div>
               <p className="font-medium">Rebate amount: RWF {confirmTarget?.rebateAmount.toLocaleString()}</p>
               <p className="text-gray-600">Funds will be released from escrow after RGF records this confirmation.</p>
+            </div>
+          </div>
+          <div className="space-y-3 border rounded-lg p-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Signed AF/Client Confirmation of E-Moto Possession *
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setPossessionProofName(file ? file.name : '');
+                }}
+                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm file:bg-gray-50 hover:file:bg-gray-100"
+              />
+              {possessionProofName && (
+                <p className="text-xs text-green-700 mt-1">Uploaded: {possessionProofName}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date of E-Moto Possession *
+              </label>
+              <input
+                type="date"
+                value={possessionDate}
+                onChange={(e) => setPossessionDate(e.target.value)}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+              />
             </div>
           </div>
           <DialogFooter>

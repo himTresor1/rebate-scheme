@@ -34,9 +34,6 @@ import {
   Search,
   ChevronDown,
   ChevronUp,
-  Database,
-  ExternalLink,
-  Loader2,
   MoreVertical
 } from 'lucide-react';
 import { User } from '../../utils/auth';
@@ -66,14 +63,6 @@ import {
 import { DocumentUploadField } from './DocumentUploadField';
 import { ForwardToMEDialog, MEForwardData } from './ForwardToMEDialog';
 import { CriterionCardEnhanced } from './CriterionCardEnhanced';
-import { 
-  mockSocialRegistryCheck, 
-  mockAdditionalMotorcyclesCheck,
-  mockNationalIdCheck,
-  mockTaxiLicenseCheck,
-  simulateApiCall
-} from '../../utils/mockApiResponses';
-
 interface Application {
   id: string;
   companyName: string;
@@ -169,23 +158,16 @@ interface ApplicationReviewEnhancedProps {
   onBack: () => void;
 }
 
-// API Check interfaces
-interface ApiCheckState {
-  loading: boolean;
-  data: any;
-  error?: string;
-  checkedAt?: string;
-}
-
 export function ApplicationReviewEnhanced({ application, user, onBack }: ApplicationReviewEnhancedProps) {
   const isAnalystRole = user.role === 'analyst' || user.role === 'REBATE_ANALYST';
+  const isManagerRole = user.role === 'REBATE_MANAGER';
   const isQARole = user.role === 'E_MOTO_PROGRAM_MANAGER' || user.role === 'cfo';
-  const approveLabel = isAnalystRole ? 'Recommend Approval' : isQARole ? 'QA Approve' : 'Approve';
-  const rejectLabel = isAnalystRole ? 'Recommend Rejection' : isQARole ? 'QA Reject' : 'Reject';
+  const approveLabel = isManagerRole ? 'Approve' : 'Approve';
+  const rejectLabel = isManagerRole ? 'Reject' : 'Reject';
   const rationaleLabel = isAnalystRole
     ? 'Rationale for Recommendation'
-    : isQARole
-    ? 'Rationale for QA Decision'
+    : isManagerRole
+    ? 'Rationale for Decision'
     : 'Decision Rationale';
 
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -211,7 +193,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
   // NEW: Collapsible sections state
   const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>({
     applicant: false,
-    apiChecks: false,
     vehicle: false,
     financing: false,
     repayment: false,
@@ -233,22 +214,12 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
   const [saving, setSaving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showRecommendationDialog, setShowRecommendationDialog] = useState(false);
+  const [recommendationType, setRecommendationType] = useState<'approve' | 'reject'>('approve');
   const [showClarificationDialog, setShowClarificationDialog] = useState(false);
   const [clarificationMessage, setClarificationMessage] = useState('');
   const [showMobileCriteria, setShowMobileCriteria] = useState(false);
   const [showForwardToMEDialog, setShowForwardToMEDialog] = useState(false);
-
-  // NEW: API Check states
-  const [socialRegistryCheck, setSocialRegistryCheck] = useState<ApiCheckState>({ loading: false, data: null });
-  const [motorcyclesCheck, setMotorcyclesCheck] = useState<ApiCheckState>({ loading: false, data: null });
-  const [nidaCheck, setNidaCheck] = useState<ApiCheckState>({ loading: false, data: null });
-  const [ruraCheck, setRuraCheck] = useState<ApiCheckState>({ loading: false, data: null });
-  
-  // Modal states for viewing API data
-  const [showSocialRegistryModal, setShowSocialRegistryModal] = useState(false);
-  const [showMotorcyclesModal, setShowMotorcyclesModal] = useState(false);
-  const [showNidaModal, setShowNidaModal] = useState(false);
-  const [showRuraModal, setShowRuraModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -273,87 +244,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       console.error(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // API Check handlers
-  const handleSocialRegistryCheck = async () => {
-    setSocialRegistryCheck({ loading: true, data: null });
-    try {
-      const result = await simulateApiCall(mockSocialRegistryCheck(application.applicantName), 1500);
-      setSocialRegistryCheck({ 
-        loading: false, 
-        data: result,
-        checkedAt: new Date().toISOString()
-      });
-      toast.success('Social Registry data retrieved successfully');
-    } catch (error) {
-      setSocialRegistryCheck({ 
-        loading: false, 
-        data: null, 
-        error: 'Failed to fetch data' 
-      });
-      toast.error('Failed to retrieve Social Registry data');
-    }
-  };
-
-  const handleMotorcyclesCheck = async () => {
-    setMotorcyclesCheck({ loading: true, data: null });
-    try {
-      const result = await simulateApiCall(mockAdditionalMotorcyclesCheck(application.nationalId), 1500);
-      setMotorcyclesCheck({ 
-        loading: false, 
-        data: result,
-        checkedAt: new Date().toISOString()
-      });
-      toast.success('Motorcycles data retrieved successfully');
-    } catch (error) {
-      setMotorcyclesCheck({ 
-        loading: false, 
-        data: null, 
-        error: 'Failed to fetch data' 
-      });
-      toast.error('Failed to retrieve motorcycles data');
-    }
-  };
-
-  const handleNidaCheck = async () => {
-    setNidaCheck({ loading: true, data: null });
-    try {
-      const result = await simulateApiCall(mockNationalIdCheck(application.nationalId), 1500);
-      setNidaCheck({ 
-        loading: false, 
-        data: result,
-        checkedAt: new Date().toISOString()
-      });
-      toast.success('NIDA data retrieved successfully');
-    } catch (error) {
-      setNidaCheck({ 
-        loading: false, 
-        data: null, 
-        error: 'Failed to fetch data' 
-      });
-      toast.error('Failed to retrieve NIDA data');
-    }
-  };
-
-  const handleRuraCheck = async () => {
-    setRuraCheck({ loading: true, data: null });
-    try {
-      const result = await simulateApiCall(mockTaxiLicenseCheck(application.plateNumber || 'RAE123E'), 1500);
-      setRuraCheck({ 
-        loading: false, 
-        data: result,
-        checkedAt: new Date().toISOString()
-      });
-      toast.success('RURA license data retrieved successfully');
-    } catch (error) {
-      setRuraCheck({ 
-        loading: false, 
-        data: null, 
-        error: 'Failed to fetch data' 
-      });
-      toast.error('Failed to retrieve RURA data');
     }
   };
 
@@ -422,12 +312,12 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       toast.success(
         decision === 'approve'
           ? isAnalystRole
-            ? 'Recommendation submitted to QA Team'
-            : isQARole
-            ? 'QA decision recorded'
-            : 'Application approved and sent to QA'
+            ? 'Recommendation submitted to Rebate Manager'
+            : isManagerRole
+            ? 'Application approved — forwarded for possession/disbursement'
+            : 'Application approved'
           : isAnalystRole
-          ? 'Rejection recommendation submitted to QA Team'
+          ? 'Rejection recommendation submitted to Rebate Manager'
           : 'Application rejected'
       );
       onBack();
@@ -438,6 +328,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       setSaving(false);
       setShowApproveDialog(false);
       setShowRejectDialog(false);
+      setShowRecommendationDialog(false);
     }
   };
 
@@ -483,7 +374,21 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
 
   const score = calculateScore();
   const evaluatedCount = Object.values(evaluations).filter(v => v !== null && v !== undefined).length;
-  const isReadOnly = ['manager-review', 'rejected', 'program-manager-review', 'approved', 'disbursed'].includes(application.status);
+  const isReadOnly = (() => {
+    if (['rejected', 'approved', 'disbursed', 'approved-pending-lease'].includes(application.status)) {
+      return true;
+    }
+    if (isAnalystRole) {
+      return !['assigned', 'under-review'].includes(application.status);
+    }
+    if (isManagerRole) {
+      return application.status !== 'manager-review';
+    }
+    if (isQARole) {
+      return true;
+    }
+    return ['manager-review', 'program-manager-review'].includes(application.status);
+  })();
 
   if (loading) {
     return (
@@ -556,23 +461,36 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                   </DropdownMenu>
                 )}
                 
-                <Button 
-                  variant="destructive" 
-                  onClick={() => setShowRejectDialog(true)} 
-                  disabled={saving} 
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  {rejectLabel}
-                </Button>
-                <Button 
-                  onClick={() => setShowApproveDialog(true)} 
-                  disabled={saving} 
-                  className="bg-[#6DB27F] hover:bg-[#5da170]"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {approveLabel}
-                </Button>
+                {isAnalystRole ? (
+                  <Button
+                    onClick={() => setShowRecommendationDialog(true)}
+                    disabled={saving}
+                    className="bg-[#6DB27F] hover:bg-[#5da170]"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Submit recommendation
+                  </Button>
+                ) : isManagerRole ? (
+                  <>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => setShowRejectDialog(true)} 
+                      disabled={saving} 
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      {rejectLabel}
+                    </Button>
+                    <Button 
+                      onClick={() => setShowApproveDialog(true)} 
+                      disabled={saving} 
+                      className="bg-[#6DB27F] hover:bg-[#5da170]"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {approveLabel}
+                    </Button>
+                  </>
+                ) : null}
               </div>
             )}
           </div>
@@ -659,227 +577,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                     </div>
                   </div>
                 )}
-              </div>
-            </CardContent>
-            )}
-          </Card>
-
-          {/* NEW: API Verification Section */}
-          <Card className="border-2 border-[#023F40]/20">
-            <CardHeader 
-              className="bg-gradient-to-r from-[#023F40]/10 to-transparent cursor-pointer hover:bg-[#023F40]/15 transition-colors"
-              onClick={() => toggleSection('apiChecks')}
-            >
-              <CardTitle className="text-[#023F40] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Database className="w-5 h-5" />
-                  API Verification Checks
-                </div>
-                {collapsedSections.apiChecks ? (
-                  <ChevronDown className="w-5 h-5 text-gray-500" />
-                ) : (
-                  <ChevronUp className="w-5 h-5 text-gray-500" />
-                )}
-              </CardTitle>
-              {!collapsedSections.apiChecks && (
-                <CardDescription>
-                  Verify applicant data through external API integrations
-                </CardDescription>
-              )}
-            </CardHeader>
-            {!collapsedSections.apiChecks && (
-              <CardContent className="pt-6 space-y-6">
-              {/* Section A: Mandatory API Checks */}
-              <div>
-                <h3 className="font-semibold text-[#023F40] mb-4 flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[#023F40] text-white flex items-center justify-center text-sm">A</div>
-                  Mandatory API Checks
-                </h3>
-                <div className="space-y-3">
-                  {/* Social Registry Check */}
-                  <div className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">Social Registry Check</p>
-                        <p className="text-sm text-gray-600">Verify applicant's social economic status</p>
-                        {socialRegistryCheck.checkedAt && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Last checked: {new Date(socialRegistryCheck.checkedAt).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {socialRegistryCheck.data && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setShowSocialRegistryModal(true)}
-                            className="text-[#023F40] border-[#023F40]/30"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View Data
-                          </Button>
-                        )}
-                        <Button 
-                          size="sm"
-                          onClick={handleSocialRegistryCheck}
-                          disabled={socialRegistryCheck.loading}
-                          className="bg-[#023F40] hover:bg-[#035f60]"
-                        >
-                          {socialRegistryCheck.loading ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              Pulling...
-                            </>
-                          ) : (
-                            <>
-                              <Database className="w-4 h-4 mr-1" />
-                              {socialRegistryCheck.data ? 'Refresh' : 'Pull Data'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Motorcycles Check */}
-                  <div className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">Additional Motorcycles Check (RURA/RRA)</p>
-                        <p className="text-sm text-gray-600">Check if applicant owns other motorcycles</p>
-                        {motorcyclesCheck.checkedAt && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Last checked: {new Date(motorcyclesCheck.checkedAt).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {motorcyclesCheck.data && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setShowMotorcyclesModal(true)}
-                            className="text-[#023F40] border-[#023F40]/30"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View Data
-                          </Button>
-                        )}
-                        <Button 
-                          size="sm"
-                          onClick={handleMotorcyclesCheck}
-                          disabled={motorcyclesCheck.loading}
-                          className="bg-[#023F40] hover:bg-[#035f60]"
-                        >
-                          {motorcyclesCheck.loading ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              Pulling...
-                            </>
-                          ) : (
-                            <>
-                              <Database className="w-4 h-4 mr-1" />
-                              {motorcyclesCheck.data ? 'Refresh' : 'Pull Data'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* NIDA Verification */}
-                  <div className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">NIDA Verification</p>
-                        <p className="text-sm text-gray-600">Verify national ID details with NIDA</p>
-                        {nidaCheck.checkedAt && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Last checked: {new Date(nidaCheck.checkedAt).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {nidaCheck.data && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setShowNidaModal(true)}
-                            className="text-[#023F40] border-[#023F40]/30"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View Data
-                          </Button>
-                        )}
-                        <Button 
-                          size="sm"
-                          onClick={handleNidaCheck}
-                          disabled={nidaCheck.loading}
-                          className="bg-[#023F40] hover:bg-[#035f60]"
-                        >
-                          {nidaCheck.loading ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              Pulling...
-                            </>
-                          ) : (
-                            <>
-                              <Database className="w-4 h-4 mr-1" />
-                              {nidaCheck.data ? 'Refresh' : 'Pull Data'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RURA Taxi License Check */}
-                  <div className="border rounded-lg p-4 bg-white hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">RURA Taxi License Verification</p>
-                        <p className="text-sm text-gray-600">Verify taxi license validity with RURA</p>
-                        {ruraCheck.checkedAt && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Last checked: {new Date(ruraCheck.checkedAt).toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {ruraCheck.data && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setShowRuraModal(true)}
-                            className="text-[#023F40] border-[#023F40]/30"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View Data
-                          </Button>
-                        )}
-                        <Button 
-                          size="sm"
-                          onClick={handleRuraCheck}
-                          disabled={ruraCheck.loading}
-                          className="bg-[#023F40] hover:bg-[#035f60]"
-                        >
-                          {ruraCheck.loading ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                              Pulling...
-                            </>
-                          ) : (
-                            <>
-                              <Database className="w-4 h-4 mr-1" />
-                              {ruraCheck.data ? 'Refresh' : 'Pull Data'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </CardContent>
             )}
@@ -1491,17 +1188,88 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
         </>
       )}
 
+      {/* Analyst Recommendation Dialog */}
+      <Dialog open={showRecommendationDialog} onOpenChange={setShowRecommendationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit recommendation</DialogTitle>
+            <DialogDescription>
+              Record your recommendation for the Rebate Manager. Final approve/reject authority rests with the Manager.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={recommendationType === 'approve' ? 'default' : 'outline'}
+                className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170] flex-1' : 'flex-1'}
+                onClick={() => setRecommendationType('approve')}
+              >
+                Recommend Approve
+              </Button>
+              <Button
+                type="button"
+                variant={recommendationType === 'reject' ? 'destructive' : 'outline'}
+                className="flex-1"
+                onClick={() => setRecommendationType('reject')}
+              >
+                Recommend Reject
+              </Button>
+            </div>
+            <div>
+              <Label htmlFor="recommendationRationale">{rationaleLabel} *</Label>
+              <Textarea
+                id="recommendationRationale"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Provide mandatory rationale for your recommendation (minimum 20 characters)..."
+                rows={5}
+                className="mt-2"
+              />
+            </div>
+            {recommendationType === 'reject' && (
+              <div>
+                <Label htmlFor="recommendationRejectReason">Rejection reason *</Label>
+                <Textarea
+                  id="recommendationRejectReason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Explain why you recommend rejection..."
+                  rows={4}
+                  className="mt-2"
+                />
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRecommendationDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleComplete(recommendationType)}
+                disabled={
+                  saving ||
+                  notes.trim().length < 20 ||
+                  (recommendationType === 'reject' && !rejectionReason.trim())
+                }
+                className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170]' : ''}
+                variant={recommendationType === 'reject' ? 'destructive' : 'default'}
+              >
+                {saving ? 'Submitting...' : 'Submit recommendation'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Approve Dialog */}
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{approveLabel}</DialogTitle>
             <DialogDescription>
-              {isAnalystRole
-                ? 'Submit your recommendation to the QA Team. Final rebate decisions are made by QA only.'
-                : isQARole
-                ? 'Record the QA Team approval decision. Rationale must be documented.'
-                : 'Are you sure you want to approve this application and send it to QA review?'}
+              {isManagerRole
+                ? 'Record your final approval decision. This moves the rebate forward for possession and disbursement tracking.'
+                : 'Are you sure you want to approve this application?'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1533,9 +1301,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
           <DialogHeader>
             <DialogTitle>{rejectLabel}</DialogTitle>
             <DialogDescription>
-              {isAnalystRole
-                ? 'Provide mandatory rationale for your rejection recommendation to the QA Team.'
-                : 'Please provide a clear reason for rejecting this rebate application.'}
+              Provide mandatory rationale for your final rejection decision.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1642,214 +1408,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
         }}
       />
 
-      {/* API Data View Modals */}
-      {/* Social Registry Modal */}
-      <Dialog open={showSocialRegistryModal} onOpenChange={setShowSocialRegistryModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-[#023F40]" />
-              Social Registry Data
-            </DialogTitle>
-            <DialogDescription>
-              Retrieved data from Social Registry API
-            </DialogDescription>
-          </DialogHeader>
-          {socialRegistryCheck.data && (
-            <div className="space-y-4">
-              {socialRegistryCheck.data.found ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Income Level</p>
-                    <p className="font-medium">{socialRegistryCheck.data.incomeLevel}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Household Size</p>
-                    <p className="font-medium">{socialRegistryCheck.data.householdSize}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Ubudehe Category</p>
-                    <p className="font-medium">{socialRegistryCheck.data.ubudeheCategory}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Location</p>
-                    <p className="font-medium">{socialRegistryCheck.data.location}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Registered Date</p>
-                    <p className="font-medium">{new Date(socialRegistryCheck.data.registeredDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Checked At</p>
-                    <p className="font-medium">{new Date(socialRegistryCheck.data.checkedAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-900">{socialRegistryCheck.data.reason}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Motorcycles Modal */}
-      <Dialog open={showMotorcyclesModal} onOpenChange={setShowMotorcyclesModal}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Car className="w-5 h-5 text-[#023F40]" />
-              Additional Motorcycles Data
-            </DialogTitle>
-            <DialogDescription>
-              Retrieved data from RURA/RRA motorcycle registry
-            </DialogDescription>
-          </DialogHeader>
-          {motorcyclesCheck.data && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="text-sm text-gray-600">Total Motorcycles</p>
-                  <p className="font-medium text-lg">{motorcyclesCheck.data.totalCount}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Status</p>
-                  <p className="font-medium">{motorcyclesCheck.data.message}</p>
-                </div>
-              </div>
-              
-              <div>
-                <p className="font-semibold mb-2">Registered Motorcycles:</p>
-                <div className="space-y-2">
-                  {motorcyclesCheck.data.motorcycles.map((moto: any, i: number) => (
-                    <div key={i} className="border rounded-lg p-3 bg-white">
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div>
-                          <p className="text-gray-600">Plate Number</p>
-                          <p className="font-medium">{moto.plateNumber}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Brand/Model</p>
-                          <p className="font-medium">{moto.brand} {moto.model}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Status</p>
-                          <Badge variant={moto.status === 'Active' ? 'default' : 'secondary'}>
-                            {moto.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* NIDA Modal */}
-      <Dialog open={showNidaModal} onOpenChange={setShowNidaModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-[#023F40]" />
-              NIDA Verification Data
-            </DialogTitle>
-            <DialogDescription>
-              Retrieved data from NIDA national ID database
-            </DialogDescription>
-          </DialogHeader>
-          {nidaCheck.data && (
-            <div className="space-y-4">
-              {nidaCheck.data.verified ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Name</p>
-                    <p className="font-medium">{nidaCheck.data.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Date of Birth</p>
-                    <p className="font-medium">{new Date(nidaCheck.data.dateOfBirth).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Gender</p>
-                    <p className="font-medium">{nidaCheck.data.gender}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Province</p>
-                    <p className="font-medium">{nidaCheck.data.province}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">District</p>
-                    <p className="font-medium">{nidaCheck.data.district}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Checked At</p>
-                    <p className="font-medium">{new Date(nidaCheck.data.checkedAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-900">{nidaCheck.data.reason}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* RURA License Modal */}
-      <Dialog open={showRuraModal} onOpenChange={setShowRuraModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileCheck className="w-5 h-5 text-[#023F40]" />
-              RURA Taxi License Data
-            </DialogTitle>
-            <DialogDescription>
-              Retrieved data from RURA taxi license database
-            </DialogDescription>
-          </DialogHeader>
-          {ruraCheck.data && (
-            <div className="space-y-4">
-              {ruraCheck.data.valid ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">License Number</p>
-                    <p className="font-medium">{ruraCheck.data.licenseNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">License Type</p>
-                    <p className="font-medium">{ruraCheck.data.licenseType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Issue Date</p>
-                    <p className="font-medium">{new Date(ruraCheck.data.issueDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Expiry Date</p>
-                    <p className="font-medium">{new Date(ruraCheck.data.expiryDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Province</p>
-                    <p className="font-medium">{ruraCheck.data.province}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Status</p>
-                    <Badge variant="default" className="bg-[#6DB27F]">{ruraCheck.data.status}</Badge>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-900">{ruraCheck.data.reason}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

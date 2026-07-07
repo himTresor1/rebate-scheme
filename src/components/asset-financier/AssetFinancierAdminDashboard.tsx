@@ -5,6 +5,10 @@ import { ApplicationsOverview } from './ApplicationsOverview';
 import { SubmitApplicationForm } from './SubmitApplicationForm';
 import { RebateStatusView } from './RebateStatusView';
 import { PossessionConfirmationView } from './PossessionConfirmationView';
+import { MarketingProposalForm } from './MarketingProposalForm';
+import { AfPermissionsView } from './AfPermissionsView';
+import { ClientTransferForm } from './ClientTransferForm';
+import { RebateBackgroundInfo } from './RebateBackgroundInfo';
 import { RepaymentTracking } from './RepaymentTracking';
 import { NotificationsView } from '../NotificationsView';
 import { User } from '../../utils/auth';
@@ -76,7 +80,7 @@ export function AssetFinancierAdminDashboard({
   onNavigate 
 }: AssetFinancierAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession'
+    'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession' | 'marketing-proposal' | 'af-permissions' | 'client-transfer' | 'background-info'
   >('overview');
   const [loading, setLoading] = useState(true);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -116,7 +120,7 @@ export function AssetFinancierAdminDashboard({
 
   // Sync activeTab with currentPage from sidebar
   useEffect(() => {
-    const pageToTabMap: Record<string, 'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession'> = {
+    const pageToTabMap: Record<string, typeof activeTab> = {
       'dashboard': 'overview',
       'internal-users': 'users',
       'applications': 'applications',
@@ -124,6 +128,10 @@ export function AssetFinancierAdminDashboard({
       'repayment': 'repayment',
       'rebate-status': 'rebate-status',
       'possession': 'possession',
+      'marketing-proposal': 'marketing-proposal',
+      'af-permissions': 'af-permissions',
+      'client-transfer': 'client-transfer',
+      'background-info': 'background-info',
     };
     
     const newTab = pageToTabMap[currentPage] || 'overview';
@@ -598,6 +606,10 @@ export function AssetFinancierAdminDashboard({
         {activeTab === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
         {activeTab === 'rebate-status' && <RebateStatusView />}
         {activeTab === 'possession' && <PossessionConfirmationView />}
+        {activeTab === 'marketing-proposal' && <MarketingProposalForm organizationName={user.organization || 'your AF'} />}
+        {activeTab === 'af-permissions' && <AfPermissionsView />}
+        {activeTab === 'client-transfer' && <ClientTransferForm />}
+        {activeTab === 'background-info' && <RebateBackgroundInfo />}
         {activeTab === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
       </div>
 

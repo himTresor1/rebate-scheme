@@ -38,9 +38,9 @@ export function CFOReview({ application, user, onBack }: CFOReviewProps) {
   const [viewMode, setViewMode] = useState<'comparison' | 'detailed'>('comparison');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 container mx-auto p-4 sm:p-6 lg:p-8 max-w-6xl">
       {/* View Mode Toggle */}
-      <div className="flex items-center gap-3 bg-white p-4 rounded-lg border border-gray-200">
+      <div className="flex items-center gap-3 bg-white p-4 sm:p-5 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex gap-2">
           <Button
             variant={viewMode === 'comparison' ? 'default' : 'outline'}
@@ -65,7 +65,7 @@ export function CFOReview({ application, user, onBack }: CFOReviewProps) {
 
       {/* Conditional View */}
       {viewMode === 'comparison' ? (
-        <ScoreComparisonView applicationId={application.id} />
+        <ScoreComparisonView applicationId={application.id} onBack={onBack} />
       ) : (
         <ApplicationReviewEnhanced
           application={application}
