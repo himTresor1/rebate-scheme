@@ -171,6 +171,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: DollarSign, label: 'Finance Tracking', page: 'finance-tracking' },
+          { icon: Receipt, label: 'Top-Up Requests', page: 'top-up-requests' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         

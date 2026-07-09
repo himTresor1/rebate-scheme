@@ -3,6 +3,7 @@ import { User } from '../../utils/auth';
 import { FinanceInitiatorView } from './FinanceInitiatorView';
 import { FinanceApproverView } from './FinanceApproverView';
 import { FinanceTrackingView } from './FinanceTrackingView';
+import { TopUpRequestTrackerView } from './TopUpRequestTrackerView';
 import { PaymentProcessingView } from './PaymentProcessingView';
 import { DeliveryConfirmationView } from './DeliveryConfirmationView';
 import { FinanceOfficerPaymentView } from './FinanceOfficerPaymentView';
@@ -31,6 +32,15 @@ export function FinanceDashboard({ user, currentPage }: FinanceDashboardProps) {
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <PageHeader />
         <FinanceTrackingView />
+      </div>
+    );
+  }
+
+  if (currentPage === 'top-up-requests') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <TopUpRequestTrackerView />
       </div>
     );
   }
