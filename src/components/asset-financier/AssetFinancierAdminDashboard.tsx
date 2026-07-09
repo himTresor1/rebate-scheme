@@ -5,8 +5,6 @@ import { ApplicationsOverview } from './ApplicationsOverview';
 import { SubmitApplicationForm } from './SubmitApplicationForm';
 import { RebateStatusView } from './RebateStatusView';
 import { PossessionConfirmationView } from './PossessionConfirmationView';
-import { MarketingProposalForm } from './MarketingProposalForm';
-import { AfPermissionsView } from './AfPermissionsView';
 import { ClientTransferForm } from './ClientTransferForm';
 import { RebateBackgroundInfo } from './RebateBackgroundInfo';
 import { RepaymentTracking } from './RepaymentTracking';
@@ -80,7 +78,7 @@ export function AssetFinancierAdminDashboard({
   onNavigate 
 }: AssetFinancierAdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession' | 'marketing-proposal' | 'af-permissions' | 'client-transfer' | 'background-info'
+    'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession' | 'client-transfer' | 'background-info'
   >('overview');
   const [loading, setLoading] = useState(true);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -128,8 +126,6 @@ export function AssetFinancierAdminDashboard({
       'repayment': 'repayment',
       'rebate-status': 'rebate-status',
       'possession': 'possession',
-      'marketing-proposal': 'marketing-proposal',
-      'af-permissions': 'af-permissions',
       'client-transfer': 'client-transfer',
       'background-info': 'background-info',
     };
@@ -604,11 +600,11 @@ export function AssetFinancierAdminDashboard({
           />
         )}
         {activeTab === 'submit' && currentPage === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
-        {activeTab === 'rebate-status' && currentPage === 'rebate-status' && <RebateStatusView />}
+        {activeTab === 'rebate-status' && currentPage === 'rebate-status' && <RebateStatusView currentUser={user} />}
         {activeTab === 'possession' && currentPage === 'possession' && <PossessionConfirmationView />}
-        {activeTab === 'marketing-proposal' && currentPage === 'marketing-proposal' && <MarketingProposalForm organizationName={user.organization || 'your AF'} />}
-        {activeTab === 'af-permissions' && currentPage === 'af-permissions' && <AfPermissionsView />}
-        {activeTab === 'client-transfer' && currentPage === 'client-transfer' && <ClientTransferForm />}
+        {activeTab === 'client-transfer' && currentPage === 'client-transfer' && (
+          <ClientTransferForm organizationId={user.assetFinancierId || user.organizationId || user.id} />
+        )}
         {activeTab === 'background-info' && currentPage === 'background-info' && <RebateBackgroundInfo />}
         {activeTab === 'repayment' && currentPage === 'repayment' && <RepaymentTracking organizationId={user.assetFinancierId || user.organizationId || user.id} />}
           </>

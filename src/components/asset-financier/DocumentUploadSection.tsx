@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
-import { Upload, CheckCircle2, AlertCircle, FileText, Info, X } from 'lucide-react';
+import { Input } from '../ui/input';
+import { Upload, CheckCircle2, AlertCircle, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DocumentStatus {
@@ -43,6 +43,9 @@ export function DocumentUploadSection({
   onRetrofitToggle
 }: DocumentUploadSectionProps) {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [additionalDocs, setAdditionalDocs] = useState<Array<{ id: string; title: string; fileName?: string }>>([
+    { id: 'extra-1', title: '' },
+  ]);
 
   const handleFileUpload = (docType: string) => {
     // Create a file input element
@@ -70,25 +73,29 @@ export function DocumentUploadSection({
   };
 
   const mandatoryDocs = [
-    { 
-      key: 'signedLease', 
+    {
+      key: 'signedLease',
       label: 'Signed Lease with Retail Cost of E-Moto',
-      description: 'Signed lease documenting retail cost (RWF)'
+      description: 'Signed lease documenting retail cost (RWF)',
     },
-    { 
-      key: 'affidavit', 
-      label: 'Individual Affidavit — Financial Need',
-      description: 'Applicant attestation of financial need to acquire e-moto'
+    {
+      key: 'affidavit',
+      label: 'Individual Affidavit of Financial Need',
+      description: 'Must be signed by client and notarized.',
+      hasTemplate: true,
+      templateName: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
     },
-    { 
-      key: 'afFinancialNeed', 
+    {
+      key: 'afFinancialNeed',
       label: 'AF Confirmation of Financial Need',
-      description: 'Your confirmation that the applicant required financial support'
+      description: 'Must be signed by Asset Financier.',
+      hasTemplate: true,
+      templateName: 'AF_Confirmation_of_Financial_Need_Template.pdf',
     },
-    { 
-      key: 'nationalId', 
+    {
+      key: 'nationalId',
       label: 'National ID',
-      description: 'Uploaded copy of National ID'
+      description: 'Uploaded copy of National ID',
     },
   ];
 
@@ -96,32 +103,35 @@ export function DocumentUploadSection({
     {
       key: 'iceDisposalAgreement',
       label: 'ICE-Moto Engine Disposal Agreement',
-      description: 'Individual agreement to provide ICE-moto engine for disposal'
+      description: 'Must be signed by client for retrofit applications.',
+      hasTemplate: true,
+      templateName: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
     },
-    {
-      key: 'retrofitCompanyLetter',
-      label: 'E-Moto Company Letter',
-      description: 'Signed letter confirming retrofit service'
-    },
-  ];
-
-  const optionalDocs = [
-    { 
-      key: 'secondReference', 
-      label: 'Second Reference Letter',
-      description: 'Optional: An additional reference letter to strengthen the application'
-    },
-    { 
-      key: 'mobileMoneyStatements', 
-      label: 'Mobile Money Statements',
-      description: 'Optional: Last 3 months of mobile money transactions'
-    }
   ];
 
   const uploadedMandatory = mandatoryDocs.filter(doc => documents[doc.key as keyof Documents]?.uploaded).length;
   const totalMandatory = mandatoryDocs.length + (isRetrofit ? retrofitDocs.length : 0);
   const uploadedRetrofit = isRetrofit ? retrofitDocs.filter(doc => documents[doc.key as keyof Documents]?.uploaded).length : 0;
   const totalUploaded = uploadedMandatory + uploadedRetrofit;
+
+  const triggerTemplateDownload = (templateName: string) => {
+    toast.success('Template ready for download', { description: templateName });
+  };
+
+  const handleAdditionalUpload = (id: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setAdditionalDocs((prev) =>
+        prev.map((doc) => (doc.id === id ? { ...doc, fileName: file.name } : doc))
+      );
+      toast.success('Additional document uploaded', { description: file.name });
+    };
+    input.click();
+  };
 
   const renderDocumentRow = (doc: any, isMandatory: boolean) => {
     const docStatus = documents[doc.key as keyof Documents];
@@ -131,36 +141,27 @@ export function DocumentUploadSection({
     return (
       <div 
         key={doc.key}
-        className="flex items-start gap-3 p-3 rounded-lg border bg-white hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-4 p-4 rounded-lg border bg-white"
       >
-        <div className="flex-shrink-0 mt-1">
+        <div className="flex-shrink-0">
           {isUploaded ? (
             <CheckCircle2 className="w-5 h-5 text-green-600" />
-          ) : isMandatory ? (
-            <AlertCircle className="w-5 h-5 text-amber-600" />
           ) : (
-            <Info className="w-5 h-5 text-gray-400" />
+            <FileText className="w-5 h-5 text-gray-500" />
           )}
         </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <p className="font-medium text-gray-900">{doc.label}</p>
-            {isMandatory && !isUploaded && (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                Required
-              </Badge>
-            )}
-            {!isMandatory && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                Optional
-              </Badge>
-            )}
+            <p className="font-medium text-gray-900">
+              {doc.label}
+              {isMandatory ? <span className="text-red-500 ml-1">*</span> : null}
+            </p>
           </div>
-          <p className="text-xs text-gray-600 mb-2">{doc.description}</p>
+          <p className="text-xs text-gray-600">{doc.description}</p>
           
           {isUploaded && docStatus.name && (
-            <div className="flex items-center gap-2 text-xs text-gray-600 bg-green-50 border border-green-200 rounded px-2 py-1">
+            <div className="flex items-center gap-2 text-xs text-gray-600 bg-green-50 border border-green-200 rounded px-2 py-1 mt-2">
               <FileText className="w-3 h-3" />
               <span className="flex-1 truncate">{docStatus.name}</span>
               <span className="text-gray-500">
@@ -194,21 +195,32 @@ export function DocumentUploadSection({
               </Button>
             </>
           ) : (
-            <Button
-              size="sm"
-              onClick={() => handleFileUpload(doc.key)}
-              disabled={isUploading}
-              className="bg-[#023F40] hover:bg-[#035f60]"
-            >
-              {isUploading ? (
-                <>Uploading...</>
-              ) : (
-                <>
-                  <Upload className="w-3 h-3 mr-1" />
-                  Upload
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              {doc.hasTemplate ? (
+                <button
+                  type="button"
+                  onClick={() => triggerTemplateDownload(doc.templateName)}
+                  className="text-sm text-[#023F40] underline underline-offset-2"
+                >
+                  Get template here
+                </button>
+              ) : null}
+              <Button
+                size="sm"
+                onClick={() => handleFileUpload(doc.key)}
+                disabled={isUploading}
+                className="bg-[#023F40] hover:bg-[#035f60]"
+              >
+                {isUploading ? (
+                  <>Uploading...</>
+                ) : (
+                  <>
+                    <Upload className="w-3 h-3 mr-1" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -218,7 +230,7 @@ export function DocumentUploadSection({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-[#023F40]">📋 Required Documents</CardTitle>
+        <CardTitle className="text-[#023F40]">Required Documents</CardTitle>
         <CardDescription>
           Upload all mandatory documents before submitting your application
         </CardDescription>
@@ -264,7 +276,7 @@ export function DocumentUploadSection({
         {/* Mandatory Documents */}
         <div>
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-600" />
+            <FileText className="w-5 h-5 text-gray-500" />
             Mandatory Documents
           </h3>
           <div className="space-y-2">
@@ -276,7 +288,7 @@ export function DocumentUploadSection({
         {isRetrofit && (
           <div>
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600" />
+              <FileText className="w-5 h-5 text-gray-500" />
               Retrofit-Specific Documents
             </h3>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
@@ -290,14 +302,51 @@ export function DocumentUploadSection({
           </div>
         )}
 
-        {/* Optional Documents */}
+        {/* Additional Documents */}
         <div>
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <Info className="w-5 h-5 text-gray-400" />
-            Optional Documents
+            <FileText className="w-5 h-5 text-gray-500" />
+            Additional Documents
           </h3>
-          <div className="space-y-2">
-            {optionalDocs.map(doc => renderDocumentRow(doc, false))}
+          <div className="space-y-3">
+            {additionalDocs.map((doc) => (
+              <div key={doc.id} className="flex items-center gap-4 p-4 border rounded-lg bg-white">
+                <FileText className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                <Input
+                  value={doc.title}
+                  onChange={(e) =>
+                    setAdditionalDocs((prev) =>
+                      prev.map((row) => (row.id === doc.id ? { ...row, title: e.target.value } : row))
+                    )
+                  }
+                  placeholder="Document title (e.g., Supporting statement)"
+                />
+                <Button size="sm" onClick={() => handleAdditionalUpload(doc.id)} className="bg-[#023F40] hover:bg-[#035f60]">
+                  <Upload className="w-3 h-3 mr-1" />
+                  Upload
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setAdditionalDocs((prev) => prev.filter((row) => row.id !== doc.id))}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  disabled={additionalDocs.length === 1}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              onClick={() =>
+                setAdditionalDocs((prev) => [
+                  ...prev,
+                  { id: `extra-${Date.now()}`, title: '' },
+                ])
+              }
+            >
+              Add another document
+            </Button>
           </div>
         </div>
 

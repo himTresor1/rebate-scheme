@@ -56,6 +56,8 @@ export function AuthForm({ onSuccess, onLoginSuccess }: AuthFormProps) {
               <li>admin@mfa.rw / SecureAdmin@2026</li>
               <li>analyst1@mfa.rw / SecureAnalyst@2026</li>
               <li>manager1@mfa.rw / SecureManager@2026</li>
+              <li>af.finance@bankofkigali.rw / SecureBoKFinance@2026</li>
+              <li>marketing.agent@bankofkigali.rw / SecureBoKAgent@2026</li>
             </ul>
           </div>,
           { duration: 10000 }

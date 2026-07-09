@@ -122,6 +122,13 @@ interface Application {
   nidaVerified?: boolean;
   ruraVerified?: boolean;
   bankVerified?: boolean;
+  isRetrofit?: boolean;
+  eligibilityCheck?: {
+    nationalIdCheck?: {
+      dateOfBirth?: string;
+      gender?: string;
+    };
+  };
   
   status: string;
   createdAt: string;
@@ -156,9 +163,16 @@ interface ApplicationReviewEnhancedProps {
   application: Application;
   user: User;
   onBack: () => void;
+  onRecommendationSaved?: (payload: {
+    applicationId: string;
+    decision: 'approve' | 'reject';
+    notes: string;
+    rejectionReason?: string;
+    timestamp: string;
+  }) => void;
 }
 
-export function ApplicationReviewEnhanced({ application, user, onBack }: ApplicationReviewEnhancedProps) {
+export function ApplicationReviewEnhanced({ application, user, onBack, onRecommendationSaved }: ApplicationReviewEnhancedProps) {
   const isAnalystRole = user.role === 'analyst' || user.role === 'REBATE_ANALYST';
   const isManagerRole = user.role === 'REBATE_MANAGER';
   const isQARole = user.role === 'E_MOTO_PROGRAM_MANAGER' || user.role === 'cfo';
@@ -184,7 +198,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
     name: string;
     url: string;
     uploadedAt: string;
-    uploadedBy: string;
+    uploadedBy?: string;
   }>>([]);
   
   // NEW: Expanded criteria state for showing/hiding comments and upload sections
@@ -313,6 +327,20 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
         return;
       }
 
+      if (isAnalystRole) {
+        await new Promise((r) => setTimeout(r, 300));
+        onRecommendationSaved?.({
+          applicationId: application.id,
+          decision,
+          notes,
+          rejectionReason: decision === 'reject' ? rejectionReason : undefined,
+          timestamp: new Date().toISOString(),
+        });
+        toast.success('Recommendation recorded. Submit from the pipeline page when ready.');
+        onBack();
+        return;
+      }
+
       await api.completeEvaluation(application.id.replace('application:', ''), {
         decision,
         criteriaEvaluations: evaluations,
@@ -355,7 +383,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       // Get criteria that failed evaluation
       const failedCriteria = criteria
         .filter(c => evaluations[c.id] === false)
-        .map(c => c.name);
+        .map(c => c.text);
 
       await api.requestClarification(
         application.id.replace('application:', ''),
@@ -384,6 +412,27 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
     }).format(num);
   };
 
+  const getDocumentByKeyword = (keywords: string[]) => {
+    if (!application.documents || application.documents.length === 0) return undefined;
+    return application.documents.find((doc) => {
+      const name = doc.name.toLowerCase();
+      return keywords.some((keyword) => name.includes(keyword));
+    });
+  };
+
+  const renderDocAccess = (keywords: string[]) => {
+    const doc = getDocumentByKeyword(keywords);
+    if (!doc?.url) return null;
+    return (
+      <Button size="sm" variant="outline" asChild className="h-8">
+        <a href={doc.url} target="_blank" rel="noreferrer">
+          <Eye className="w-4 h-4 mr-1" />
+          View
+        </a>
+      </Button>
+    );
+  };
+
   const score = calculateScore();
   const evaluatedCount = Object.values(evaluations).filter(v => v !== null && v !== undefined).length;
   const isReadOnly = (() => {
@@ -406,6 +455,228 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
     return (
       <div className="container mx-auto p-6">
         <p>Loading review...</p>
+      </div>
+    );
+  }
+
+  if (isAnalystRole) {
+    const verificationRows = [
+      { key: 'national-id', label: 'Uploaded National ID', access: renderDocAccess(['national id', 'id document', 'nid']), mandatory: true },
+      { key: 'moto-license', label: 'Uploaded Motorcycle License', access: renderDocAccess(['license', 'moto license', 'driver']), mandatory: true },
+      { key: 'affidavit', label: 'Individual Affidavit (Financial Need)', access: renderDocAccess(['affidavit']), mandatory: true },
+      { key: 'af-financial-need', label: 'AF Confirmation of Financial Need', access: renderDocAccess(['financial need', 'af confirmation']), mandatory: true },
+      { key: 'possession', label: 'AF/Client Verification of E-Moto Possession', access: renderDocAccess(['possession']), mandatory: false },
+      { key: 'ice-disposal', label: 'Agreement to Dispose ICE-Moto Engine', access: renderDocAccess(['ice', 'disposal', 'engine']), mandatory: false },
+      { key: 'mobile-money', label: 'Mobile Money Statements', access: renderDocAccess(['mobile money', 'statement', 'momo']), mandatory: false },
+      { key: 'other', label: 'Other Documentation', access: renderDocAccess(['support', 'other', 'reference']), mandatory: false },
+    ];
+
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="space-y-3">
+          <Button variant="outline" onClick={onBack} className="w-fit">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Pipeline
+          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">Rebate Verification</h2>
+            <Badge className="bg-blue-100 text-blue-800">Analyst Recommendation Only</Badge>
+          </div>
+          <p className="text-sm text-gray-500">Review submitted data and provide recommendation.</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-[#023F40]">Application Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Ticket</p><p className="text-base font-semibold text-[#023F40]">{application.id.replace('application:', '').slice(0, 8).toUpperCase()}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Applicant</p><p className="text-base font-medium text-gray-900">{application.applicantName}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Date Received</p><p className="text-base font-medium text-gray-900">{new Date(application.createdAt).toLocaleDateString()}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p><p className="text-base font-medium text-gray-900">{application.companyName}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">DOB</p><p className="text-base font-medium text-gray-900">{application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p><p className="text-base font-medium text-gray-900">{application.phoneNumber || 'Not provided'}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Woman</p><p className="text-base font-medium text-gray-900">{application.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Yes' : 'No'}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p><p className="text-base font-medium text-gray-900">{application.isRetrofit ? 'Retrofit' : 'New E-Moto'}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p><p className="text-base font-medium text-gray-900">{application.motorcycleBrand}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p><p className="text-base font-medium text-gray-900">{application.motorcycleModel}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount</p><p className="text-base font-semibold text-green-700">{formatCurrency(application.rebateAmount)}</p></div>
+            <div><p className="text-xs uppercase tracking-wide text-gray-500">Loan Amount</p><p className="text-base font-semibold text-[#023F40]">{formatCurrency(application.loanAmount)}</p></div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-[#023F40]">Mandatory Verification</CardTitle>
+              <CardDescription className="text-sm text-gray-500">Review and verify required documents.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {verificationRows.filter((row) => row.mandatory).map((row) => (
+                <div key={row.key} className="border rounded-lg p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900 leading-5">{row.label}</p>
+                    <div className="w-[88px] flex justify-end">
+                      {row.access || <span className="text-xs text-gray-400">No file</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 justify-end">
+                    <Button
+                      size="sm"
+                      className="w-24"
+                      variant={evaluations[row.key] === true ? 'default' : 'outline'}
+                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: true }))}
+                    >
+                      Verified
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="w-24"
+                      variant={evaluations[row.key] === false ? 'destructive' : 'outline'}
+                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: false }))}
+                    >
+                      Rejected
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-[#023F40]">Optional / Supporting Verification</CardTitle>
+              <CardDescription className="text-sm text-gray-500">Capture optional checks and supporting documentation.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {verificationRows.filter((row) => !row.mandatory).map((row) => (
+                <div key={row.key} className="border rounded-lg p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900 leading-5">{row.label}</p>
+                    <div className="w-[88px] flex justify-end">
+                      {row.access || <span className="text-xs text-gray-400">No file</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 justify-end">
+                    <Button
+                      size="sm"
+                      className="w-24"
+                      variant={evaluations[row.key] === true ? 'default' : 'outline'}
+                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: true }))}
+                    >
+                      Approved
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="w-24"
+                      variant={evaluations[row.key] === false ? 'destructive' : 'outline'}
+                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: false }))}
+                    >
+                      Rejected
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-[#023F40]">Analyst Notes</CardTitle>
+            <CardDescription className="text-sm text-gray-500">Add observations for the Rebate Manager.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Write your recommendation rationale and observations..."
+              rows={6}
+            />
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={() => setShowRecommendationDialog(true)}
+            className="bg-[#023F40] hover:bg-[#035f60]"
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Submit Recommendation
+          </Button>
+        </div>
+
+        <Dialog open={showRecommendationDialog} onOpenChange={setShowRecommendationDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Recommend</DialogTitle>
+              <DialogDescription>
+                Record your recommendation for the Rebate Manager. Final approve/reject authority rests with the Manager.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={recommendationType === 'approve' ? 'default' : 'outline'}
+                  className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170] flex-1' : 'flex-1'}
+                  onClick={() => setRecommendationType('approve')}
+                >
+                  Recommend Approve
+                </Button>
+                <Button
+                  type="button"
+                  variant={recommendationType === 'reject' ? 'destructive' : 'outline'}
+                  className="flex-1"
+                  onClick={() => setRecommendationType('reject')}
+                >
+                  Recommend Reject
+                </Button>
+              </div>
+              <div>
+                <Label htmlFor="recommendationRationale">{rationaleLabel} *</Label>
+                <Textarea
+                  id="recommendationRationale"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Provide mandatory rationale for your recommendation (minimum 20 characters)..."
+                  rows={5}
+                  className="mt-2"
+                />
+              </div>
+              {recommendationType === 'reject' && (
+                <div>
+                  <Label htmlFor="recommendationRejectReason">Rejection reason *</Label>
+                  <Textarea
+                    id="recommendationRejectReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Explain why you recommend rejection..."
+                    rows={4}
+                    className="mt-2"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowRecommendationDialog(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleComplete(recommendationType)}
+                  disabled={
+                    saving ||
+                    notes.trim().length < 20 ||
+                    (recommendationType === 'reject' && !rejectionReason.trim())
+                  }
+                  className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170]' : ''}
+                  variant={recommendationType === 'reject' ? 'destructive' : 'default'}
+                >
+                  {saving ? 'Saving...' : 'Save recommendation'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -480,7 +751,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                     className="bg-[#6DB27F] hover:bg-[#5da170]"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Submit recommendation
+                    Recommend
                   </Button>
                 ) : isManagerRole ? (
                   <>
@@ -1204,7 +1475,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
       <Dialog open={showRecommendationDialog} onOpenChange={setShowRecommendationDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Submit recommendation</DialogTitle>
+            <DialogTitle>Recommend</DialogTitle>
             <DialogDescription>
               Record your recommendation for the Rebate Manager. Final approve/reject authority rests with the Manager.
             </DialogDescription>
@@ -1266,7 +1537,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack }: Applica
                 className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170]' : ''}
                 variant={recommendationType === 'reject' ? 'destructive' : 'default'}
               >
-                {saving ? 'Submitting...' : 'Submit recommendation'}
+                {saving ? 'Saving...' : 'Save recommendation'}
               </Button>
             </div>
           </div>

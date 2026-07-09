@@ -1,7 +1,8 @@
-import { projectId, publicAnonKey } from './supabase/info';
+import { publicAnonKey } from './supabase/info';
 import { authService } from './auth';
+import { getFunctionsBaseUrl } from './functionsBase';
 
-const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20`;
+const API_BASE = getFunctionsBaseUrl();
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = await authService.getAccessToken();

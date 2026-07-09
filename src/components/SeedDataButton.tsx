@@ -4,6 +4,7 @@ import { Database, Loader2 } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 import { clientSeedData } from '../utils/clientSeed';
+import { buildFunctionsUrl } from '../utils/functionsBase';
 
 export function SeedDataButton() {
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export function SeedDataButton() {
       // Step 1: Health check
       toast.info('🔍 Checking server connection...', { duration: 2000 });
       
-      const healthUrl = `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/health`;
+      const healthUrl = buildFunctionsUrl('/health');
       console.log('Health check URL:', healthUrl);
       
       let serverAvailable = false;
@@ -71,7 +72,7 @@ export function SeedDataButton() {
       // Step 2: Seed data (server-side)
       toast.info('🔄 Starting database seed... This takes 30-60 seconds.', { duration: 5000 });
       
-      const seedUrl = `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/seed-data`;
+      const seedUrl = buildFunctionsUrl('/seed-data');
       console.log('Seed URL:', seedUrl);
       
       const response = await fetch(seedUrl, {
@@ -79,7 +80,8 @@ export function SeedDataButton() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${publicAnonKey}`
-        }
+        },
+        body: JSON.stringify({ mode: 'lite' })
       });
 
       console.log('Seed response status:', response.status);

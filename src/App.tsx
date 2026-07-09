@@ -149,6 +149,8 @@ export default function App() {
         {user?.role === 'applicant' && <ApplicantDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'ASSET_FINANCIER_ADMIN' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'CLAIMS_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
+        {user?.role === 'ASSET_FINANCIER_STAFF' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
+        {user?.role === 'ASSET_FINANCIER_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'analyst' && <AnalystDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'REBATE_ANALYST' && <AnalystDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'REBATE_MANAGER' && <RebateManagerDashboard user={user} currentPage={currentPage} />}
@@ -158,7 +160,7 @@ export default function App() {
         {user?.role === 'EXTERNAL_REVIEWER' && <ExternalReviewerDashboard user={user} currentPage={currentPage} />}
         
         {/* Fallback for unrecognized roles */}
-        {!['admin', 'SYSTEM_ADMIN', 'applicant', 'ASSET_FINANCIER_ADMIN', 'CLAIMS_OFFICER', 
+        {!['admin', 'SYSTEM_ADMIN', 'applicant', 'ASSET_FINANCIER_ADMIN', 'CLAIMS_OFFICER', 'ASSET_FINANCIER_STAFF', 'ASSET_FINANCIER_OFFICER',
             'analyst', 'REBATE_ANALYST', 'REBATE_MANAGER', 'E_MOTO_PROGRAM_MANAGER', 
             'DESIGNATED_FINANCE_OFFICER', 'ME_TEAM', 'EXTERNAL_REVIEWER'].includes(user?.role) && (
           <div className="p-8">

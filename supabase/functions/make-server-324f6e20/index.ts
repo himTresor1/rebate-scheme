@@ -4,7 +4,7 @@ import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv_store.tsx";
 import * as otpService from "./otp_service.tsx";
-import { seedData } from "./seed.tsx";
+import { seedData, seedDataLite } from "./seed.tsx";
 
 const app = new Hono();
 
@@ -2580,8 +2580,17 @@ app.get("/make-server-324f6e20/audit-logs", async (c) => {
 // Seed demo data
 app.post("/make-server-324f6e20/seed-data", async (c) => {
   try {
-    console.log('Starting seed data operation...');
-    const result = await seedData();
+    let mode = 'lite';
+    try {
+      const body = await c.req.json();
+      if (body?.mode === 'full') mode = 'full';
+      if (body?.mode === 'lite') mode = 'lite';
+    } catch {
+      // No request body; default to lite mode
+    }
+
+    console.log(`Starting seed data operation (${mode})...`);
+    const result = mode === 'full' ? await seedData() : await seedDataLite();
     console.log('Seed data completed successfully');
     return c.json(result);
   } catch (error: any) {

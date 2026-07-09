@@ -29,7 +29,6 @@ import {
   GitBranch
 } from 'lucide-react';
 import { User } from '../utils/auth';
-import { MenuItem } from '../types';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { ProfileSettings } from './ProfileSettings';
@@ -69,6 +68,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       role === 'SYSTEM_ADMIN' ? 'admin' :
       role === 'ASSET_FINANCIER_ADMIN' ? 'applicant' :
       role === 'CLAIMS_OFFICER' ? 'applicant' :
+      role === 'ASSET_FINANCIER_STAFF' ? 'applicant' :
+      role === 'ASSET_FINANCIER_OFFICER' ? 'applicant' :
       role === 'REBATE_ANALYST' ? 'analyst' :
       role === 'REBATE_MANAGER' ? 'rebate-manager' :
       role === 'E_MOTO_PROGRAM_MANAGER' ? 'program-manager' :
@@ -103,17 +104,30 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
           { icon: FileText, label: 'Rebate Status', page: 'rebate-status' },
           { icon: Bike, label: 'E-Moto Possession', page: 'possession' },
-          { icon: FilePlus, label: 'Marketing Proposal', page: 'marketing-proposal' },
-          { icon: Users, label: 'AF Permissions', page: 'af-permissions' },
           { icon: FileText, label: 'Client Transfer', page: 'client-transfer' },
           { icon: ScrollText, label: 'Background Info', page: 'background-info' },
           { icon: Users, label: 'Manage Staff', page: 'internal-users' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
-        const permission = getAfPermissionLevel(user.email);
-        if (role === 'CLAIMS_OFFICER' || permission === 'internal-proposal') {
+
+        // Marketing Agent: submit + own status only
+        if (role === 'CLAIMS_OFFICER' || role === 'ASSET_FINANCIER_STAFF') {
           return allAfItems.filter((item) =>
-            ['dashboard', 'notifications', 'marketing-proposal', 'rebate-status', 'profile'].includes(item.page)
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
+          );
+        }
+
+        // AF Finance Staff: submit + status (including marketing tab), no staff management
+        if (role === 'ASSET_FINANCIER_OFFICER') {
+          return allAfItems.filter((item) =>
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
+          );
+        }
+
+        const permission = getAfPermissionLevel(user.email);
+        if (permission === 'internal-proposal') {
+          return allAfItems.filter((item) =>
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
           );
         }
         return allAfItems;
@@ -124,6 +138,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'queue' },
+          { icon: GitBranch, label: 'Reassignment Checking', page: 'reassignment-checking' },
           { icon: FileText, label: 'Assigned Rebates', page: 'assigned' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -133,6 +148,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'review-queue' },
+          { icon: ScrollText, label: 'QA Request to CFO', page: 'qa-cfo-request' },
           { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
           { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
           { icon: FileText, label: 'All Rebates', page: 'applications' },
@@ -188,6 +204,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       case 'applicant': return 'E-Moto Company';
       case 'ASSET_FINANCIER_ADMIN': return 'Asset Financier';
       case 'CLAIMS_OFFICER': return 'Claims Officer';
+      case 'ASSET_FINANCIER_OFFICER': return 'AF Finance Staff';
+      case 'ASSET_FINANCIER_STAFF': return 'Marketing Agent';
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';
       case 'REBATE_MANAGER': return 'Rebate Team (Manager)';

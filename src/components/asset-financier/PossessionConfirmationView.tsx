@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown } from 'lucide-react';
+import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { FinancingDetailsView } from '../shared/FinancingDetailsView';
 import { Input } from '../ui/input';
@@ -121,7 +121,7 @@ export function PossessionConfirmationView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">E-Moto Possession Status</h2>
         <p className="text-gray-600 mt-1 text-sm">
@@ -150,7 +150,7 @@ export function PossessionConfirmationView() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="max-w-full">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Filter className="w-4 h-4" />
@@ -221,8 +221,8 @@ export function PossessionConfirmationView() {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto px-4 sm:px-6 pb-6">
-          <table className="w-full text-sm">
+        <CardContent className="w-full max-w-full overflow-x-auto px-4 sm:px-6 pb-6">
+          <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b text-left text-gray-600">
                 <th className="pb-3 pr-4 pl-2">Applicant</th>
@@ -247,23 +247,25 @@ export function PossessionConfirmationView() {
                   <td className="py-4 pr-4">{r.isWoman ? 'Yes' : 'No'}</td>
                   <td className="py-4 pr-4">{r.daysSinceSubmission}</td>
                   <td className="py-4 pr-4">{r.rebateAmount.toLocaleString()}</td>
-                  <td className="py-4 flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setDetailTarget(r)}>Details</Button>
-                    {r.hasPossession ? (
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Confirmed
-                      </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="bg-[#023F40] hover:bg-[#035f60]"
-                        onClick={() => setConfirmTarget(r)}
-                      >
-                        <Bell className="w-3 h-3 mr-1" />
-                        Notify RGF
-                      </Button>
-                    )}
+                  <td className="py-4">
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setDetailTarget(r)}>Details</Button>
+                      {r.hasPossession ? (
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Confirmed
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-[#023F40] hover:bg-[#035f60]"
+                          onClick={() => setConfirmTarget(r)}
+                        >
+                          <Bell className="w-3 h-3 mr-1" />
+                          Notify RGF
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -306,8 +308,7 @@ export function PossessionConfirmationView() {
           <DialogHeader>
             <DialogTitle>Confirm e-moto possession</DialogTitle>
             <DialogDescription>
-              Notify RGF that <strong>{confirmTarget?.applicantName}</strong> ({confirmTarget?.ticketNumber}) has taken possession of their e-moto.
-              This allows your organization to access the rebate amount from the escrow account.
+              Confirm e-moto possession for <strong>{confirmTarget?.applicantName}</strong> ({confirmTarget?.ticketNumber}).
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg text-sm">
@@ -322,17 +323,50 @@ export function PossessionConfirmationView() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Signed AF/Client Confirmation of E-Moto Possession *
               </label>
+              <button
+                type="button"
+                className="text-xs text-[#023F40] underline underline-offset-2 mb-2"
+                onClick={() =>
+                  toast.success('Template ready for download', {
+                    description: 'AF_Client_Confirmation_of_E_Moto_Possession_Template.pdf',
+                  })
+                }
+              >
+                Get template here
+              </button>
               <input
                 type="file"
+                id="possession-proof"
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   setPossessionProofName(file ? file.name : '');
                 }}
-                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border file:px-3 file:py-1.5 file:text-sm file:bg-gray-50 hover:file:bg-gray-100"
+                className="hidden"
               />
+              {!possessionProofName ? (
+                <label
+                  htmlFor="possession-proof"
+                  className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg py-3 px-4 cursor-pointer hover:border-[#023F40] hover:bg-gray-50 transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">Click to upload or drag and drop</span>
+                </label>
+              ) : null}
               {possessionProofName && (
-                <p className="text-xs text-green-700 mt-1">Uploaded: {possessionProofName}</p>
+                <div className="bg-green-50 border border-green-200 rounded p-3 mt-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-green-700">Uploaded: {possessionProofName}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPossessionProofName('')}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
             <div>

@@ -1,6 +1,214 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import * as kv from './kv_store.tsx';
 
+export async function seedDataLite() {
+  try {
+    console.log('🚀 Starting lite seed data operation...');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Clear only relevant KV prefixes for deterministic demo seeding
+    const allPermissions = await kv.getByPrefix('permission:');
+    const allRoles = await kv.getByPrefix('role:');
+    const allUsers = await kv.getByPrefix('user:');
+    const allApplications = await kv.getByPrefix('application:');
+    const allOrganizations = await kv.getByPrefix('organization:');
+    const allBankDetails = await kv.getByPrefix('bank:');
+
+    for (const item of [...allPermissions, ...allRoles, ...allUsers, ...allApplications, ...allOrganizations, ...allBankDetails]) {
+      if (item.id) await kv.del(item.id);
+    }
+
+    // Keep auth cleanup targeted to known demo users to reduce compute
+    const knownDemoEmails = new Set([
+      'admin@bankofkigali.rw',
+      'af.finance@bankofkigali.rw',
+      'marketing.agent@bankofkigali.rw',
+    ]);
+    const { data: authUsers } = await supabase.auth.admin.listUsers();
+    for (const user of authUsers?.users || []) {
+      if (user.email && knownDemoEmails.has(user.email)) {
+        await supabase.auth.admin.deleteUser(user.id);
+      }
+    }
+
+    const permissionsToSeed = [
+      { name: 'Submit Application', code: 'applications.submit', description: 'Submit new applications', category: 'Applications', action: 'SUBMIT' },
+      { name: 'View Applications', code: 'applications.view', description: 'View application submissions', category: 'Applications', action: 'VIEW' },
+      { name: 'Edit Application', code: 'applications.edit', description: 'Edit application details', category: 'Applications', action: 'EDIT' },
+      { name: 'View Dashboard', code: 'reporting.view_dashboard', description: 'Access dashboard', category: 'Reporting', action: 'VIEW' },
+      { name: 'AF Submit Applications', code: 'AF_SUBMIT_APPLICATIONS', description: 'Submit new rebate applications', category: 'Asset Financier', action: 'SUBMIT' },
+      { name: 'AF View Own Applications', code: 'AF_VIEW_OWN_APPLICATIONS', description: 'View submitted applications', category: 'Asset Financier', action: 'VIEW' },
+      { name: 'AF Edit Own Applications', code: 'AF_EDIT_OWN_APPLICATIONS', description: 'Edit draft applications', category: 'Asset Financier', action: 'EDIT' },
+      { name: 'AF Upload Documents', code: 'AF_UPLOAD_DOCUMENTS', description: 'Upload and manage documents', category: 'Asset Financier', action: 'UPLOAD' },
+      { name: 'AF Manage Staff', code: 'AF_MANAGE_STAFF', description: 'Manage organization staff members', category: 'Asset Financier', action: 'MANAGE_USERS' },
+    ];
+
+    for (const perm of permissionsToSeed) {
+      const permissionId = `permission:${perm.code}`;
+      await kv.set(permissionId, { id: permissionId, ...perm, isActive: true, createdAt: new Date().toISOString() });
+    }
+
+    const rolesToSeed = [
+      {
+        name: 'Asset Financier Admin',
+        code: 'ASSET_FINANCIER_ADMIN',
+        description: 'Asset financing company administrator',
+        permissions: [
+          'permission:applications.view',
+          'permission:applications.submit',
+          'permission:applications.edit',
+          'permission:reporting.view_dashboard',
+          'permission:AF_SUBMIT_APPLICATIONS',
+          'permission:AF_VIEW_OWN_APPLICATIONS',
+          'permission:AF_EDIT_OWN_APPLICATIONS',
+          'permission:AF_UPLOAD_DOCUMENTS',
+          'permission:AF_MANAGE_STAFF',
+        ]
+      },
+      {
+        name: 'Asset Financier Staff',
+        code: 'ASSET_FINANCIER_STAFF',
+        description: 'Marketing agent role',
+        permissions: [
+          'permission:applications.view',
+          'permission:applications.submit',
+          'permission:reporting.view_dashboard',
+          'permission:AF_SUBMIT_APPLICATIONS',
+          'permission:AF_VIEW_OWN_APPLICATIONS',
+          'permission:AF_UPLOAD_DOCUMENTS',
+        ]
+      },
+      {
+        name: 'Asset Financier Officer',
+        code: 'ASSET_FINANCIER_OFFICER',
+        description: 'AF finance decision maker role',
+        permissions: [
+          'permission:applications.view',
+          'permission:applications.submit',
+          'permission:applications.edit',
+          'permission:reporting.view_dashboard',
+          'permission:AF_SUBMIT_APPLICATIONS',
+          'permission:AF_VIEW_OWN_APPLICATIONS',
+          'permission:AF_EDIT_OWN_APPLICATIONS',
+          'permission:AF_UPLOAD_DOCUMENTS',
+        ]
+      },
+    ];
+
+    for (const role of rolesToSeed) {
+      const roleId = `role:${role.code}`;
+      await kv.set(roleId, { id: roleId, ...role, isActive: true, createdAt: new Date().toISOString() });
+    }
+
+    const orgId = `organization:${crypto.randomUUID()}`;
+    await kv.set(orgId, {
+      id: orgId,
+      name: 'Bank of Kigali',
+      type: 'BANK',
+      registrationNumber: 'REG-BOK-DEMO',
+      contactEmail: 'admin@bankofkigali.rw',
+      contactPhone: '+250788890123',
+      address: 'Kigali, Rwanda',
+      isActive: true,
+      createdAt: new Date().toISOString()
+    });
+
+    const demoUsers = [
+      { email: 'admin@bankofkigali.rw', password: 'SecureBoK@2026', name: 'BoK Admin', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788890123' },
+      { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Staff', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111' },
+      { email: 'marketing.agent@bankofkigali.rw', password: 'SecureBoKAgent@2026', name: 'BoK Marketing Agent', role: 'ASSET_FINANCIER_STAFF', phone: '+250788901112' },
+    ];
+
+    const createdUsers: Array<{ id: string; email?: string }> = [];
+    for (const demoUser of demoUsers) {
+      const { data } = await supabase.auth.admin.createUser({
+        email: demoUser.email,
+        password: demoUser.password,
+        user_metadata: { name: demoUser.name, role: demoUser.role, organization: 'Bank of Kigali' },
+        email_confirm: true
+      });
+      if (!data?.user) continue;
+
+      await kv.set(`user:${data.user.id}:organization`, orgId);
+      await kv.set(`user:${data.user.id}`, {
+        id: data.user.id,
+        email: demoUser.email,
+        name: demoUser.name,
+        role: demoUser.role,
+        phoneNumber: demoUser.phone,
+        organization: 'Bank of Kigali',
+        organizationId: orgId,
+        assetFinancierId: orgId,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      });
+      createdUsers.push(data.user);
+    }
+
+    const getUserId = (email: string) => createdUsers.find(u => u.email === email)?.id;
+    const marketingId = getUserId('marketing.agent@bankofkigali.rw');
+    const officerId = getUserId('af.finance@bankofkigali.rw');
+    const adminId = getUserId('admin@bankofkigali.rw');
+
+    const now = new Date();
+    const applications = [
+      { applicantName: 'Jean M', status: 'submitted', submittedBy: marketingId, submittedByName: 'BoK Marketing Agent' },
+      { applicantName: 'Aline U', status: 'under-review', submittedBy: marketingId, submittedByName: 'BoK Marketing Agent' },
+      { applicantName: 'Patrick N', status: 'approved', submittedBy: officerId, submittedByName: 'BoK AF Finance Staff' },
+      { applicantName: 'Claire K', status: 'awaiting-final-approval', submittedBy: officerId, submittedByName: 'BoK AF Finance Staff' },
+      { applicantName: 'Eric B', status: 'disbursed', submittedBy: adminId, submittedByName: 'BoK Admin' },
+    ];
+
+    const applicationIds: string[] = [];
+    for (let i = 0; i < applications.length; i++) {
+      const app = applications[i];
+      const appId = `application:${crypto.randomUUID()}`;
+      applicationIds.push(appId);
+      await kv.set(appId, {
+        id: appId,
+        ticketNumber: `AF-BOK-${String(101 + i)}`,
+        companyName: 'Bank of Kigali',
+        organizationId: orgId,
+        applicantId: app.submittedBy,
+        submittedBy: app.submittedBy,
+        submittedByName: app.submittedByName,
+        applicantName: app.applicantName,
+        email: `${app.applicantName.toLowerCase().replace(/\s+/g, '.')}@demo.rw`,
+        phoneNumber: `+25078890${1000 + i}`,
+        nationalId: `11990${10000000000 + i}`,
+        motorcycleBrand: ['Ampersand', 'Spiro', 'Bbox'][i % 3],
+        motorcycleModel: `Demo Model ${i + 1}`,
+        status: app.status,
+        rebateAmount: `${450000 + i * 15000}`,
+        submittedDate: new Date(now.getTime() - i * 86400000).toISOString(),
+        createdAt: new Date(now.getTime() - i * 86400000).toISOString(),
+        updatedAt: now.toISOString(),
+      });
+    }
+
+    await kv.set(`organization:${orgId}:applications`, applicationIds);
+
+    return {
+      success: true,
+      message: 'Lite demo data seeded successfully',
+      stats: {
+        permissions: permissionsToSeed.length,
+        roles: rolesToSeed.length,
+        users: createdUsers.length,
+        organizations: 1,
+        applications: applications.length
+      }
+    };
+  } catch (error: any) {
+    console.error('❌ FATAL ERROR IN LITE SEED DATA:', error);
+    throw error;
+  }
+}
+
 export async function seedData() {
   try {
     console.log('🚀 Starting seed data operation...');
@@ -265,6 +473,22 @@ export async function seedData() {
         'permission:AF_UPLOAD_DOCUMENTS',
       ]
     },
+    {
+      name: 'Asset Financier Officer',
+      code: 'ASSET_FINANCIER_OFFICER',
+      description: 'AF finance decision maker with submission authority',
+      permissions: [
+        'permission:applications.view',
+        'permission:applications.submit',
+        'permission:applications.edit',
+        'permission:reporting.view_dashboard',
+        'permission:AF_SUBMIT_APPLICATIONS',
+        'permission:AF_VIEW_OWN_APPLICATIONS',
+        'permission:AF_EDIT_OWN_APPLICATIONS',
+        'permission:AF_UPLOAD_DOCUMENTS',
+        'permission:AF_RESPOND_TO_INFO_REQUESTS',
+      ]
+    },
   ];
 
   console.log('Seeding roles...');
@@ -302,6 +526,8 @@ export async function seedData() {
     { email: 'admin@equitybank.rw', password: 'SecureEquity@2026', name: 'Henry Ntirenganya', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788901234', organization: 'Equity Bank Rwanda' },
     { email: 'admin@visionfinance.rw', password: 'SecureVision@2026', name: 'Irene Uwimana', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788012345', organization: 'Vision Finance Company' },
     { email: 'admin@umurenge.rw', password: 'SecureUmurenge@2026', name: 'James Nshimiyimana', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788123567', organization: 'Umurenge SACCO' },
+    { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Staff', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111', organization: 'Bank of Kigali' },
+    { email: 'marketing.agent@bankofkigali.rw', password: 'SecureBoKAgent@2026', name: 'BoK Marketing Agent', role: 'ASSET_FINANCIER_STAFF', phone: '+250788901112', organization: 'Bank of Kigali' },
     
     // E-Moto Companies (Claims Officers)
     { email: 'claims@ampersand.rw', password: 'SecureAmpersand@2026', name: 'Kevin Bizimana', role: 'CLAIMS_OFFICER', phone: '+250788234678', organization: 'Ampersand Rwanda' },
@@ -348,6 +574,14 @@ export async function seedData() {
           
           // Link user to organization
           await kv.set(`user:${data.user.id}:organization`, orgId);
+        }
+
+        // Link seeded AF staff/officer to existing organization
+        if (!orgId && demoUser.organization && organizationIds.has(demoUser.organization)) {
+          orgId = organizationIds.get(demoUser.organization) || null;
+          if (orgId) {
+            await kv.set(`user:${data.user.id}:organization`, orgId);
+          }
         }
         
         await kv.set(`user:${data.user.id}`, {

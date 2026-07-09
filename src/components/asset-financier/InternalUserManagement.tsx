@@ -201,7 +201,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
             className="bg-[#023F40] hover:bg-[#035f60] w-full sm:w-auto"
           >
             <UserPlus className="w-4 h-4 mr-2" />
-            Add Staff Member
+            Add
           </Button>
         </div>
       </div>
@@ -277,7 +277,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
               className="bg-[#023F40] hover:bg-[#035f60]"
             >
               <UserPlus className="w-4 h-4 mr-2" />
-              Add First Staff Member
+              Add
             </Button>
           )}
         </div>
@@ -298,7 +298,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900">{user.name}</h3>
                           <Badge className={user.role === 'ASSET_FINANCIER_OFFICER' ? 'bg-blue-100 text-blue-700 border-0' : 'bg-gray-100 text-gray-700 border-0'}>
-                            {user.role === 'ASSET_FINANCIER_STAFF' ? 'Staff' : 'Officer'}
+                            {user.role === 'ASSET_FINANCIER_STAFF' ? 'Marketing Agent' : 'AF Finance Staff'}
                           </Badge>
                           {user.isActive ? (
                             <span className="flex items-center gap-1 text-green-600 text-xs">
@@ -592,7 +592,7 @@ function CreateUserModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 className="text-xl font-semibold mb-4 text-[#023F40]">Add New Staff Member</h3>
+        <h3 className="text-xl font-semibold mb-4 text-[#023F40]">Add Team Member</h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -646,11 +646,11 @@ function CreateUserModal({
               })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#023F40]"
             >
-              <option value="ASSET_FINANCIER_STAFF">Staff</option>
-              <option value="ASSET_FINANCIER_OFFICER">Officer</option>
+              <option value="ASSET_FINANCIER_STAFF">Marketing Agent</option>
+              <option value="ASSET_FINANCIER_OFFICER">AF Finance Staff</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Staff: Basic access | Officer: Advanced features
+              Marketing Agent: submit + own statuses | AF Finance Staff: direct submit to RGF + review marketing submissions
             </p>
           </div>
 
@@ -676,7 +676,7 @@ function CreateUserModal({
               disabled={loading}
               className="flex-1 bg-[#023F40] hover:bg-[#035f60]"
             >
-              {loading ? 'Creating...' : 'Create Staff Member'}
+              {loading ? 'Creating...' : 'Create User'}
             </Button>
           </div>
         </form>

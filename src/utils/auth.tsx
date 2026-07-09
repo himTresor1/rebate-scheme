@@ -1,4 +1,5 @@
 import { createClient } from './supabase/client';
+import { buildFunctionsUrl } from './functionsBase';
 
 export interface User {
   id: string;
@@ -7,7 +8,7 @@ export interface User {
   role: 'applicant' | 'admin' | 'analyst' | 'qa' | 'cfo' | 'finance' | 'management' | 
         'SYSTEM_ADMIN' | 'REBATE_ANALYST' | 'REBATE_MANAGER' | 'E_MOTO_PROGRAM_MANAGER' | 
         'DESIGNATED_FINANCE_OFFICER' | 'ME_TEAM' | 'EXTERNAL_REVIEWER' | 
-        'CLAIMS_OFFICER' | 'ASSET_FINANCIER_ADMIN';
+        'CLAIMS_OFFICER' | 'ASSET_FINANCIER_ADMIN' | 'ASSET_FINANCIER_STAFF' | 'ASSET_FINANCIER_OFFICER';
   permissions?: string[]; // User's effective permissions
   organizationId?: string; // For Asset Financier Admins and staff
   assetFinancierId?: string; // Optional property for Asset Financier user organization linking
@@ -18,7 +19,7 @@ export interface User {
 export const authService = {
   async signUp(email: string, password: string, name: string, role: string) {
     const response = await fetch(
-      `https://${await import('./supabase/info').then(m => m.projectId)}.supabase.co/functions/v1/make-server-324f6e20/signup`,
+      buildFunctionsUrl('/signup'),
       {
         method: 'POST',
         headers: {
@@ -78,7 +79,7 @@ export const authService = {
     }
     
     const response = await fetch(
-      `https://${await import('./supabase/info').then(m => m.projectId)}.supabase.co/functions/v1/make-server-324f6e20/me`,
+      buildFunctionsUrl('/me'),
       {
         headers: {
           'Authorization': `Bearer ${session.access_token}`
@@ -117,7 +118,7 @@ export const authService = {
       if (!token) return [];
 
       const response = await fetch(
-        `https://${await import('./supabase/info').then(m => m.projectId)}.supabase.co/functions/v1/make-server-324f6e20/users/${userId}/effective-permissions`,
+        buildFunctionsUrl(`/users/${userId}/effective-permissions`),
         {
           headers: {
             'Authorization': `Bearer ${token}`

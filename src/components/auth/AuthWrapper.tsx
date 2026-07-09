@@ -6,9 +6,10 @@ import { ForcePasswordUpdate } from './ForcePasswordUpdate';
 import { AssetFinancierRegistration } from './AssetFinancierRegistration';
 import { authService } from '../../utils/auth';
 import { toast } from 'sonner';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { publicAnonKey } from '../../utils/supabase/info';
 import { Button } from '../ui/button';
 import { Loader2, Database } from 'lucide-react';
+import { buildFunctionsUrl } from '../../utils/functionsBase';
 
 type AuthStep = 
   | 'login' 
@@ -46,7 +47,7 @@ export function AuthWrapper({ onSuccess }: AuthWrapperProps) {
     
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/auth/request-otp`,
+        buildFunctionsUrl('/auth/request-otp'),
         {
           method: 'POST',
           headers: {
@@ -77,7 +78,7 @@ export function AuthWrapper({ onSuccess }: AuthWrapperProps) {
 
   const handleOTPVerify = async (code: string) => {
     const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/auth/verify-otp`,
+      buildFunctionsUrl('/auth/verify-otp'),
       {
         method: 'POST',
         headers: {
@@ -110,7 +111,7 @@ export function AuthWrapper({ onSuccess }: AuthWrapperProps) {
     try {
       // In a real implementation, this would call the backend to update credentials
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-324f6e20/auth/update-credentials`,
+        buildFunctionsUrl('/auth/update-credentials'),
         {
           method: 'POST',
           headers: {

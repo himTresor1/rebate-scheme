@@ -11,7 +11,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { vehicleBrands, getModelsByBrand, VehicleModel } from '../../utils/vehicleDatabase';
 import { api } from '../../utils/api';
 import { DocumentUploadSection } from './DocumentUploadSection';
 import { calculateRebateAmount, generateTicketPreview, getRebateRateLabel } from '../../utils/rebateCalculation';
@@ -27,14 +26,40 @@ import {
 
 interface SubmitApplicationFormProps {
   organizationId: string;
+  initialData?: Partial<{
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    isWoman: string;
+    phoneNumber: string;
+    email: string;
+    tin: string;
+    nationalId: string;
+    driversLicense: string;
+    identityDocuments: any;
+    brand: string;
+    model: string;
+    retrofitAssembler: string;
+    yearOfManufacture: string;
+    chassisNumber: string;
+    purchasePrice: string;
+    loanAmount: string;
+    rebateAmount: string;
+    loanTerm: string;
+    repaymentFrequency: string;
+    monthlyRepayment: string;
+    isRetrofit: boolean;
+    documents: any;
+  }>;
+  prefilledTicketNumber?: string;
 }
 
 type ApplicationStep = 'identity' | 'vehicle' | 'documents' | 'review';
 
-export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormProps) {
+export function SubmitApplicationForm({ organizationId, initialData, prefilledTicketNumber }: SubmitApplicationFormProps) {
   const [currentStep, setCurrentStep] = useState<ApplicationStep>('identity');
   const [loading, setLoading] = useState(false);
-  const [ticketNumber] = useState(() => generateTicketPreview());
+  const [ticketNumber] = useState(() => prefilledTicketNumber || generateTicketPreview());
   const [showMissingDialog, setShowMissingDialog] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
@@ -44,6 +69,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     // Identity
     firstName: '',
     lastName: '',
+    dateOfBirth: '',
     isWoman: '',
     phoneNumber: '',
     email: '',
@@ -54,6 +80,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     // Vehicle
     brand: '',
     model: '',
+    retrofitAssembler: '',
     yearOfManufacture: '',
     chassisNumber: '',
     purchasePrice: '',
@@ -90,15 +117,30 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
     }
   }, [rebatePreview]);
 
+  useEffect(() => {
+    if (!initialData) return;
+    setFormData((prev) => ({
+      ...prev,
+      ...initialData,
+      identityDocuments: { ...prev.identityDocuments, ...(initialData.identityDocuments || {}) },
+      documents: { ...prev.documents, ...(initialData.documents || {}) },
+    }));
+  }, [initialData]);
+
   const getMissingMandatoryFields = (): string[] => {
     const missing: string[] = [];
     if (!formData.firstName.trim()) missing.push('First Name');
     if (!formData.lastName.trim()) missing.push('Last Name');
     if (!formData.nationalId.trim()) missing.push('National ID');
+    if (!formData.dateOfBirth) missing.push('Date of Birth');
     if (!formData.isWoman) missing.push('Woman? (dropdown)');
+    if (!formData.identityDocuments?.dobDoc?.uploaded) missing.push('Date of Birth Document');
     if (!formData.driversLicense.trim()) missing.push('Motorcycle License');
     if (!formData.brand) missing.push('E-Moto Supplier');
     if (!formData.model) missing.push('E-Moto Model');
+    if (formData.isRetrofit && !formData.retrofitAssembler.trim()) {
+      missing.push('Retrofit Assembler');
+    }
     if (!formData.purchasePrice) missing.push('Retail Cost of E-Moto (RWF)');
     if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
     if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
@@ -180,11 +222,13 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
         nationalId: formData.nationalId || '1198780012345678',
         driversLicense: formData.driversLicense || '',
         phoneNumber: formData.phoneNumber || '+250788123456',
+        dateOfBirth: formData.dateOfBirth || '',
         email: formData.email || '',
         tin: formData.tin || '',
         identityDocuments: formData.identityDocuments || {},
         motorcycleBrand: formData.brand || 'Opibus',
         motorcycleModel: formData.model || 'Moto',
+        retrofitAssembler: formData.retrofitAssembler || '',
         yearOfManufacture: formData.yearOfManufacture || '2024',
         chassisNumber: formData.chassisNumber || '',
         loanAmount: formData.loanAmount || '3000000',
@@ -210,6 +254,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
       setFormData({
         firstName: '',
         lastName: '',
+        dateOfBirth: '',
         isWoman: '',
         phoneNumber: '',
         email: '',
@@ -219,6 +264,7 @@ export function SubmitApplicationForm({ organizationId }: SubmitApplicationFormP
         identityDocuments: {},
         brand: '',
         model: '',
+        retrofitAssembler: '',
         yearOfManufacture: '',
         chassisNumber: '',
         purchasePrice: '',
@@ -454,14 +500,11 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
 
     return (
       <div className="border border-gray-200 rounded-lg p-4">
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center justify-between mb-2">
           <div>
             <label className="text-sm font-medium text-gray-900">
               {label} {required && <span className="text-red-500">*</span>}
             </label>
-            {!required && (
-              <span className="text-xs text-gray-500 ml-1">(Optional)</span>
-            )}
           </div>
           {isUploaded && (
             <CheckCircle className="w-5 h-5 text-green-600" />
@@ -509,7 +552,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
             />
             <label
               htmlFor={`identity-${docType}`}
-              className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-[#023F40] hover:bg-gray-50 transition-colors"
+              className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg py-3 px-4 cursor-pointer hover:border-[#023F40] hover:bg-gray-50 transition-colors"
             >
               <Upload className="w-5 h-5 text-gray-400" />
               <span className="text-sm text-gray-600">
@@ -575,6 +618,16 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
                 <SelectItem value="no">No</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date of Birth *
+            </label>
+            <Input
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -667,6 +720,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderDocumentUpload('nationalIdDoc', 'National ID Document', true)}
             {renderDocumentUpload('driversLicenseDoc', 'Driver\'s License Document', true)}
+            {renderDocumentUpload('dobDoc', 'Date of Birth Document', true)}
           </div>
           <div className="mt-4">
             {renderDocumentUpload('taxiLicense', 'Taxi License (RURA)', false)}
@@ -678,26 +732,6 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
 }
 
 function VehicleStep({ formData, setFormData }: { formData: any, setFormData: any }) {
-  const [brand, setBrand] = useState('');
-  const [model, setModel] = useState('');
-  const [selectedModel, setSelectedModel] = useState<VehicleModel | null>(null);
-  const [models, setModels] = useState<VehicleModel[]>([]);
-
-  const handleBrandChange = (value: string) => {
-    setBrand(value);
-    setModels(getModelsByBrand(value));
-    setModel('');
-    setSelectedModel(null);
-    setFormData((prev: any) => ({ ...prev, brand: value, model: '' }));
-  };
-
-  const handleModelChange = (value: string) => {
-    setModel(value);
-    const found = models.find(m => m.model === value);
-    setSelectedModel(found || null);
-    setFormData((prev: any) => ({ ...prev, model: value }));
-  };
-
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Step 2: Vehicle & Financing</h3>
@@ -711,55 +745,43 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-Moto Brand *
+                E-Moto Supplier *
               </label>
-              <Select onValueChange={handleBrandChange} value={brand}>
+              <Select onValueChange={(value) => setFormData({ ...formData, brand: value })} value={formData.brand}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Brand" />
+                  <SelectValue placeholder="Select Supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {vehicleBrands.map((brandName) => (
-                    <SelectItem key={brandName} value={brandName}>
-                      {brandName}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Spiro">Spiro</SelectItem>
+                  <SelectItem value="Ampersand">Ampersand</SelectItem>
+                  <SelectItem value="Bboxx">Bboxx</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Model *
+                E-Moto Model *
               </label>
-              <Select onValueChange={handleModelChange} value={model} disabled={!brand || brand === 'Other'}>
-                <SelectTrigger>
-                  <SelectValue placeholder={brand === 'Other' ? 'Enter manually below' : 'Select Model'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((vehicleModel) => (
-                    <SelectItem key={vehicleModel.id} value={vehicleModel.model}>
-                      {vehicleModel.model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {brand === 'Other' && (
-                <Input type="text" placeholder="Enter model name" className="mt-2" />
-              )}
+              <Input
+                type="text"
+                placeholder="Enter e-moto model"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              />
             </div>
           </div>
 
-          {selectedModel && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-gray-600">Battery Capacity:</span>
-                  <span className="ml-2 font-medium text-gray-900">{selectedModel.batteryCapacity}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Year:</span>
-                  <span className="ml-2 font-medium text-gray-900">{selectedModel.yearOfManufacture}</span>
-                </div>
-              </div>
+          {formData.isRetrofit && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Retrofit Assembler *
+              </label>
+              <Input
+                type="text"
+                placeholder="Enter retrofit assembler/company"
+                value={formData.retrofitAssembler}
+                onChange={(e) => setFormData({ ...formData, retrofitAssembler: e.target.value })}
+              />
             </div>
           )}
 
@@ -781,9 +803,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               </label>
               <Input 
                 type="text" 
-                placeholder={selectedModel?.yearOfManufacture || '2024'} 
-                defaultValue={selectedModel?.yearOfManufacture}
-                readOnly={!!selectedModel}
+                placeholder="2024" 
                 value={formData.yearOfManufacture}
                 onChange={(e) => setFormData({ ...formData, yearOfManufacture: e.target.value })}
               />
@@ -940,6 +960,10 @@ function ReviewStep({
                 <span className="font-medium">{formData.firstName} {formData.lastName}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
+                <span className="text-gray-600">Date of Birth:</span>
+                <span className="font-medium">{formData.dateOfBirth || '—'}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-200 pb-1.5">
                 <span className="text-gray-600">National ID:</span>
                 <span className="font-medium">{formData.nationalId || '—'}</span>
               </div>
@@ -962,9 +986,15 @@ function ReviewStep({
                 <span className="font-medium">{formData.brand || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Model:</span>
+                <span className="text-gray-600">E-Moto Model:</span>
                 <span className="font-medium">{formData.model || '—'}</span>
               </div>
+              {formData.isRetrofit && (
+                <div className="flex justify-between border-b border-gray-200 pb-1.5">
+                  <span className="text-gray-600">Retrofit Assembler:</span>
+                  <span className="font-medium">{formData.retrofitAssembler || '—'}</span>
+                </div>
+              )}
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
                 <span className="text-gray-600">Retail Cost:</span>
                 <span className="font-medium">{formData.purchasePrice ? `${Number(formData.purchasePrice).toLocaleString()} RWF` : '—'}</span>
