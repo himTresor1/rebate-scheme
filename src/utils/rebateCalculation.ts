@@ -21,6 +21,22 @@ export function getRebateRateLabel(options: { isWoman: boolean; isRetrofit: bool
   return '18% (new e-moto)';
 }
 
+export function getRebateEligibilityLabel(options: { isWoman: boolean; isRetrofit: boolean }): string {
+  let percent = '18%';
+  if (options.isWoman) percent = '25%';
+  else if (options.isRetrofit) percent = '20%';
+
+  const category = options.isWoman
+    ? options.isRetrofit
+      ? 'women retrofitting their ICE-moto'
+      : 'women acquiring a new e-moto'
+    : options.isRetrofit
+      ? 'men retrofitting their ICE-moto'
+      : 'men acquiring a new e-moto';
+
+  return `Rebate percent for ${category}: ${percent} of Retail E-Moto Price`;
+}
+
 export function generateTicketPreview(): string {
   const seq = Math.floor(Math.random() * 900) + 100;
   return `REB-${seq}`;

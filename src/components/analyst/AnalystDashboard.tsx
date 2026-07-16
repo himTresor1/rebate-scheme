@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
-import { Eye, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -12,7 +12,12 @@ import { ApplicationReviewEnhanced } from './ApplicationReviewEnhanced';
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
 import { NotificationsView } from '../NotificationsView';
-import { withDemoPipelineFallback } from '../../utils/demoPipelineData';
+import {
+  ANALYST_DASHBOARD_STATS,
+  analystDaysAfterReceipt,
+  enrichAnalystApplication,
+  withDemoPipelineFallback,
+} from '../../utils/demoPipelineData';
 import { ReassignmentCheckingPage } from './ReassignmentCheckingPage';
 
 interface Application {
@@ -30,8 +35,14 @@ interface Application {
   motorcycleBrand?: string;
   motorcycleModel?: string;
   eligibilityCheck?: {
-    nationalIdCheck?: { gender?: string };
+    nationalIdCheck?: { gender?: string; dateOfBirth?: string };
   };
+  demoDaysAfterReceipt?: number;
+  submittedBy?: string;
+  submittedByEmail?: string;
+  submittedByPhone?: string;
+  phoneNumber?: string;
+  email?: string;
 }
 
 interface AnalystDashboardProps {
@@ -73,7 +84,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
         data.filter((app: Application) => app.assignedTo === user.id || app.assignedTo === 'demo-analyst'),
         true
       );
-      setApplications(myApps as Application[]);
+      setApplications((myApps as Application[]).map(enrichAnalystApplication));
     } catch (error: any) {
       toast.error('Failed to load applications');
       console.error(error);
@@ -98,32 +109,26 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
   const isWomanApplicant = (app: Application) =>
     app.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
 
-  const daysSinceReceipt = (app: Application) =>
-    Math.floor((Date.now() - new Date(app.assignedAt || app.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceReceipt = (app: Application) => analystDaysAfterReceipt(app);
 
   const toTicketNumber = (app: Application) =>
     app.ticketNumber || app.registrationNumber || app.id.replace('application:', '').slice(0, 8).toUpperCase();
 
-  const toVehicleLabel = (app: Application) =>
-    app.isRetrofit ? 'Retrofit' : `${app.motorcycleBrand || ''} ${app.motorcycleModel || 'New E-Moto'}`.trim();
+  const toVehicleLabel = (app: Application) => (app.isRetrofit ? 'Retrofit' : 'New E-Moto');
+
+  const toGenderLabel = (app: Application) => (isWomanApplicant(app) ? 'W' : 'M');
 
   const toPipelineStatusLabel = (app: Application) => {
-    const recommendation = recommendations[app.id];
-    if (recommendation?.submitted) return 'Submitted to QA';
-    if (recommendation) return 'Recommended (pending submit)';
-    if (app.status === 'assigned') return 'Not opened';
     if (app.status === 'under-review') return 'Review in process';
-    if (daysSinceReceipt(app) > 2) return 'Over 2 days since received';
+    if (app.status === 'assigned' && daysSinceReceipt(app) > 2) return 'Over 2 days since received';
+    if (app.status === 'assigned') return 'Not opened';
     return app.status.replace(/-/g, ' ');
   };
 
   const toStatusBadgeClass = (app: Application) => {
-    const recommendation = recommendations[app.id];
-    if (recommendation?.submitted) return 'bg-green-100 text-green-900';
-    if (recommendation) return 'bg-purple-100 text-purple-900';
-    if (app.status === 'assigned') return 'bg-amber-100 text-amber-900';
     if (app.status === 'under-review') return 'bg-blue-100 text-blue-900';
-    if (daysSinceReceipt(app) > 2) return 'bg-yellow-200 text-yellow-900';
+    if (app.status === 'assigned' && daysSinceReceipt(app) > 2) return 'bg-yellow-200 text-yellow-900';
+    if (app.status === 'assigned') return 'bg-orange-100 text-orange-900';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -179,15 +184,10 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     return 0;
   });
 
-  const assignedApps = sortedApps.filter(app => app.status === 'assigned');
-  const inReviewApps = sortedApps.filter(app => app.status === 'under-review');
-  const overTwoDaysApps = sortedApps.filter((app) => daysSinceReceipt(app) > 2);
-  const verifiedDocsApps = sortedApps.filter((app) =>
-    ['manager-review', 'program-manager-review', 'approved', 'approved-pending-lease', 'disbursed', 'payment-processed'].includes(app.status)
+  const notYetReviewedApps = applications.filter((app) =>
+    ['assigned', 'under-review'].includes(app.status)
   );
-  const awaitingPossessionApps = sortedApps.filter((app) =>
-    ['approved-pending-lease', 'payment-processed'].includes(app.status)
-  );
+  const overTwoDaysNotReviewed = notYetReviewedApps.filter((app) => daysSinceReceipt(app) > 2);
   const pendingRecommendations = Object.values(recommendations).filter((r) => !r.submitted).length;
 
   const handleSubmitRecommendations = () => {
@@ -234,6 +234,8 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
+  const openApplication = (app: Application) => setSelectedApp(enrichAnalystApplication(app));
+
   if (currentPage === 'notifications') {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -251,7 +253,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
         <div className="mt-6">
           <ReassignmentCheckingPage
             applications={sortedApps}
-            onOpenApplication={(app) => setSelectedApp(app)}
+            onOpenApplication={openApplication}
           />
         </div>
       </div>
@@ -267,7 +269,10 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
   }
 
   const showAssignedOnly = currentPage === 'assigned';
-  const tableRows = showAssignedOnly ? sortedApps.filter(app => app.status === 'assigned') : sortedApps;
+  const tableRows = showAssignedOnly
+    ? sortedApps.filter((app) => app.status === 'assigned')
+    : sortedApps.filter((app) => ['assigned', 'under-review'].includes(app.status));
+  const defaultReportCount = notYetReviewedApps.length;
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -283,36 +288,29 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
         </Button>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Total rebates received</p>
-            <p className="text-2xl font-bold text-[#023F40]">{sortedApps.length}</p>
+            <p className="text-sm text-gray-600">Rebates received but not yet reviewed</p>
+            <p className="text-2xl font-bold text-[#023F40]">{notYetReviewedApps.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">New (not opened)</p>
-            <p className="text-2xl font-bold text-amber-600">{assignedApps.length}</p>
+            <p className="text-sm text-gray-600">Of which received more than 2 days ago</p>
+            <p className="text-2xl font-bold text-[#023F40]">{overTwoDaysNotReviewed.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Rebate team review in process</p>
-            <p className="text-2xl font-bold text-blue-600">{inReviewApps.length}</p>
+            <p className="text-sm text-gray-600">Rebates Verified but not yet presented to QA Team</p>
+            <p className="text-2xl font-bold text-[#023F40]">{ANALYST_DASHBOARD_STATS.verifiedNotPresentedQA}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Over 2 days since received</p>
-            <p className="text-2xl font-bold text-yellow-600">{overTwoDaysApps.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Verified rebate documentation</p>
-            <p className="text-2xl font-bold text-green-600">{verifiedDocsApps.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Awaiting e-moto possession: {awaitingPossessionApps.length}</p>
+            <p className="text-sm text-gray-600">Rebates Approved but No E-Moto Confirmation</p>
+            <p className="text-2xl font-bold text-[#023F40]">{ANALYST_DASHBOARD_STATS.approvedNoEmotoConfirmation}</p>
           </CardContent>
         </Card>
       </div>
@@ -415,67 +413,60 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
             </Select>
           </div>
           <p className="text-xs text-gray-500">
-            Showing {sortedApps.length} of {applications.length} assigned applications
+            Showing {tableRows.length} of {defaultReportCount} assigned applications
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base text-[#023F40]">Pipeline Table</CardTitle>
-          <CardDescription>Click a row or use Details to open the application.</CardDescription>
+          <CardTitle className="text-base text-[#023F40]">
+            {showAssignedOnly
+              ? 'Assigned Rebates'
+              : `Default Report: Rebates received but not yet reviewed (${defaultReportCount})`}
+          </CardTitle>
+          <CardDescription>Click on the Ticket Number to verify the rebate submission.</CardDescription>
         </CardHeader>
         <CardContent>
           {tableRows.length === 0 ? (
             <div className="py-10 text-center text-sm text-gray-600">No applications match the current filters.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-sm">
+              <table className="w-full min-w-[980px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-gray-600">
                     <th className="pb-3 pr-3 font-medium">Ticket Number</th>
-                    <th className="pb-3 pr-3 font-medium">Applicant</th>
+                    <th className="pb-3 pr-3 font-medium">Name</th>
                     <th className="pb-3 pr-3 font-medium">Date Received</th>
                     <th className="pb-3 pr-3 font-medium">Financier</th>
-                    <th className="pb-3 pr-3 font-medium">Vehicle</th>
-                    <th className="pb-3 pr-3 font-medium">Woman</th>
+                    <th className="pb-3 pr-3 font-medium">Vehicle Type</th>
+                    <th className="pb-3 pr-3 font-medium">Gender [M, W]</th>
                     <th className="pb-3 pr-3 font-medium">Days after Receipt</th>
-                    <th className="pb-3 pr-3 font-medium">Status</th>
-                    <th className="pb-3 font-medium">Action</th>
+                    <th className="pb-3 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tableRows.map((app) => (
-                    <tr
-                      key={app.id}
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedApp(app)}
-                    >
-                      <td className="py-3 pr-3 font-semibold text-[#023F40]">{toTicketNumber(app)}</td>
+                    <tr key={app.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 pr-3">
+                        <button
+                          type="button"
+                          className="font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                          onClick={() => openApplication(app)}
+                        >
+                          {toTicketNumber(app)}
+                        </button>
+                      </td>
                       <td className="py-3 pr-3">{app.applicantName || app.companyName}</td>
-                      <td className="py-3 pr-3">{formatDate(app.assignedAt || app.createdAt)}</td>
+                      <td className="py-3 pr-3">{formatDate(app.createdAt)}</td>
                       <td className="py-3 pr-3">{app.companyName}</td>
                       <td className="py-3 pr-3">{toVehicleLabel(app)}</td>
-                      <td className="py-3 pr-3">{isWomanApplicant(app) ? 'YES' : 'NO'}</td>
-                      <td className="py-3 pr-3">{daysSinceReceipt(app)} day{daysSinceReceipt(app) === 1 ? '' : 's'}</td>
-                      <td className="py-3 pr-3">
+                      <td className="py-3 pr-3">{toGenderLabel(app)}</td>
+                      <td className="py-3 pr-3">{daysSinceReceipt(app)}</td>
+                      <td className="py-3">
                         <Badge className={toStatusBadgeClass(app)}>
                           {toPipelineStatusLabel(app)}
                         </Badge>
-                      </td>
-                      <td className="py-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedApp(app);
-                          }}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Details
-                        </Button>
                       </td>
                     </tr>
                   ))}

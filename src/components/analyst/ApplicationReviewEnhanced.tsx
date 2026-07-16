@@ -123,6 +123,11 @@ interface Application {
   ruraVerified?: boolean;
   bankVerified?: boolean;
   isRetrofit?: boolean;
+  ticketNumber?: string;
+  registrationNumber?: string;
+  submittedBy?: string;
+  submittedByEmail?: string;
+  submittedByPhone?: string;
   eligibilityCheck?: {
     nationalIdCheck?: {
       dateOfBirth?: string;
@@ -403,6 +408,23 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
     }
   };
 
+  const handleAnalystVerified = async () => {
+    setSaving(true);
+    try {
+      await new Promise((r) => setTimeout(r, 300));
+      onRecommendationSaved?.({
+        applicationId: application.id,
+        decision: 'approve',
+        notes: 'Rebate verified for QA Team review.',
+        timestamp: new Date().toISOString(),
+      });
+      toast.success('Rebate verified. Submit from the pipeline page when ready.');
+      onBack();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('en-RW', {
@@ -460,223 +482,229 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
   }
 
   if (isAnalystRole) {
-    const verificationRows = [
-      { key: 'national-id', label: 'Uploaded National ID', access: renderDocAccess(['national id', 'id document', 'nid']), mandatory: true },
-      { key: 'moto-license', label: 'Uploaded Motorcycle License', access: renderDocAccess(['license', 'moto license', 'driver']), mandatory: true },
-      { key: 'affidavit', label: 'Individual Affidavit (Financial Need)', access: renderDocAccess(['affidavit']), mandatory: true },
-      { key: 'af-financial-need', label: 'AF Confirmation of Financial Need', access: renderDocAccess(['financial need', 'af confirmation']), mandatory: true },
-      { key: 'possession', label: 'AF/Client Verification of E-Moto Possession', access: renderDocAccess(['possession']), mandatory: false },
-      { key: 'ice-disposal', label: 'Agreement to Dispose ICE-Moto Engine', access: renderDocAccess(['ice', 'disposal', 'engine']), mandatory: false },
-      { key: 'mobile-money', label: 'Mobile Money Statements', access: renderDocAccess(['mobile money', 'statement', 'momo']), mandatory: false },
-      { key: 'other', label: 'Other Documentation', access: renderDocAccess(['support', 'other', 'reference']), mandatory: false },
+    const ticketId =
+      application.ticketNumber ||
+      application.registrationNumber ||
+      application.id.replace('application:', '').toUpperCase();
+    const genderLabel =
+      application.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Woman' : 'Man';
+    const rebateAmountRwf = parseFloat(application.rebateAmount || '0').toLocaleString('en-US');
+
+    const mandatoryDocs = [
+      { label: 'Signed Financing Contract', keywords: ['financing contract', 'contract', 'loan agreement'] },
+      { label: 'National ID', keywords: ['national id', 'id document', 'nid'] },
+      { label: 'Motorcycle License', keywords: ['license', 'moto license', 'driver'] },
+      { label: 'Individual Affidavit of Financial Need', keywords: ['affidavit'] },
+      { label: 'AF Confirmation of Financial Need', keywords: ['financial need', 'af confirmation'] },
     ];
+    const optionalDocs = [
+      { label: 'AF/Client Confirmation of Individual E-Moto Possession', keywords: ['possession'] },
+    ];
+    const retrofitDocs = [
+      { label: 'Retrofit Suitability Statement', keywords: ['retrofit suitability', 'suitability'] },
+      { label: 'ICE-Engine Disposal Agreement', keywords: ['ice', 'disposal', 'engine'] },
+    ];
+    const additionalDocs = (application.documents || []).filter((doc) => {
+      const name = doc.name.toLowerCase();
+      const known = [...mandatoryDocs, ...optionalDocs, ...retrofitDocs].some((item) =>
+        item.keywords.some((kw) => name.includes(kw))
+      );
+      return !known;
+    });
+    const docActionKey = (label: string) =>
+      `doc-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
+    const renderVerificationActions = (key: string) => (
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          className="w-24"
+          variant={evaluations[key] === true ? 'default' : 'outline'}
+          onClick={() => setEvaluations((prev) => ({ ...prev, [key]: true }))}
+        >
+          Verified
+        </Button>
+        <Button
+          size="sm"
+          className="w-24"
+          variant={evaluations[key] === false ? 'destructive' : 'outline'}
+          onClick={() => setEvaluations((prev) => ({ ...prev, [key]: false }))}
+        >
+          Rejected
+        </Button>
+      </div>
+    );
 
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <div className="space-y-3">
           <Button variant="outline" onClick={onBack} className="w-fit">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Pipeline
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Pipeline
           </Button>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">Rebate Verification</h2>
-            <Badge className="bg-blue-100 text-blue-800">Analyst Recommendation Only</Badge>
-          </div>
-          <p className="text-sm text-gray-500">Review submitted data and provide recommendation.</p>
+          <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">Rebate Team Verification Page</h2>
+          <p className="text-sm text-gray-600 max-w-4xl">
+            This page is for the Rebate Team to verify each rebate submission. If the information and documents
+            are verified, the Rebate Team clicks on &lsquo;Verified Rebate for QA Team Review.&rsquo;
+          </p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[#023F40]">Application Snapshot</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Ticket</p><p className="text-base font-semibold text-[#023F40]">{application.id.replace('application:', '').slice(0, 8).toUpperCase()}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Applicant</p><p className="text-base font-medium text-gray-900">{application.applicantName}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Date Received</p><p className="text-base font-medium text-gray-900">{new Date(application.createdAt).toLocaleDateString()}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p><p className="text-base font-medium text-gray-900">{application.companyName}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">DOB</p><p className="text-base font-medium text-gray-900">{application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p><p className="text-base font-medium text-gray-900">{application.phoneNumber || 'Not provided'}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Woman</p><p className="text-base font-medium text-gray-900">{application.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Yes' : 'No'}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p><p className="text-base font-medium text-gray-900">{application.isRetrofit ? 'Retrofit' : 'New E-Moto'}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p><p className="text-base font-medium text-gray-900">{application.motorcycleBrand}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p><p className="text-base font-medium text-gray-900">{application.motorcycleModel}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount</p><p className="text-base font-semibold text-green-700">{formatCurrency(application.rebateAmount)}</p></div>
-            <div><p className="text-xs uppercase tracking-wide text-gray-500">Loan Amount</p><p className="text-base font-semibold text-[#023F40]">{formatCurrency(application.loanAmount)}</p></div>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="bg-gray-50 border rounded-md p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Ticket ID</p>
+                  <p className="text-base font-semibold text-[#023F40]">{ticketId}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Applicant Name</p>
+                  <p className="text-base font-medium text-gray-900">{application.applicantName}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Date Received</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {new Date(application.createdAt).toLocaleDateString('en-US')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p>
+                  <p className="text-base font-medium text-gray-900">{application.companyName}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">DOB</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p>
+                  <p className="text-base font-medium text-gray-900">{application.phoneNumber || 'Not provided'}</p>
+                </div>
+                <div className="bg-gray-50 border rounded-md p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Gender</p>
+                  <p className="text-base font-medium text-gray-900">{genderLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {application.isRetrofit ? 'Retrofit' : 'New E-Moto'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 border rounded-md p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p>
+                  <p className="text-base font-medium text-gray-900">{application.motorcycleBrand || 'Not provided'}</p>
+                </div>
+                <div className="bg-gray-50 border rounded-md p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p>
+                  <p className="text-base font-medium text-gray-900">{application.motorcycleModel || 'Not provided'}</p>
+                </div>
+                <div className="bg-gray-50 border rounded-md p-3 sm:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
+                  <p className="text-base font-semibold text-[#023F40]">{rebateAmountRwf}</p>
+                </div>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-slate-50 h-fit">
+                <p className="text-sm font-semibold text-[#023F40] mb-3">Submitted By</p>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="font-medium text-gray-900">{application.submittedBy || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900">{application.submittedByEmail || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="font-medium text-gray-900">{application.submittedByPhone || 'Not provided'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-[#023F40]">Mandatory Verification</CardTitle>
-              <CardDescription className="text-sm text-gray-500">Review and verify required documents.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {verificationRows.filter((row) => row.mandatory).map((row) => (
-                <div key={row.key} className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-gray-900 leading-5">{row.label}</p>
-                    <div className="w-[88px] flex justify-end">
-                      {row.access || <span className="text-xs text-gray-400">No file</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 justify-end">
-                    <Button
-                      size="sm"
-                      className="w-24"
-                      variant={evaluations[row.key] === true ? 'default' : 'outline'}
-                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: true }))}
-                    >
-                      Verified
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="w-24"
-                      variant={evaluations[row.key] === false ? 'destructive' : 'outline'}
-                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: false }))}
-                    >
-                      Rejected
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-[#023F40]">Optional / Supporting Verification</CardTitle>
-              <CardDescription className="text-sm text-gray-500">Capture optional checks and supporting documentation.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {verificationRows.filter((row) => !row.mandatory).map((row) => (
-                <div key={row.key} className="border rounded-lg p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-gray-900 leading-5">{row.label}</p>
-                    <div className="w-[88px] flex justify-end">
-                      {row.access || <span className="text-xs text-gray-400">No file</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 justify-end">
-                    <Button
-                      size="sm"
-                      className="w-24"
-                      variant={evaluations[row.key] === true ? 'default' : 'outline'}
-                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: true }))}
-                    >
-                      Approved
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="w-24"
-                      variant={evaluations[row.key] === false ? 'destructive' : 'outline'}
-                      onClick={() => setEvaluations((prev) => ({ ...prev, [row.key]: false }))}
-                    >
-                      Rejected
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[#023F40]">Analyst Notes</CardTitle>
-            <CardDescription className="text-sm text-gray-500">Add observations for the Rebate Manager.</CardDescription>
+            <CardTitle className="text-lg font-semibold text-[#023F40]">Mandatory Verification Checklist</CardTitle>
+            <CardDescription className="text-sm text-gray-500">
+              Review required contract data and documentation from the Asset Financier perspective.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Write your recommendation rationale and observations..."
-              rows={6}
-            />
+          <CardContent className="space-y-3">
+            {mandatoryDocs.map((doc) => (
+              <div key={doc.label} className="border rounded-lg p-3 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+                  {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
+                </div>
+                <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.label))}</div>
+              </div>
+            ))}
+            {optionalDocs.map((doc) => (
+              <div key={doc.label} className="border rounded-lg p-3 border-dashed space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+                  <p className="text-xs text-gray-500">Optional — rebate can be verified without this document</p>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
+                  {renderVerificationActions(docActionKey(doc.label))}
+                </div>
+              </div>
+            ))}
+            {application.isRetrofit && (
+              <div className="space-y-3 pt-2 border-t">
+                <p className="text-sm font-semibold text-gray-700">Retrofit-Specific Documents</p>
+                {retrofitDocs.map((doc) => (
+                  <div key={doc.label} className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+                      {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
+                    </div>
+                    <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.label))}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {additionalDocs.length > 0 && (
+              <div className="space-y-3 pt-2 border-t">
+                <p className="text-sm font-semibold text-gray-700">Additional Documents</p>
+                {additionalDocs.map((doc) => (
+                  <div key={doc.name} className="border rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                      {doc.url ? (
+                        <Button size="sm" variant="outline" asChild className="h-8">
+                          <a href={doc.url} target="_blank" rel="noreferrer">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-gray-400">No file</span>
+                      )}
+                    </div>
+                    <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.name))}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <div className="flex justify-end">
           <Button
-            onClick={() => setShowRecommendationDialog(true)}
-            className="bg-[#023F40] hover:bg-[#035f60]"
+            onClick={handleAnalystVerified}
+            disabled={saving}
+            className="bg-[#6DB27F] hover:bg-[#5da170] text-white uppercase tracking-wide"
           >
             <CheckCircle className="w-4 h-4 mr-2" />
-            Submit Recommendation
+            {saving ? 'Saving...' : 'Verified Rebate for QA Team Review'}
           </Button>
         </div>
-
-        <Dialog open={showRecommendationDialog} onOpenChange={setShowRecommendationDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Recommend</DialogTitle>
-              <DialogDescription>
-                Record your recommendation for the Rebate Manager. Final approve/reject authority rests with the Manager.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={recommendationType === 'approve' ? 'default' : 'outline'}
-                  className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170] flex-1' : 'flex-1'}
-                  onClick={() => setRecommendationType('approve')}
-                >
-                  Recommend Approve
-                </Button>
-                <Button
-                  type="button"
-                  variant={recommendationType === 'reject' ? 'destructive' : 'outline'}
-                  className="flex-1"
-                  onClick={() => setRecommendationType('reject')}
-                >
-                  Recommend Reject
-                </Button>
-              </div>
-              <div>
-                <Label htmlFor="recommendationRationale">{rationaleLabel} *</Label>
-                <Textarea
-                  id="recommendationRationale"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Provide mandatory rationale for your recommendation (minimum 20 characters)..."
-                  rows={5}
-                  className="mt-2"
-                />
-              </div>
-              {recommendationType === 'reject' && (
-                <div>
-                  <Label htmlFor="recommendationRejectReason">Rejection reason *</Label>
-                  <Textarea
-                    id="recommendationRejectReason"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Explain why you recommend rejection..."
-                    rows={4}
-                    className="mt-2"
-                  />
-                </div>
-              )}
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowRecommendationDialog(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handleComplete(recommendationType)}
-                  disabled={
-                    saving ||
-                    notes.trim().length < 20 ||
-                    (recommendationType === 'reject' && !rejectionReason.trim())
-                  }
-                  className={recommendationType === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170]' : ''}
-                  variant={recommendationType === 'reject' ? 'destructive' : 'default'}
-                >
-                  {saving ? 'Saving...' : 'Save recommendation'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }

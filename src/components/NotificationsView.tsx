@@ -11,10 +11,7 @@ import {
   FileText, 
   DollarSign, 
   Clock, 
-  UserPlus, 
-  TrendingUp,
   XCircle,
-  Filter,
   Check,
   Trash2
 } from 'lucide-react';
@@ -36,385 +33,351 @@ interface Notification {
   actionLabel?: string;
   actionUrl?: string;
   actionData?: any;
-  channel?: 'email' | 'sms' | 'in-app';
 }
 
 export function NotificationsView({ user, onAction }: NotificationsViewProps) {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [channelFilter, setChannelFilter] = useState<'all' | 'email' | 'sms' | 'in-app'>('all');
-  
-  // Generate role-specific mock notifications
+
+  // Generate role-specific mock notifications aligned to the current rebate workflow
   const getMockNotifications = (): Notification[] => {
+    const mins = (n: number) => new Date(Date.now() - n * 60 * 1000).toISOString();
+    const hrs = (n: number) => new Date(Date.now() - n * 60 * 60 * 1000).toISOString();
+    const days = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
     const baseNotifications: Notification[] = [];
-    
-    // System Admin notifications
-    if (user.role === 'SYSTEM_ADMIN') {
+
+    // System Admin
+    if (user.role === 'SYSTEM_ADMIN' || user.role === 'admin') {
       baseNotifications.push(
         {
-          id: 'notif-1',
-          type: 'system',
-          title: 'System Update Completed',
-          message: 'The RGF Rebate System has been successfully updated to version 2.1.0. All modules are functioning normally.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: false
-        },
-        {
-          id: 'notif-2',
+          id: 'sa-1',
           type: 'warning',
-          title: 'New Asset Financier Pending Approval',
-          message: 'Kigali Microfinance has submitted a registration request. Requires admin review.',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          title: 'New Asset Financier pending approval',
+          message: 'Bank of Kigali has submitted a registration request and is awaiting your review.',
+          timestamp: hrs(2),
           read: false,
           actionable: true,
-          actionLabel: 'Review Application',
-          actionUrl: '/admin/pending-registrations'
+          actionLabel: 'Review registration',
+          actionUrl: '/admin/pending-registrations',
         },
         {
-          id: 'notif-3',
-          type: 'info',
-          title: 'Monthly Report Generated',
-          message: 'The system has automatically generated the monthly analytics report for February 2026.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true,
-          actionable: true,
-          actionLabel: 'View Report',
-          actionUrl: '/reports'
-        },
-        {
-          id: 'notif-4',
+          id: 'sa-2',
           type: 'system',
-          title: 'User Role Updated',
-          message: 'David Habimana has been assigned as Rebate Manager. Changes are now active.',
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true
-        }
+          title: 'New internal users invited',
+          message: 'Bank of Kigali added a Marketing Agent and an AF Finance Staff user to their organization.',
+          timestamp: hrs(6),
+          read: false,
+        },
+        {
+          id: 'sa-3',
+          type: 'info',
+          title: 'Weekly QA report generated',
+          message: 'The weekly rebate disbursement report for CFO signature is ready in the QA workspace.',
+          timestamp: days(1),
+          read: true,
+        },
       );
     }
-    
-    // Rebate Analyst notifications
-    if (user.role === 'REBATE_ANALYST') {
+
+    // RGF Rebate Team (Analyst)
+    if (user.role === 'REBATE_ANALYST' || user.role === 'analyst') {
       baseNotifications.push(
         {
-          id: 'notif-5',
+          id: 'an-1',
           type: 'application',
-          title: 'New Application Assigned',
-          message: 'Application #APP-2026-0847 has been assigned to you for initial review.',
-          timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          title: 'New rebates received for review',
+          message: '5 new rebate submissions have arrived from Asset Financiers and are waiting in your review pipeline.',
+          timestamp: mins(30),
           read: false,
           actionable: true,
-          actionLabel: 'Review Application',
-          actionUrl: '/applications'
+          actionLabel: 'Open review pipeline',
+          actionUrl: '/rebate-review',
         },
         {
-          id: 'notif-6',
+          id: 'an-2',
           type: 'warning',
-          title: 'Additional Information Requested',
-          message: 'Application #APP-2026-0812 - Asset Financier has submitted the requested RURA verification documents.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          title: 'Over 2 days since received',
+          message: 'Ticket REB-002 has been awaiting review for more than 2 days. Please prioritise it.',
+          timestamp: hrs(3),
           read: false,
           actionable: true,
-          actionLabel: 'View Documents',
-          actionUrl: '/applications'
+          actionLabel: 'Review REB-002',
+          actionUrl: '/rebate-review',
         },
         {
-          id: 'notif-7',
+          id: 'an-3',
           type: 'success',
-          title: 'Application Approved by Manager',
-          message: 'Your recommendation for Application #APP-2026-0798 has been approved by Catherine Uwera.',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          read: false
+          title: 'QA accepted your recommendations',
+          message: 'The QA team approved the recommendations you submitted last week.',
+          timestamp: hrs(20),
+          read: false,
         },
         {
-          id: 'notif-8',
+          id: 'an-4',
           type: 'info',
-          title: 'Eligibility Criteria Updated',
-          message: 'The system admin has updated the income verification criteria. Please review for future applications.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          title: 'Reassignment request to check',
+          message: 'A client transfer / reassignment for REB-014 needs your verification.',
+          timestamp: days(1),
           read: true,
           actionable: true,
-          actionLabel: 'View Criteria',
-          actionUrl: '/criteria'
-        }
+          actionLabel: 'Open reassignment checking',
+          actionUrl: '/reassignment-checking',
+        },
       );
     }
-    
-    // Rebate Manager notifications
+
+    // QA Team (Rebate Manager)
     if (user.role === 'REBATE_MANAGER') {
       baseNotifications.push(
         {
-          id: 'notif-9',
+          id: 'qa-1',
           type: 'application',
-          title: 'Application Ready for Final Review',
-          message: 'Application #APP-2026-0847 has passed analyst review and is ready for your approval.',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+          title: 'Recommendations submitted for QA',
+          message: 'The Rebate Team submitted 8 analyst recommendations for your weekly QA decision.',
+          timestamp: hrs(1),
           read: false,
           actionable: true,
-          actionLabel: 'Review & Approve',
-          actionUrl: '/applications'
+          actionLabel: 'Open QA review',
+          actionUrl: '/qa-review',
         },
         {
-          id: 'notif-10',
+          id: 'qa-2',
           type: 'warning',
-          title: 'SLA Alert: 3 Applications Approaching Deadline',
-          message: 'Three applications are approaching the 5-day review deadline. Immediate attention required.',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+          title: 'Rebates awaiting QA decision',
+          message: '12 rebates are pending QA approval this week. Submit your decisions before the weekly cut-off.',
+          timestamp: hrs(4),
           read: false,
           actionable: true,
-          actionLabel: 'View Applications',
-          actionUrl: '/applications'
+          actionLabel: 'Review & decide',
+          actionUrl: '/qa-review',
         },
         {
-          id: 'notif-11',
-          type: 'success',
-          title: 'Team Performance Report',
-          message: 'Your team processed 47 applications this week with a 94% approval rate. Great work!',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          id: 'qa-3',
+          type: 'info',
+          title: 'Weekly report ready for CFO',
+          message: 'This week’s approved-rebate report is ready to download and send to the CFO for signature.',
+          timestamp: hrs(8),
           read: false,
           actionable: true,
-          actionLabel: 'View Analytics',
-          actionUrl: '/analytics'
-        }
+          actionLabel: 'Open weekly report',
+          actionUrl: '/weekly-report',
+        },
       );
     }
-    
-    // E-Moto Program Manager notifications
+
+    // CFO / E-Moto Program Manager
     if (user.role === 'E_MOTO_PROGRAM_MANAGER') {
       baseNotifications.push(
         {
-          id: 'notif-12',
-          type: 'application',
-          title: 'Lease Review Required',
-          message: 'Application #APP-2026-0834 - Signed lease from Bank of Kigali requires your review.',
-          timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+          id: 'cfo-1',
+          type: 'payment',
+          title: 'Rebates awaiting your authorization',
+          message: '3 QA-approved rebates with confirmed e-moto possession are awaiting your disbursement authorization (10-day SLA).',
+          timestamp: mins(45),
           read: false,
           actionable: true,
-          actionLabel: 'Review Lease',
-          actionUrl: '/lease-review'
+          actionLabel: 'Authorize disbursements',
+          actionUrl: '/authorizations',
         },
         {
-          id: 'notif-13',
+          id: 'cfo-2',
           type: 'info',
-          title: 'Program Milestone Achieved',
-          message: 'The RGF E-Moto Rebate Program has successfully disbursed RWF 500M to 2,450 beneficiaries!',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false
+          title: 'E-moto possession confirmed',
+          message: 'E-moto possession has been confirmed for REB-001 — the rebate is now eligible for disbursement authorization.',
+          timestamp: hrs(2),
+          read: false,
         },
         {
-          id: 'notif-14',
+          id: 'cfo-3',
           type: 'warning',
-          title: 'Escrow Reconciliation Reminder',
-          message: 'Application #APP-2026-0789 requires possession verification follow-up before disbursement.',
-          timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+          title: 'AF top-up request pending',
+          message: 'Bank of Kigali has requested a top-up of their advance rebate funds. Your decision is required.',
+          timestamp: hrs(6),
           read: true,
           actionable: true,
-          actionLabel: 'View Details',
-          actionUrl: '/applications'
-        }
+          actionLabel: 'Review request',
+          actionUrl: '/top-up-requests',
+        },
       );
     }
-    
-    // Finance Officer notifications
+
+    // RGF Finance Officer
     if (user.role === 'DESIGNATED_FINANCE_OFFICER') {
       baseNotifications.push(
         {
-          id: 'notif-15',
-          type: 'payment',
-          title: 'New Payment Pending Processing',
-          message: 'Application #APP-2026-0823 - RWF 850,000 rebate payment requires your authorization.',
-          timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'Process Payment',
-          actionUrl: '/pending-payments'
-        },
-        {
-          id: 'notif-16',
-          type: 'payment',
-          title: 'Batch Payment Ready',
-          message: '8 approved applications totaling RWF 6,800,000 are ready for batch disbursement.',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'Process Batch',
-          actionUrl: '/pending-payments'
-        },
-        {
-          id: 'notif-17',
-          type: 'success',
-          title: 'Payment Successfully Disbursed',
-          message: 'RWF 750,000 disbursed to Bank of Kigali for Application #APP-2026-0801.',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 'notif-18',
-          type: 'info',
-          title: 'Monthly Disbursement Summary',
-          message: 'February 2026: RWF 45.2M disbursed across 56 applications. Reconciliation complete.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true,
-          actionable: true,
-          actionLabel: 'View Report',
-          actionUrl: '/reports'
-        }
-      );
-    }
-    
-    // M&E Team notifications
-    if (user.role === 'ME_TEAM') {
-      baseNotifications.push(
-        {
-          id: 'notif-19',
-          type: 'warning',
-          title: 'Field Verification Request',
-          message: 'Application #APP-2026-0789 requires field verification in Nyarugenge District.',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'View Details',
-          actionUrl: '/applications'
-        },
-        {
-          id: 'notif-20',
-          type: 'info',
-          title: 'Data Collection Update',
-          message: 'Q1 2026 impact assessment data collection is 78% complete. 124 beneficiaries surveyed.',
-          timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 'notif-21',
-          type: 'success',
-          title: 'Investigation Completed',
-          message: 'Your field verification report for Application #APP-2026-0756 has been accepted.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true
-        }
-      );
-    }
-    
-    // Asset Financier Admin notifications
-    if (user.role === 'ASSET_FINANCIER_ADMIN') {
-      baseNotifications.push(
-        {
-          id: 'notif-22-new',
-          type: 'success',
-          title: 'Application Approved!',
-          message: 'Jean Claude Ndayisaba application has been approved, you can now upload signed lease.',
-          timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'Upload Signed Lease',
-          actionData: { type: 'open-application', appId: 'application:APP-2024-1001' }
-        },
-        {
-          id: 'notif-22',
-          type: 'success',
-          title: 'Application Approved!',
-          message: 'Application #APP-2024-1006 has been approved. Please upload the signed lease agreement.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'Upload Lease',
-          actionData: { type: 'open-application', appId: 'application:APP-2024-1006' }
-        },
-        {
-          id: 'notif-23',
-          type: 'error',
-          title: 'Lease Rejected - Correction Required',
-          message: 'Application #APP-2024-1008 - Lease rejected. Loan term mismatch. Please upload corrected version.',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'View Feedback',
-          actionData: { type: 'open-application', appId: 'application:APP-2024-1008' }
-        },
-        {
-          id: 'notif-24',
-          type: 'payment',
-          title: 'Rebate Payment Received',
-          message: 'RWF 750,000 rebate for Application APP-2024-1002 has been transferred to your account.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 'notif-25',
-          type: 'warning',
-          title: 'Additional Information Required',
-          message: 'Application #APP-2024-1007 - Analyst requires RURA plate registration document.',
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true,
-          actionable: true,
-          actionLabel: 'Upload Document',
-          actionData: { type: 'open-application', appId: 'application:APP-2024-1007' }
-        }
-      );
-    }
-    
-    // Claims Officer notifications
-    if (user.role === 'CLAIMS_OFFICER') {
-      baseNotifications.push(
-        {
-          id: 'notif-26',
-          type: 'info',
-          title: 'New Rebate Program Guidelines',
-          message: 'Updated eligibility criteria for electric motorcycles effective March 1, 2026.',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          read: false,
-          actionable: true,
-          actionLabel: 'View Guidelines',
-          actionUrl: '/guidelines'
-        },
-        {
-          id: 'notif-27',
-          type: 'success',
-          title: 'Partnership Agreement Active',
-          message: 'Your organization has been successfully onboarded to the RGF Rebate System.',
-          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          read: true
-        }
-      );
-    }
-    
-    // External Reviewer notifications
-    if (user.role === 'EXTERNAL_REVIEWER') {
-      baseNotifications.push(
-        {
-          id: 'notif-28',
-          type: 'info',
-          title: 'Audit Access Granted',
-          message: 'You now have read-only access to all applications and financial records for Q1 2026 audit.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: false
-        },
-        {
-          id: 'notif-29',
+          id: 'fo-1',
           type: 'application',
-          title: 'New Applications Available',
-          message: '47 new applications have been processed this week and are available for your review.',
-          timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          title: 'AF bank statement uploaded',
+          message: 'Bank of Kigali uploaded a new bank statement for reconciliation against system rebate records.',
+          timestamp: mins(25),
           read: false,
           actionable: true,
-          actionLabel: 'View Applications',
-          actionUrl: '/applications'
-        }
+          actionLabel: 'Open verification',
+          actionUrl: '/verification-checking',
+        },
+        {
+          id: 'fo-2',
+          type: 'warning',
+          title: 'Disbursement mismatch flagged',
+          message: 'The disbursement reported by the bank for REB-002 does not match the system amount. Please investigate.',
+          timestamp: hrs(3),
+          read: false,
+          actionable: true,
+          actionLabel: 'Review lease tracking',
+          actionUrl: '/verification-checking',
+        },
+        {
+          id: 'fo-3',
+          type: 'payment',
+          title: 'Top-up request to track',
+          message: 'A new top-up request from an Asset Financier is pending CFO decision — track it in the tracker.',
+          timestamp: hrs(9),
+          read: false,
+          actionable: true,
+          actionLabel: 'Open top-up tracker',
+          actionUrl: '/top-up-requests',
+        },
+        {
+          id: 'fo-4',
+          type: 'success',
+          title: 'Advance funds wired',
+          message: 'RWF 20,000,000 advance rebate funds were wired to Bank of Kigali and recorded.',
+          timestamp: days(1),
+          read: true,
+        },
       );
     }
-    
-    // Add some common notifications for all roles
-    baseNotifications.push(
-      {
-        id: 'notif-30',
-        type: 'system',
-        title: 'Welcome to the RGF Rebate System',
-        message: 'Your account has been successfully created. Explore the dashboard to get started.',
-        timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        read: true
-      }
-    );
-    
-    return baseNotifications.sort((a, b) => 
+
+    // Asset Financier Admin + AF Finance Staff (decision takers who submit to RGF)
+    if (
+      user.role === 'ASSET_FINANCIER_ADMIN' ||
+      user.role === 'ASSET_FINANCIER_OFFICER' ||
+      user.role === 'CLAIMS_OFFICER'
+    ) {
+      baseNotifications.push(
+        {
+          id: 'af-1',
+          type: 'application',
+          title: 'New rebate proposal from marketing agent',
+          message: 'Kevin Agent submitted rebate proposal REB-002 for your review and submission to RGF.',
+          timestamp: mins(15),
+          read: false,
+          actionable: true,
+          actionLabel: 'Review & submit to RGF',
+          actionUrl: '/rebate-status',
+        },
+        {
+          id: 'af-2',
+          type: 'success',
+          title: 'Rebate approved by RGF',
+          message: 'RGF Rebate Team approved REB-001. Confirm e-moto possession before drawing rebate funds from your escrow account.',
+          timestamp: hrs(2),
+          read: false,
+          actionable: true,
+          actionLabel: 'Confirm possession',
+          actionUrl: '/possession',
+        },
+        {
+          id: 'af-3',
+          type: 'error',
+          title: 'Rebate rejected by QA',
+          message: 'REB-007 was rejected by the QA team. Open the rebate to view the reason and follow-up actions.',
+          timestamp: hrs(5),
+          read: false,
+          actionable: true,
+          actionLabel: 'View reason',
+          actionUrl: '/rebate-status',
+        },
+        {
+          id: 'af-4',
+          type: 'payment',
+          title: 'Rebate disbursement authorized',
+          message: 'The CFO authorized disbursement for REB-005. You may deduct the rebate from your Rebate Bank Account.',
+          timestamp: days(1),
+          read: false,
+        },
+        {
+          id: 'af-5',
+          type: 'warning',
+          title: 'Possession confirmation reminder',
+          message: 'REB-001 still needs the signed AF/Client E-Moto Possession Confirmation before funds can be withdrawn.',
+          timestamp: days(2),
+          read: true,
+          actionable: true,
+          actionLabel: 'Upload confirmation',
+          actionUrl: '/possession',
+        },
+      );
+    }
+
+    // Marketing Agent
+    if (user.role === 'ASSET_FINANCIER_STAFF') {
+      baseNotifications.push(
+        {
+          id: 'ma-1',
+          type: 'success',
+          title: 'Proposal submitted to RGF',
+          message: 'Your rebate proposal REB-002 was reviewed and submitted to RGF by your AF finance staff.',
+          timestamp: mins(20),
+          read: false,
+        },
+        {
+          id: 'ma-2',
+          type: 'warning',
+          title: 'Proposal needs more documents',
+          message: 'Your rebate proposal REB-011 is missing a signed financing agreement. Please add it and resubmit for review.',
+          timestamp: hrs(4),
+          read: false,
+          actionable: true,
+          actionLabel: 'Open proposal',
+          actionUrl: '/rebate-status',
+        },
+        {
+          id: 'ma-3',
+          type: 'info',
+          title: 'Keep developing proposals',
+          message: 'You can submit new rebate proposals at any time from the Submit Rebate page.',
+          timestamp: days(1),
+          read: true,
+        },
+      );
+    }
+
+    // External Reviewer / M&E
+    if (user.role === 'EXTERNAL_REVIEWER' || user.role === 'ME_TEAM') {
+      baseNotifications.push(
+        {
+          id: 'ext-1',
+          type: 'info',
+          title: 'Read-only access granted',
+          message: 'You have read-only access to rebate records and disbursements for the current reporting period.',
+          timestamp: hrs(2),
+          read: false,
+        },
+        {
+          id: 'ext-2',
+          type: 'application',
+          title: 'New disbursed rebates available',
+          message: 'Newly disbursed rebates are available for your review and reporting.',
+          timestamp: days(1),
+          read: false,
+          actionable: true,
+          actionLabel: 'View rebates',
+          actionUrl: '/rebates',
+        },
+      );
+    }
+
+    // Common
+    baseNotifications.push({
+      id: 'common-welcome',
+      type: 'system',
+      title: 'Welcome to the RGF Rebate System',
+      message: 'Your account is ready. Use the menu to navigate your rebate workflow.',
+      timestamp: days(7),
+      read: true,
+    });
+
+    return baseNotifications.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   };
@@ -440,11 +403,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
     }
-  };
-
-  const getNotificationBgColor = (type: Notification['type'], read: boolean) => {
-    // Always return white background with standard border
-    return 'bg-white border-gray-200';
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -479,12 +437,9 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
     toast.success('Notification deleted');
   };
 
-  const filteredNotifications = filter === 'unread' 
+  const filteredNotifications = filter === 'unread'
     ? notifications.filter(n => !n.read)
     : notifications;
-  const channelFilteredNotifications = channelFilter === 'all'
-    ? filteredNotifications
-    : filteredNotifications.filter(n => (n.channel || 'in-app') === channelFilter);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -516,19 +471,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         </div>
       </div>
 
-      {unreadCount > 0 && (
-        <Card className="border-[#023F40]/20 bg-[#023F40]/5">
-          <CardContent className="p-4 flex items-center justify-between gap-3">
-            <p className="text-sm text-[#023F40]">
-              Pop-up alert: you have {unreadCount} unread notifications. Please open and review them.
-            </p>
-            <Button variant="outline" size="sm" onClick={markAllAsRead}>
-              Mark all read
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b pb-2">
         <Button
@@ -555,17 +497,10 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
             </Badge>
           )}
         </Button>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">Channel</span>
-          <Button size="sm" variant={channelFilter === 'all' ? 'default' : 'ghost'} onClick={() => setChannelFilter('all')} className={channelFilter === 'all' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>All</Button>
-          <Button size="sm" variant={channelFilter === 'email' ? 'default' : 'ghost'} onClick={() => setChannelFilter('email')} className={channelFilter === 'email' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>Email</Button>
-          <Button size="sm" variant={channelFilter === 'sms' ? 'default' : 'ghost'} onClick={() => setChannelFilter('sms')} className={channelFilter === 'sms' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>SMS</Button>
-          <Button size="sm" variant={channelFilter === 'in-app' ? 'default' : 'ghost'} onClick={() => setChannelFilter('in-app')} className={channelFilter === 'in-app' ? 'bg-[#023F40] hover:bg-[#035f60]' : ''}>In-App</Button>
-        </div>
       </div>
 
       {/* Notifications List */}
-      {channelFilteredNotifications.length === 0 ? (
+      {filteredNotifications.length === 0 ? (
         <Card>
           <CardContent className="p-12">
             <div className="text-center">
@@ -583,7 +518,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {channelFilteredNotifications.map((notification) => (
+          {filteredNotifications.map((notification) => (
             <Card
               key={notification.id}
               className="border border-gray-200 bg-white transition-all hover:shadow-md"
@@ -623,9 +558,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Clock className="w-3 h-3" />
                         {formatTimestamp(notification.timestamp)}
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {notification.channel || 'in-app'}
-                        </Badge>
                       </div>
 
                       <div className="flex items-center gap-2">

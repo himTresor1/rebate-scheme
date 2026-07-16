@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import {
@@ -11,33 +11,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { ArrowLeft, CheckCircle, FileText, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Eye, XCircle } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { toast } from 'sonner';
+import { getRebateRateLabel } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
   companyName: string;
   registrationNumber?: string;
+  ticketNumber?: string;
   contactPerson?: string;
   contactEmail?: string;
   contactPhone?: string;
   rebateAmount: string;
-  projectDescription?: string;
   applicantName?: string;
   nationalId?: string;
   phoneNumber?: string;
   email?: string;
   motorcycleBrand?: string;
   motorcycleModel?: string;
-  chassisNumber?: string;
   loanAmount?: string;
   interestRate?: string;
   loanTerm?: string;
   monthlyRepayment?: string;
   purchasePrice?: string;
-  vehicleCount?: string;
-  emissionReduction?: string;
+  isRetrofit?: boolean;
+  submittedBy?: string;
+  submittedByEmail?: string;
+  submittedByPhone?: string;
+  verifiedAt?: string;
+  lastReviewedAt?: string;
+  eligibilityCheck?: {
+    nationalIdCheck?: { gender?: string; dateOfBirth?: string };
+  };
   documents?: Array<{
     name: string;
     type?: string;
@@ -54,8 +61,6 @@ interface Application {
   }>;
   status: string;
   createdAt: string;
-  flaggedForCFO?: boolean;
-  flagReason?: string;
   [key: string]: any;
 }
 
@@ -75,11 +80,68 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
   const [open, setOpen] = useState(false);
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve');
   const [reason, setReason] = useState('');
-  const [expandedDocuments, setExpandedDocuments] = useState(false);
+
+  const ticketId =
+    application.ticketNumber ||
+    application.registrationNumber ||
+    application.id.replace('application:', '').toUpperCase();
+  const isWoman = application.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
+  const genderLabel = isWoman ? 'Woman' : 'Man';
+  const isRetrofit = Boolean(application.isRetrofit);
+  const rebateAmountRwf = Math.round(parseFloat(application.rebateAmount || '0') || 0).toLocaleString();
+  const retailCost = Math.round(parseFloat(application.purchasePrice || '0') || 0).toLocaleString();
+  const rebatePercent = getRebateRateLabel({ isWoman, isRetrofit }).match(/\d+%/)?.[0] || '18%';
+
+  const getDocumentByKeyword = (keywords: string[]) => {
+    if (!application.documents || application.documents.length === 0) return undefined;
+    return application.documents.find((doc) => {
+      const name = doc.name.toLowerCase();
+      return keywords.some((keyword) => name.includes(keyword));
+    });
+  };
+
+  const renderDocAccess = (keywords: string[]) => {
+    const doc = getDocumentByKeyword(keywords);
+    if (!doc?.url) return <span className="text-xs text-gray-400">No file</span>;
+    return (
+      <Button size="sm" variant="outline" asChild className="h-8">
+        <a href={doc.url} target="_blank" rel="noreferrer">
+          <Eye className="w-4 h-4 mr-1" />
+          View
+        </a>
+      </Button>
+    );
+  };
+
+  const mandatoryDocs = [
+    { label: 'Signed Financing Contract', keywords: ['financing contract', 'contract', 'loan agreement'] },
+    { label: 'National ID', keywords: ['national id', 'id document', 'nid'] },
+    { label: 'Motorcycle License', keywords: ['license', 'moto license', 'driver'] },
+    { label: 'Individual Affidavit of Financial Need', keywords: ['affidavit'] },
+    { label: 'AF Confirmation of Financial Need', keywords: ['financial need', 'af confirmation'] },
+  ];
+  const optionalDocs = [
+    {
+      label: 'AF/Client Confirmation of Individual E-Moto Possession',
+      keywords: ['possession'],
+      note: 'Not mandatory to approve and include in the approved report; if missing, excluded from the CFO Disbursement Request.',
+    },
+  ];
+  const retrofitDocs = [
+    { label: 'Retrofit Suitability Statement', keywords: ['retrofit suitability', 'suitability'] },
+    { label: 'ICE-Engine Disposal Agreement', keywords: ['ice', 'disposal', 'engine'] },
+  ];
+  const additionalDocs = (application.documents || []).filter((doc) => {
+    const name = doc.name.toLowerCase();
+    const known = [...mandatoryDocs, ...optionalDocs, ...retrofitDocs].some((item) =>
+      item.keywords.some((kw) => name.includes(kw))
+    );
+    return !known;
+  });
 
   const handleSaveReview = () => {
-    if (reason.trim().length < 20) {
-      toast.error('Reason is required (minimum 20 characters).');
+    if (decision === 'reject' && !reason.trim()) {
+      toast.error('Comment is mandatory when rejecting a rebate.');
       return;
     }
     onDecisionCaptured?.({
@@ -88,9 +150,15 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
       reason: reason.trim(),
       timestamp: new Date().toISOString(),
     });
-    toast.success('QA review captured. Submit decisions from QA page when ready.');
+    toast.success('QA review captured. Submit decisions from the pipeline when ready.');
     setOpen(false);
     onBack();
+  };
+
+  const openDecision = (type: 'approve' | 'reject') => {
+    setDecision(type);
+    setReason('');
+    setOpen(true);
   };
 
   return (
@@ -98,113 +166,263 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
       <div className="space-y-3">
         <Button variant="outline" onClick={onBack} className="w-fit">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to QA Page
+          Back to Pipeline
         </Button>
-        <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">QA Review</h2>
-        <p className="text-sm text-gray-600">Capture decision for this application. Final weekly forwarding happens from the QA table page.</p>
+        <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">
+          Quality Assurance Team — Review Rebate Submission
+        </h2>
+        <p className="text-sm text-gray-600 max-w-4xl">
+          This page is for the QA Team to review rebate submissions verified by the Rebate Team. QA may approve
+          rebates that do not yet have an E-Moto Possession Statement; those rebates are included in the approved
+          report but excluded from the CFO Disbursement Request until the possession confirmation is submitted.
+        </p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base text-[#023F40]">Application Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-          <div><p className="text-xs uppercase tracking-wide text-gray-500">Ticket</p><p className="font-semibold">{application.id.replace('application:', '').slice(0, 8).toUpperCase()}</p></div>
-          <div><p className="text-xs uppercase tracking-wide text-gray-500">Applicant</p><p className="font-medium">{application.applicantName || application.contactPerson || application.companyName || 'N/A'}</p></div>
-          <div><p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p><p className="font-medium">{application.companyName || 'N/A'}</p></div>
-          <div><p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount</p><p className="font-medium">{application.rebateAmount ? Number(application.rebateAmount).toLocaleString() : 'N/A'}</p></div>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Ticket ID</p>
+                <p className="text-base font-semibold text-[#023F40]">{ticketId}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Applicant Name</p>
+                <p className="text-base font-medium text-gray-900">
+                  {application.applicantName || application.contactPerson || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Date of AF Submission</p>
+                <p className="text-base font-medium text-gray-900">
+                  {new Date(application.createdAt).toLocaleDateString('en-US')}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Date of Rebate Team Verification</p>
+                <p className="text-base font-medium text-gray-900">
+                  {new Date(
+                    application.verifiedAt || application.lastReviewedAt || application.createdAt
+                  ).toLocaleDateString('en-US')}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p>
+                <p className="text-base font-medium text-gray-900">{application.companyName}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">National ID</p>
+                <p className="text-base font-medium text-gray-900">{application.nationalId || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">DOB</p>
+                <p className="text-base font-medium text-gray-900">
+                  {application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p>
+                <p className="text-base font-medium text-gray-900">
+                  {application.phoneNumber || application.contactPhone || 'Not provided'}
+                </p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Gender</p>
+                <p className="text-base font-medium text-gray-900">{genderLabel}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p>
+                <p className="text-base font-medium text-gray-900">{isRetrofit ? 'Retrofit' : 'New E-Moto'}</p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p>
+                <p className="text-base font-medium text-gray-900">
+                  {application.motorcycleBrand || 'Not provided'}
+                </p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p>
+                <p className="text-base font-medium text-gray-900">
+                  {application.motorcycleModel || 'Not provided'}
+                </p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Retail Cost (RWF)</p>
+                <p className="text-base font-medium text-gray-900">{retailCost}</p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF) and Percent</p>
+                <p className="text-base font-semibold text-[#023F40]">
+                  {rebateAmountRwf} ({rebatePercent})
+                </p>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-slate-50 h-fit space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-[#023F40] mb-3">Submitted By</p>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="font-medium text-gray-900">
+                      {application.submittedBy || application.contactPerson || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="font-medium text-gray-900">
+                      {application.submittedByEmail || application.email || application.contactEmail || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="font-medium text-gray-900">
+                      {application.submittedByPhone || application.phoneNumber || application.contactPhone || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t pt-3 space-y-2 text-sm">
+                <p className="text-sm font-semibold text-[#023F40]">Contract / Financing</p>
+                <div>
+                  <p className="text-xs text-gray-500">Loan Amount (RWF)</p>
+                  <p className="font-medium">
+                    {application.loanAmount
+                      ? Math.round(parseFloat(application.loanAmount)).toLocaleString()
+                      : 'Not provided'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Interest Rate</p>
+                  <p className="font-medium">{application.interestRate || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Loan Term</p>
+                  <p className="font-medium">{application.loanTerm || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Monthly Repayment (RWF)</p>
+                  <p className="font-medium">
+                    {application.monthlyRepayment
+                      ? Math.round(parseFloat(application.monthlyRepayment)).toLocaleString()
+                      : 'Not provided'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base text-[#023F40]">Client & Contact Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div><p className="text-gray-500">Name</p><p className="font-medium">{application.applicantName || application.contactPerson || 'N/A'}</p></div>
-            <div><p className="text-gray-500">National ID</p><p className="font-medium">{application.nationalId || 'N/A'}</p></div>
-            <div><p className="text-gray-500">Phone</p><p className="font-medium">{application.phoneNumber || application.contactPhone || 'N/A'}</p></div>
-            <div><p className="text-gray-500">Email</p><p className="font-medium">{application.email || application.contactEmail || 'N/A'}</p></div>
-            <div><p className="text-gray-500">Submitted At</p><p className="font-medium">{new Date(application.createdAt).toLocaleString()}</p></div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base text-[#023F40]">Vehicle & Financing Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div><p className="text-gray-500">Provider / Brand</p><p className="font-medium">{application.motorcycleBrand || 'N/A'}</p></div>
-            <div><p className="text-gray-500">Model</p><p className="font-medium">{application.motorcycleModel || 'N/A'}</p></div>
-            <div><p className="text-gray-500">VIN / Chassis</p><p className="font-medium">{application.chassisNumber || 'N/A'}</p></div>
-            <div><p className="text-gray-500">Purchase Price</p><p className="font-medium">{application.purchasePrice ? Number(application.purchasePrice).toLocaleString() : 'N/A'}</p></div>
-            <div><p className="text-gray-500">Loan Amount</p><p className="font-medium">{application.loanAmount ? Number(application.loanAmount).toLocaleString() : 'N/A'}</p></div>
-            <div><p className="text-gray-500">Monthly Repayment</p><p className="font-medium">{application.monthlyRepayment ? Number(application.monthlyRepayment).toLocaleString() : 'N/A'}</p></div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base text-[#023F40]">Uploaded Documents</CardTitle>
-          <Button variant="outline" size="sm" onClick={() => setExpandedDocuments((v) => !v)}>
-            {expandedDocuments ? 'Collapse' : 'Expand'}
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-[#023F40]">AF Submitted Documents</CardTitle>
+          <CardDescription className="text-sm text-gray-500">
+            All Asset Financier documents are available for view. QA does not approve or reject individual documents.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {(application.documents && application.documents.length > 0 ? application.documents : []).slice(0, expandedDocuments ? undefined : 4).map((doc, idx) => (
-            <div key={`${doc.url}-${idx}`} className="flex items-center justify-between border rounded-lg p-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{doc.name || 'Document'}</p>
-                <p className="text-xs text-gray-500">{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Upload date unavailable'}</p>
-              </div>
-              <Button size="sm" variant="outline" asChild>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                  <FileText className="w-4 h-4 mr-1" />
-                  View
-                </a>
-              </Button>
+          {mandatoryDocs.map((doc) => (
+            <div key={doc.label} className="flex items-center justify-between gap-4 border rounded-lg p-3">
+              <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+              {renderDocAccess(doc.keywords)}
             </div>
           ))}
-          {(!application.documents || application.documents.length === 0) && (
-            <p className="text-sm text-gray-500">No documents available for this application.</p>
+          {optionalDocs.map((doc) => (
+            <div key={doc.label} className="border rounded-lg p-3 border-dashed space-y-2">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+                  <p className="text-xs text-gray-500 mt-1">{doc.note}</p>
+                </div>
+                {renderDocAccess(doc.keywords)}
+              </div>
+            </div>
+          ))}
+          {isRetrofit && (
+            <div className="space-y-3 pt-2 border-t">
+              <p className="text-sm font-semibold text-gray-700">Retrofit-Specific Documents</p>
+              {retrofitDocs.map((doc) => (
+                <div key={doc.label} className="flex items-center justify-between gap-4 border rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
+                  {renderDocAccess(doc.keywords)}
+                </div>
+              ))}
+            </div>
+          )}
+          {additionalDocs.length > 0 && (
+            <div className="space-y-3 pt-2 border-t">
+              <p className="text-sm font-semibold text-gray-700">Additional Documents</p>
+              {additionalDocs.map((doc) => (
+                <div key={doc.name} className="flex items-center justify-between gap-4 border rounded-lg p-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{doc.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Upload date unavailable'}
+                    </p>
+                  </div>
+                  {doc.url ? (
+                    <Button size="sm" variant="outline" asChild className="h-8">
+                      <a href={doc.url} target="_blank" rel="noreferrer">
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
+                      </a>
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400">No file</span>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base text-[#023F40]">Review History</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(application.reviewHistory && application.reviewHistory.length > 0 ? application.reviewHistory : []).map((item, idx) => (
-            <div key={idx} className="border rounded-lg p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{item.reviewerName || 'Reviewer'}</p>
-                <p className="text-xs text-gray-500">{item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : 'N/A'}</p>
+      {(application.reviewHistory?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base text-[#023F40]">Review History</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {application.reviewHistory!.map((item, idx) => (
+              <div key={idx} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{item.reviewerName || 'Reviewer'}</p>
+                  <p className="text-xs text-gray-500">
+                    {item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : 'N/A'}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600 mt-1">{item.reviewerRole || 'Role unavailable'}</p>
+                <p className="text-sm mt-2">{item.notes || 'No notes provided.'}</p>
               </div>
-              <p className="text-xs text-gray-600 mt-1">{item.reviewerRole || 'Role unavailable'}</p>
-              <p className="text-sm mt-2">{item.notes || 'No notes provided.'}</p>
-            </div>
-          ))}
-          {(!application.reviewHistory || application.reviewHistory.length === 0) && (
-            <p className="text-sm text-gray-500">No prior review entries.</p>
-          )}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="flex justify-end">
-        <Button onClick={() => setOpen(true)} className="bg-[#023F40] hover:bg-[#035f60]">
-          Review
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="destructive" onClick={() => openDecision('reject')}>
+          <XCircle className="w-4 h-4 mr-2" />
+          Reject
+        </Button>
+        <Button
+          onClick={() => openDecision('approve')}
+          className="bg-[#6DB27F] hover:bg-[#5da170]"
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Approve
         </Button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Capture QA Decision</DialogTitle>
-            <DialogDescription>Record approve/reject with reason. This does not submit to next stage yet.</DialogDescription>
+            <DialogTitle>{decision === 'approve' ? 'Approve rebate' : 'Reject rebate'}</DialogTitle>
+            <DialogDescription>
+              {decision === 'reject'
+                ? 'A comment is mandatory when rejecting. It will appear under Issues for follow-up.'
+                : 'Confirm approval for this rebate. Comment is optional.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -228,21 +446,33 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
               </Button>
             </div>
             <div>
-              <Label htmlFor="qaReason">Reason *</Label>
+              <Label htmlFor="qaReason">
+                {decision === 'reject' ? 'Comment *' : 'Comment (optional)'}
+              </Label>
               <Textarea
                 id="qaReason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Explain the QA decision (minimum 20 characters)..."
+                placeholder={
+                  decision === 'reject'
+                    ? 'Explain why this rebate is rejected...'
+                    : 'Optional notes for follow-up...'
+                }
                 rows={5}
                 className="mt-2"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveReview}>
-              Save Review
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveReview}
+              variant={decision === 'reject' ? 'destructive' : 'default'}
+              className={decision === 'approve' ? 'bg-[#6DB27F] hover:bg-[#5da170]' : ''}
+            >
+              Save Decision
             </Button>
           </DialogFooter>
         </DialogContent>

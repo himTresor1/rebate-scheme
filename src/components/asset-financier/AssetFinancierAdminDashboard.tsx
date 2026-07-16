@@ -77,6 +77,7 @@ export function AssetFinancierAdminDashboard({
   currentPage,
   onNavigate 
 }: AssetFinancierAdminDashboardProps) {
+  const isMarketingAgent = user.role === 'ASSET_FINANCIER_STAFF';
   const [activeTab, setActiveTab] = useState<
     'overview' | 'users' | 'applications' | 'submit' | 'repayment' | 'rebate-status' | 'possession' | 'client-transfer' | 'background-info'
   >('overview');
@@ -145,12 +146,24 @@ export function AssetFinancierAdminDashboard({
     return () => clearTimeout(timer);
   }, [activeTab]);
 
-  const stats = {
-    totalStaff: 12,
-    activeApplications: 145,
-    approvedApplications: 89,
-    pendingReview: 34
-  };
+  const stats = isMarketingAgent
+    ? {
+        submittedToDate: 45,
+        awaitingReview: 10,
+        approved: 30,
+        rejected: 5,
+      }
+    : {
+        totalInPipelineAndDisbursed: 45,
+        pipelineBeingDeveloped: 7,
+        awaitingRgfAuthorization: 3,
+        disbursementsToDate: 35,
+      };
+  const marketingAssetFinancierOptions = [
+    { id: user.assetFinancierId || user.organizationId || user.id, name: 'Bank of Kigali' },
+    { id: 'af-rem', name: 'REM Ltd' },
+    { id: 'af-safi', name: 'Safi Finance' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -183,7 +196,14 @@ export function AssetFinancierAdminDashboard({
                 {/* Greeting */}
                 <Greeting name={user.name} />
                 
-                <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">Asset Financier Admin</h1>
+                <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">
+                  {isMarketingAgent ? 'Marketing Dashboard' : 'Asset Financier Dashboard'}
+                </h1>
+                {isMarketingAgent ? (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Review all rebate applications you have submitted and track their status across authorized Asset Financiers.
+                  </p>
+                ) : null}
 
                 {/* Stats Grid - 2x2 on mobile, 4 across on desktop */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -202,8 +222,12 @@ export function AssetFinancierAdminDashboard({
                         0%
                       </div>
                     </div>
-                    <p className="text-3xl font-bold mb-0.5">{stats.totalStaff}</p>
-                    <p className="text-white/80 text-xs">Total Staff</p>
+                    <p className="text-3xl font-bold mb-0.5">
+                      {isMarketingAgent ? stats.submittedToDate : stats.totalInPipelineAndDisbursed}
+                    </p>
+                    <p className="text-white/80 text-xs">
+                      {isMarketingAgent ? 'Your Total Rebates Submitted to date' : 'Your Total Rebates in Pipeline and Disbursed'}
+                    </p>
                   </motion.div>
 
                   <motion.div
@@ -221,8 +245,12 @@ export function AssetFinancierAdminDashboard({
                         0%
                       </div>
                     </div>
-                    <p className="text-3xl font-bold mb-0.5">{stats.activeApplications}</p>
-                    <p className="text-white/80 text-xs">Active Applications</p>
+                    <p className="text-3xl font-bold mb-0.5">
+                      {isMarketingAgent ? stats.awaitingReview : stats.pipelineBeingDeveloped}
+                    </p>
+                    <p className="text-white/80 text-xs">
+                      {isMarketingAgent ? 'Your Total Rebates Awaiting Review' : 'Your Pipeline being Developed for Submission to RGF'}
+                    </p>
                   </motion.div>
 
                   <motion.div
@@ -240,8 +268,12 @@ export function AssetFinancierAdminDashboard({
                         0%
                       </div>
                     </div>
-                    <p className="text-3xl font-bold mb-0.5">{stats.approvedApplications}</p>
-                    <p className="text-white/80 text-xs">Approved</p>
+                    <p className="text-3xl font-bold mb-0.5">
+                      {isMarketingAgent ? stats.approved : stats.awaitingRgfAuthorization}
+                    </p>
+                    <p className="text-white/80 text-xs">
+                      {isMarketingAgent ? 'Your Total Rebates Approved' : 'Approved Rebates Awaiting RGF Disbursement Authorization'}
+                    </p>
                   </motion.div>
 
                   <motion.div
@@ -259,8 +291,12 @@ export function AssetFinancierAdminDashboard({
                         0%
                       </div>
                     </div>
-                    <p className="text-3xl font-bold mb-0.5">{stats.pendingReview}</p>
-                    <p className="text-white/80 text-xs">Pending Review</p>
+                    <p className="text-3xl font-bold mb-0.5">
+                      {isMarketingAgent ? stats.rejected : stats.disbursementsToDate}
+                    </p>
+                    <p className="text-white/80 text-xs">
+                      {isMarketingAgent ? 'Your Total Rebates Rejected' : 'Approved Rebates Disbursements to date'}
+                    </p>
                   </motion.div>
                 </div>
 
@@ -271,7 +307,7 @@ export function AssetFinancierAdminDashboard({
                   transition={{ delay: 0.5 }}
                 >
                   <h2 className="mb-4 font-semibold text-gray-900">Quick Actions</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <button
                       onClick={() => {
                         setActiveTab('submit');
@@ -280,38 +316,44 @@ export function AssetFinancierAdminDashboard({
                       className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
                     >
                       <UserPlus className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                      <span className="font-medium text-gray-900 text-sm">Submit Application</span>
+                      <span className="font-medium text-gray-900 text-sm">Submit Rebate</span>
                     </button>
 
-                    <button
-                      onClick={() => {
-                        setActiveTab('applications');
-                        onNavigate('applications');
-                      }}
-                      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
-                    >
-                      <FileText className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                      <span className="font-medium text-gray-900 text-sm">View Applications</span>
-                    </button>
+                    {isMarketingAgent && (
+                      <button
+                        onClick={() => {
+                          setActiveTab('rebate-status');
+                          onNavigate('rebate-status');
+                        }}
+                        className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+                      >
+                        <FileText className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+                        <span className="font-medium text-gray-900 text-sm">View Applications</span>
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => {
-                        setActiveTab('users');
-                        onNavigate('internal-users');
-                      }}
-                      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
-                    >
-                      <Users className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                      <span className="font-medium text-gray-900 text-sm">Manage Staff</span>
-                    </button>
+                    {!isMarketingAgent && (
+                      <button
+                        onClick={() => {
+                          setActiveTab('users');
+                          onNavigate('internal-users');
+                        }}
+                        className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+                      >
+                        <Users className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+                        <span className="font-medium text-gray-900 text-sm">Designate Rebate Originators</span>
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => setShowReportDialog(true)}
-                      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
-                    >
-                      <Download className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                      <span className="font-medium text-gray-900 text-sm">Download Reports</span>
-                    </button>
+                    {!isMarketingAgent && (
+                      <button
+                        onClick={() => setShowReportDialog(true)}
+                        className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+                      >
+                        <Download className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+                        <span className="font-medium text-gray-900 text-sm">Create and Print Reports</span>
+                      </button>
+                    )}
                   </div>
                 </motion.div>
 
@@ -324,97 +366,59 @@ export function AssetFinancierAdminDashboard({
                   <h2 className="mb-4 font-semibold text-gray-900">Document Templates</h2>
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <p className="text-sm text-gray-600 mb-4">
-                      Download required templates for application submission
+                      Download required templates for signature and submission
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      <button
-                        onClick={() => {
-                          toast.success('Downloading Affidavit Template...');
-                          // Simulate download
-                          setTimeout(() => {
-                            const link = document.createElement('a');
-                            link.href = '#';
-                            link.download = 'Affidavit_Template.pdf';
-                            toast.info('Template download started');
-                          }, 500);
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                      >
-                        <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">Affidavit</p>
-                          <p className="text-xs text-gray-500">PDF Template</p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          toast.success('Downloading Co-op Reference Template...');
-                          setTimeout(() => {
-                            toast.info('Template download started');
-                          }, 500);
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                      >
-                        <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">Co-op Reference</p>
-                          <p className="text-xs text-gray-500">PDF Template</p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          toast.success('Downloading Personal Reference Letter Template...');
-                          setTimeout(() => {
-                            toast.info('Template download started');
-                          }, 500);
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                      >
-                        <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">Personal Reference Letter</p>
-                          <p className="text-xs text-gray-500">PDF Template</p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          toast.success('Downloading Engine Disposal Agreement Template...');
-                          setTimeout(() => {
-                            toast.info('Template download started');
-                          }, 500);
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                      >
-                        <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">Engine Disposal Agreement</p>
-                          <p className="text-xs text-gray-500">PDF Template</p>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          toast.success('Downloading E-Moto Company Retrofit Agreement Template...');
-                          setTimeout(() => {
-                            toast.info('Template download started');
-                          }, 500);
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                      >
-                        <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">E-Moto Company Retrofit Agreement</p>
-                          <p className="text-xs text-gray-500">PDF Template</p>
-                        </div>
-                      </button>
+                      {(isMarketingAgent
+                        ? [
+                            {
+                              label: 'Individual Affidavit of Financial Need',
+                              file: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+                            },
+                            {
+                              label: 'ICE-Moto Engine Disposal Agreement (for retrofits)',
+                              file: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+                            },
+                          ]
+                        : [
+                            {
+                              label: 'Individual Affidavit of Financial Need',
+                              file: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+                            },
+                            {
+                              label: 'Your Confirmation of Financial Need',
+                              file: 'AF_Confirmation_of_Financial_Need_Template.pdf',
+                            },
+                            {
+                              label: 'ICE-Moto Engine Disposal Agreement (for retrofits)',
+                              file: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+                            },
+                            {
+                              label: 'AF/Client Confirmation of E-Moto Possession',
+                              file: 'AF_Client_Confirmation_of_EMoto_Possession_Template.pdf',
+                            },
+                          ]
+                      ).map((template) => (
+                        <button
+                          key={template.file}
+                          onClick={() => {
+                            toast.success('Template ready for download', { description: template.file });
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
+                        >
+                          <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{template.label}</p>
+                            <p className="text-xs text-gray-500">PDF Template</p>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </motion.div>
 
                 {/* Analytics & Charts */}
+                {!isMarketingAgent && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -582,6 +586,7 @@ export function AssetFinancierAdminDashboard({
                     </div>
                   </div>
                 </motion.div>
+                )}
               </>
             )}
           </div>
@@ -599,7 +604,13 @@ export function AssetFinancierAdminDashboard({
             onClearAutoOpen={() => setTargetAppId(null)}
           />
         )}
-        {activeTab === 'submit' && currentPage === 'submit' && <SubmitApplicationForm organizationId={user.assetFinancierId || user.organizationId || user.id} />}
+        {activeTab === 'submit' && currentPage === 'submit' && (
+          <SubmitApplicationForm
+            organizationId={user.assetFinancierId || user.organizationId || user.id}
+            requireAssetFinancierSelection={isMarketingAgent}
+            assetFinancierOptions={isMarketingAgent ? marketingAssetFinancierOptions : undefined}
+          />
+        )}
         {activeTab === 'rebate-status' && currentPage === 'rebate-status' && <RebateStatusView currentUser={user} />}
         {activeTab === 'possession' && currentPage === 'possession' && <PossessionConfirmationView />}
         {activeTab === 'client-transfer' && currentPage === 'client-transfer' && (

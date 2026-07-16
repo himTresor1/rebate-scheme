@@ -5,7 +5,6 @@ import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import { FinancingDetailsView } from '../shared/FinancingDetailsView';
 import { Input } from '../ui/input';
 import {
   Dialog,
@@ -46,7 +45,6 @@ export function PossessionConfirmationView() {
   const [filterDateRange, setFilterDateRange] = useState('all');
   const [search, setSearch] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<PossessionRecord | null>(null);
-  const [detailTarget, setDetailTarget] = useState<PossessionRecord | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [possessionProofName, setPossessionProofName] = useState('');
   const [possessionDate, setPossessionDate] = useState('');
@@ -59,7 +57,7 @@ export function PossessionConfirmationView() {
       ? `Possession confirmed (${provided.length})`
       : filter === 'all'
       ? `All possession records (${records.length})`
-      : `Default report: No e-moto provided yet (${pending.length})`;
+      : `Default report: Of approved rebates, no e-moto provided yet (${pending.length})`;
 
   const baseFiltered = (filter === 'pending' ? pending : filter === 'provided' ? provided : records)
     .filter((r) => {
@@ -125,27 +123,15 @@ export function PossessionConfirmationView() {
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">E-Moto Possession Status</h2>
         <p className="text-gray-600 mt-1 text-sm">
-          Confirm when individuals have taken possession of their e-moto. RGF uses this to authorize escrow disbursements.
+          Confirm when individuals have taken possession of their e-motos. Click the action in the table below to upload the E-Moto Possession Statement signed by you and the client.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">E-motos provided</p>
-            <p className="text-2xl font-bold text-green-600">{provided.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">No e-moto yet</p>
+            <p className="text-sm text-gray-600">Of Approved E-Moto Rebates, no confirmation yet of e-moto possession</p>
             <p className="text-2xl font-bold text-amber-600">{pending.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Total rebates submitted</p>
-            <p className="text-2xl font-bold text-[#023F40]">{records.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -225,13 +211,13 @@ export function PossessionConfirmationView() {
           <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b text-left text-gray-600">
-                <th className="pb-3 pr-4 pl-2">Applicant</th>
-                <th className="pb-3 pr-4">Ticket</th>
+                <th className="pb-3 pr-4 pl-2">Ticket</th>
+                <th className="pb-3 pr-4">Name</th>
                 <th className="pb-3 pr-4">Submitted</th>
-                <th className="pb-3 pr-4">Type</th>
-                <th className="pb-3 pr-4">Brand</th>
-                <th className="pb-3 pr-4">Women</th>
-                <th className="pb-3 pr-4">Days</th>
+                <th className="pb-3 pr-4">Vehicle Type</th>
+                <th className="pb-3 pr-4">E-Moto Provider</th>
+                <th className="pb-3 pr-4">Gender</th>
+                <th className="pb-3 pr-4">Days since approval</th>
                 <th className="pb-3 pr-4">Rebate (RWF)</th>
                 <th className="pb-3">Actions</th>
               </tr>
@@ -239,33 +225,30 @@ export function PossessionConfirmationView() {
             <tbody>
               {displayed.map((r) => (
                 <tr key={r.ticketNumber} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="py-4 pr-4 pl-2 font-medium">{r.applicantName}</td>
-                  <td className="py-4 pr-4 text-[#023F40]">{r.ticketNumber}</td>
+                  <td className="py-4 pr-4 pl-2 font-semibold text-[#023F40]">{r.ticketNumber}</td>
+                  <td className="py-4 pr-4 font-medium">{r.applicantName}</td>
                   <td className="py-4 pr-4">{r.submittedAt}</td>
                   <td className="py-4 pr-4">{r.vehicleType}</td>
                   <td className="py-4 pr-4">{r.brand}</td>
-                  <td className="py-4 pr-4">{r.isWoman ? 'Yes' : 'No'}</td>
+                  <td className="py-4 pr-4">{r.isWoman ? 'Woman' : 'Man'}</td>
                   <td className="py-4 pr-4">{r.daysSinceSubmission}</td>
                   <td className="py-4 pr-4">{r.rebateAmount.toLocaleString()}</td>
                   <td className="py-4">
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setDetailTarget(r)}>Details</Button>
-                      {r.hasPossession ? (
-                        <Badge className="bg-green-100 text-green-800">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Confirmed
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="bg-[#023F40] hover:bg-[#035f60]"
-                          onClick={() => setConfirmTarget(r)}
-                        >
-                          <Bell className="w-3 h-3 mr-1" />
-                          Notify RGF
-                        </Button>
-                      )}
-                    </div>
+                    {r.hasPossession ? (
+                      <Badge className="bg-green-100 text-green-800">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Confirmed
+                      </Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="bg-[#023F40] hover:bg-[#035f60]"
+                        onClick={() => setConfirmTarget(r)}
+                      >
+                        <Bell className="w-3 h-3 mr-1" />
+                        Notify RGF
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -273,26 +256,6 @@ export function PossessionConfirmationView() {
           </table>
         </CardContent>
       </Card>
-
-      <Dialog open={!!detailTarget} onOpenChange={() => setDetailTarget(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {detailTarget && (
-            <FinancingDetailsView
-              embedded
-              data={{
-                ticketNumber: detailTarget.ticketNumber,
-                applicantName: detailTarget.applicantName,
-                status: detailTarget.hasPossession ? 'Possession confirmed' : 'Awaiting possession',
-                isWoman: detailTarget.isWoman,
-                vehicleType: detailTarget.vehicleType,
-                financier: 'Bank of Kigali',
-                submittedAt: detailTarget.submittedAt,
-                rebateAmount: detailTarget.rebateAmount,
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={!!confirmTarget}

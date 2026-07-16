@@ -4,6 +4,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ArrowUpDown, FileText } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { RebateApplicationDetailsData, RebateApplicationDetailsPage } from './RebateApplicationDetailsPage';
@@ -27,7 +28,7 @@ const MOCK_RECORDS: RebateRecord[] = [
     supplier: 'Ampersand',
     model: 'AMP-E2',
     status: 'awaiting-rgf',
-    submittedAt: '2026-04-26',
+    submittedAt: '2026-07-15',
     supportingDocuments: ['Signed lease', 'National ID'],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
@@ -48,7 +49,7 @@ const MOCK_RECORDS: RebateRecord[] = [
     model: 'SP-Retrofit',
     retrofitAssembler: 'Green Volt Retrofit Ltd',
     status: 'proposal',
-    submittedAt: '2026-04-27',
+    submittedAt: '2026-07-08',
     supportingDocuments: ['Client support letter'],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
@@ -68,7 +69,7 @@ const MOCK_RECORDS: RebateRecord[] = [
     supplier: 'Bboxx',
     model: 'BBX-Prime',
     status: 'approved-disbursed',
-    submittedAt: '2026-03-15',
+    submittedAt: '2026-05-20',
     supportingDocuments: ['Supporting statement', 'Driver training completion'],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
@@ -174,7 +175,7 @@ function RebateTable({
 
 export function RebateStatusView({
   title = 'Rebate Status',
-  description = 'Track all rebate applications and submission stages.',
+  description = 'This page provides you with the rebate proposals that have been submitted for your review and approval from your marketing staff and designated external marketing agents and other people. If you approve the eligibility for rebates and financing agreements, please add the missing documentation including a signed lease and submit to RGF. The dashboard details the pipeline of your rebates breaking out the total submissions and status.',
   mode = 'default',
   currentUser,
 }: {
@@ -185,27 +186,75 @@ export function RebateStatusView({
 } = {}) {
   const [records, setRecords] = useState<RebateRecord[]>(MOCK_RECORDS);
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<RebateRecord | null>(null);
+  const [submitterFilter, setSubmitterFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [womanFilter, setWomanFilter] = useState('all');
+  const [retrofitFilter, setRetrofitFilter] = useState('all');
+  const [dateRange, setDateRange] = useState('all');
+  const [sortOrder, setSortOrder] = useState('oldest');
+  const [selected, setSelected] = useState<{ record: RebateRecord; variant: 'af-submitted' | 'proposal-review' } | null>(null);
+
+  const openRecord = (record: RebateRecord, variant: 'af-submitted' | 'proposal-review') =>
+    setSelected({ record, variant });
 
   const permissionLevel = currentUser?.email ? getAfPermissionLevel(currentUser.email) : 'rgf-submit';
   const isMarketingAgent = currentUser?.role === 'ASSET_FINANCIER_STAFF' || permissionLevel === 'internal-proposal';
   const canReviewMarketingSubmissions = !isMarketingAgent;
 
+  const submitters = useMemo(
+    () => Array.from(new Set(records.map((r) => r.submittedBy))).sort(),
+    [records],
+  );
+
+  const withinDateRange = (dateStr: string) => {
+    if (dateRange === 'all') return true;
+    const date = new Date(dateStr).getTime();
+    if (Number.isNaN(date)) return true;
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    const windows: Record<string, number> = { day, week: 7 * day, month: 30 * day, year: 365 * day };
+    const span = windows[dateRange];
+    return span ? now - date <= span : true;
+  };
+
   const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
-      if (!query) return true;
-      const q = query.toLowerCase();
-      return (
+    const q = query.trim().toLowerCase();
+    const rows = records.filter((r) => {
+      const matchesQuery =
+        !q ||
         r.ticketNumber.toLowerCase().includes(q) ||
         r.firstName.toLowerCase().includes(q) ||
         r.lastName.toLowerCase().includes(q) ||
-        r.submittedBy.toLowerCase().includes(q)
-      );
+        r.submittedBy.toLowerCase().includes(q);
+      const matchesSubmitter = submitterFilter === 'all' || r.submittedBy === submitterFilter;
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+      const matchesWoman = womanFilter === 'all' || (womanFilter === 'yes' ? r.isWoman : !r.isWoman);
+      const matchesRetrofit = retrofitFilter === 'all' || (retrofitFilter === 'yes' ? r.isRetrofit : !r.isRetrofit);
+      const matchesDate = withinDateRange(r.submittedAt);
+      return matchesQuery && matchesSubmitter && matchesStatus && matchesWoman && matchesRetrofit && matchesDate;
     });
-  }, [records, query]);
+
+    return rows.sort((a, b) => {
+      const da = new Date(a.submittedAt).getTime();
+      const db = new Date(b.submittedAt).getTime();
+      return sortOrder === 'oldest' ? da - db : db - da;
+    });
+  }, [records, query, submitterFilter, statusFilter, womanFilter, retrofitFilter, dateRange, sortOrder]);
 
   if (selected) {
-    return <RebateApplicationDetailsPage data={selected} onBack={() => setSelected(null)} />;
+    return (
+      <RebateApplicationDetailsPage
+        data={selected.record}
+        variant={selected.variant}
+        onBack={() => setSelected(null)}
+        onSubmitToRgf={(row) => {
+          toast.success(`Submitted ${row.ticketNumber} to RGF`, {
+            description: 'Application moved from AF proposal to awaiting RGF authorization.',
+          });
+          setSelected(null);
+        }}
+      />
+    );
   }
 
   if (mode === 'possession-analysis') {
@@ -221,7 +270,7 @@ export function RebateStatusView({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <RebateTable rows={filteredRecords} onOpen={setSelected} />
+            <RebateTable rows={filteredRecords} onOpen={(r) => openRecord(r, 'af-submitted')} />
           </CardContent>
         </Card>
       </div>
@@ -232,6 +281,12 @@ export function RebateStatusView({
   const afProposals = records.filter((r) => r.status === 'proposal').length;
   const awaitingRgfAuthorization = records.filter((r) => r.status === 'awaiting-rgf').length;
   const approvedDisbursed = records.filter((r) => r.status === 'approved-disbursed').length;
+  const marketingCardStats = {
+    submittedToDate: 45,
+    awaitingReview: 10,
+    approved: 30,
+    rejected: 5,
+  };
   const submittedByYou = filteredRecords.filter((r) => r.submittedBy === (currentUser?.name || ''));
   const marketingSubmissions = filteredRecords.filter((r) => r.submittedBy.toLowerCase().includes('agent'));
 
@@ -243,10 +298,21 @@ export function RebateStatusView({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Total rebates in pipeline and disbursed</p><p className="text-2xl font-bold text-[#023F40]">{totalPipelineAndDisbursed}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">AF proposals pending submission to RGF</p><p className="text-2xl font-bold text-amber-600">{afProposals}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Rebates awaiting RGF authorization</p><p className="text-2xl font-bold text-blue-600">{awaitingRgfAuthorization}</p></CardContent></Card>
-        <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Approved rebates disbursed</p><p className="text-2xl font-bold text-green-600">{approvedDisbursed}</p></CardContent></Card>
+        {isMarketingAgent ? (
+          <>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Your Total Rebates Submitted to date</p><p className="text-2xl font-bold text-[#023F40]">{marketingCardStats.submittedToDate}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Your Total Rebates Awaiting Review</p><p className="text-2xl font-bold text-amber-600">{marketingCardStats.awaitingReview}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Your Total Rebates Approved</p><p className="text-2xl font-bold text-green-600">{marketingCardStats.approved}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Your Total Rebates Rejected</p><p className="text-2xl font-bold text-red-600">{marketingCardStats.rejected}</p></CardContent></Card>
+          </>
+        ) : (
+          <>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">AF Rebate Proposals for your potential submission to RGF</p><p className="text-2xl font-bold text-[#023F40]">{afProposals}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Total Rebates in Pipeline and Disbursed</p><p className="text-2xl font-bold text-[#023F40]">{totalPipelineAndDisbursed}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Rebates Awaiting RGF Authorization for Disbursement</p><p className="text-2xl font-bold text-blue-600">{awaitingRgfAuthorization}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-gray-600">Approved Rebates Dispersed</p><p className="text-2xl font-bold text-green-600">{approvedDisbursed}</p></CardContent></Card>
+          </>
+        )}
       </div>
 
       <Card>
@@ -263,6 +329,87 @@ export function RebateStatusView({
             onChange={(e) => setQuery(e.target.value)}
           />
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Person who submitted rebate proposal</label>
+              <Select value={submitterFilter} onValueChange={setSubmitterFilter}>
+                <SelectTrigger><SelectValue placeholder="All submitters" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All submitters</SelectItem>
+                  {submitters.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue placeholder="All statuses" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="proposal">AF proposal</SelectItem>
+                  <SelectItem value="awaiting-rgf">Awaiting RGF authorization</SelectItem>
+                  <SelectItem value="approved-disbursed">Approved disbursed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Sort by date</label>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger><SelectValue placeholder="Oldest to newest" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="oldest">Oldest to newest</SelectItem>
+                  <SelectItem value="newest">Newest to oldest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date range</label>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger><SelectValue placeholder="All time" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="day">Last day</SelectItem>
+                  <SelectItem value="week">Last week</SelectItem>
+                  <SelectItem value="month">Last month</SelectItem>
+                  <SelectItem value="year">Last year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Woman</label>
+              <Select value={womanFilter} onValueChange={setWomanFilter}>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="yes">Women only</SelectItem>
+                  <SelectItem value="no">Men only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Retrofit</label>
+              <Select value={retrofitFilter} onValueChange={setRetrofitFilter}>
+                <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="yes">Retrofit only</SelectItem>
+                  <SelectItem value="no">New e-moto only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500">
+            To assess details, click a ticket row or the <span className="font-medium">View Details</span> button.
+          </p>
+
           {canReviewMarketingSubmissions ? (
             <Tabs defaultValue="mine">
               <TabsList className="grid grid-cols-2 w-full">
@@ -270,12 +417,12 @@ export function RebateStatusView({
                 <TabsTrigger value="marketing">From marketing agents ({marketingSubmissions.length})</TabsTrigger>
               </TabsList>
               <TabsContent value="mine" className="mt-4">
-                <RebateTable rows={submittedByYou.length > 0 ? submittedByYou : filteredRecords} onOpen={setSelected} />
+                <RebateTable rows={submittedByYou.length > 0 ? submittedByYou : filteredRecords} onOpen={(r) => openRecord(r, 'af-submitted')} />
               </TabsContent>
               <TabsContent value="marketing" className="mt-4">
                 <RebateTable
                   rows={marketingSubmissions}
-                  onOpen={setSelected}
+                  onOpen={(r) => openRecord(r, 'proposal-review')}
                   showSubmitAction
                   onSubmitToRgf={(row) =>
                     toast.success(`Submitted ${row.ticketNumber} to RGF`, {
@@ -286,7 +433,7 @@ export function RebateStatusView({
               </TabsContent>
             </Tabs>
           ) : (
-            <RebateTable rows={submittedByYou.length > 0 ? submittedByYou : filteredRecords} onOpen={setSelected} />
+            <RebateTable rows={submittedByYou.length > 0 ? submittedByYou : filteredRecords} onOpen={(r) => openRecord(r, 'af-submitted')} />
           )}
         </CardContent>
       </Card>

@@ -13,7 +13,7 @@ import {
 import { toast } from 'sonner';
 import { api } from '../../utils/api';
 import { DocumentUploadSection } from './DocumentUploadSection';
-import { calculateRebateAmount, generateTicketPreview, getRebateRateLabel } from '../../utils/rebateCalculation';
+import { calculateRebateAmount, generateTicketPreview, getRebateEligibilityLabel } from '../../utils/rebateCalculation';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,8 @@ import {
 
 interface SubmitApplicationFormProps {
   organizationId: string;
+  requireAssetFinancierSelection?: boolean;
+  assetFinancierOptions?: Array<{ id: string; name: string }>;
   initialData?: Partial<{
     firstName: string;
     lastName: string;
@@ -40,6 +42,7 @@ interface SubmitApplicationFormProps {
     brand: string;
     model: string;
     retrofitAssembler: string;
+    retrofitCost: string;
     yearOfManufacture: string;
     chassisNumber: string;
     purchasePrice: string;
@@ -56,13 +59,20 @@ interface SubmitApplicationFormProps {
 
 type ApplicationStep = 'identity' | 'vehicle' | 'documents' | 'review';
 
-export function SubmitApplicationForm({ organizationId, initialData, prefilledTicketNumber }: SubmitApplicationFormProps) {
+export function SubmitApplicationForm({
+  organizationId,
+  requireAssetFinancierSelection = false,
+  assetFinancierOptions = [],
+  initialData,
+  prefilledTicketNumber,
+}: SubmitApplicationFormProps) {
   const [currentStep, setCurrentStep] = useState<ApplicationStep>('identity');
   const [loading, setLoading] = useState(false);
   const [ticketNumber] = useState(() => prefilledTicketNumber || generateTicketPreview());
   const [showMissingDialog, setShowMissingDialog] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [selectedAssetFinancierId, setSelectedAssetFinancierId] = useState(organizationId);
   
   // Form data state
   const [formData, setFormData] = useState({
@@ -81,6 +91,7 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
     brand: '',
     model: '',
     retrofitAssembler: '',
+    retrofitCost: '',
     yearOfManufacture: '',
     chassisNumber: '',
     purchasePrice: '',
@@ -95,21 +106,23 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
   });
 
   const steps: { key: ApplicationStep; label: string; icon: any }[] = [
-    { key: 'identity', label: 'Rider Identity', icon: User },
-    { key: 'vehicle', label: 'Vehicle & Financing', icon: Car },
-    { key: 'documents', label: 'Documents', icon: Upload },
+    { key: 'identity', label: 'Individual Information', icon: User },
+    { key: 'documents', label: 'Documentation', icon: Upload },
+    { key: 'vehicle', label: 'Vehicle Financing', icon: Car },
     { key: 'review', label: 'Review & Submit', icon: FileText }
   ];
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
   const rebatePreview = useMemo(() => {
-    const retail = parseFloat(formData.purchasePrice) || 0;
-    return calculateRebateAmount(retail, {
+    const baseAmount = formData.isRetrofit
+      ? parseFloat(formData.retrofitCost) || 0
+      : parseFloat(formData.purchasePrice) || 0;
+    return calculateRebateAmount(baseAmount, {
       isWoman: formData.isWoman === 'yes',
       isRetrofit: formData.isRetrofit,
     });
-  }, [formData.purchasePrice, formData.isWoman, formData.isRetrofit]);
+  }, [formData.purchasePrice, formData.retrofitCost, formData.isWoman, formData.isRetrofit]);
 
   useEffect(() => {
     if (rebatePreview > 0) {
@@ -133,7 +146,9 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
     if (!formData.lastName.trim()) missing.push('Last Name');
     if (!formData.nationalId.trim()) missing.push('National ID');
     if (!formData.dateOfBirth) missing.push('Date of Birth');
-    if (!formData.isWoman) missing.push('Woman? (dropdown)');
+    if (!formData.isWoman) missing.push('Gender (dropdown)');
+    if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push('National ID Document');
+    if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push("Motorcycle Driver's License Document");
     if (!formData.identityDocuments?.dobDoc?.uploaded) missing.push('Date of Birth Document');
     if (!formData.driversLicense.trim()) missing.push('Motorcycle License');
     if (!formData.brand) missing.push('E-Moto Supplier');
@@ -141,12 +156,16 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
     if (formData.isRetrofit && !formData.retrofitAssembler.trim()) {
       missing.push('Retrofit Assembler');
     }
-    if (!formData.purchasePrice) missing.push('Retail Cost of E-Moto (RWF)');
+    if (formData.isRetrofit && !formData.retrofitCost) missing.push('Retrofit Cost (RWF)');
+    if (!formData.isRetrofit && !formData.purchasePrice) missing.push('Retail E-Moto Price (RWF)');
     if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
     if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
     if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
+    if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
+      missing.push('Signed Retrofit Suitability Statement');
+    }
     if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
-      missing.push('ICE-Moto Engine Disposal Agreement');
+      missing.push('ICE-Engine Disposal Agreement');
     }
     return missing;
   };
@@ -199,7 +218,35 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
     }));
   };
 
+  const handleIdentityDocUpload = (docType: string, file: { name: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      identityDocuments: {
+        ...prev.identityDocuments,
+        [docType]: {
+          uploaded: true,
+          uploadedAt: new Date().toISOString(),
+          name: file.name,
+        },
+      },
+    }));
+  };
+
+  const handleIdentityDocRemove = (docType: string) => {
+    setFormData(prev => ({
+      ...prev,
+      identityDocuments: {
+        ...prev.identityDocuments,
+        [docType]: { uploaded: false },
+      },
+    }));
+  };
+
   const handleSubmit = async () => {
+    if (requireAssetFinancierSelection && !selectedAssetFinancierId) {
+      toast.error('Please select an Asset Financier first');
+      return;
+    }
     const missing = getMissingMandatoryFields();
     if (missing.length > 0) {
       setMissingFields(missing);
@@ -217,7 +264,7 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
       // Prepare application data
       const applicantName = `${formData.firstName || 'Sample'} ${formData.lastName || 'Rider'}`.trim();
       const applicationData = {
-        organizationId,
+        organizationId: selectedAssetFinancierId || organizationId,
         applicantName: applicantName || 'Sample Rider',
         nationalId: formData.nationalId || '1198780012345678',
         driversLicense: formData.driversLicense || '',
@@ -229,6 +276,7 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
         motorcycleBrand: formData.brand || 'Opibus',
         motorcycleModel: formData.model || 'Moto',
         retrofitAssembler: formData.retrofitAssembler || '',
+        retrofitCost: formData.retrofitCost || '',
         yearOfManufacture: formData.yearOfManufacture || '2024',
         chassisNumber: formData.chassisNumber || '',
         loanAmount: formData.loanAmount || '3000000',
@@ -265,6 +313,7 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
         brand: '',
         model: '',
         retrofitAssembler: '',
+        retrofitCost: '',
         yearOfManufacture: '',
         chassisNumber: '',
         purchasePrice: '',
@@ -295,6 +344,25 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
         <p className="text-gray-600 mt-1">
           Submit leases with documentation for individuals who required financial support (rebates) to meet your e-moto financing requirements.
         </p>
+        {requireAssetFinancierSelection && (
+          <div className="mt-4 max-w-md">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Asset Financier *
+            </label>
+            <Select value={selectedAssetFinancierId} onValueChange={setSelectedAssetFinancierId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Asset Financier" />
+              </SelectTrigger>
+              <SelectContent>
+                {assetFinancierOptions.map((af) => (
+                  <SelectItem key={af.id} value={af.id}>
+                    {af.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="mt-3 inline-flex items-center gap-2 bg-[#023F40]/5 border border-[#023F40]/20 rounded-lg px-3 py-2 text-sm">
           <span className="text-gray-600">Ticket Number:</span>
           <span className="font-semibold text-[#023F40]">{ticketNumber}</span>
@@ -357,8 +425,11 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
           <DocumentsStep 
             isRetrofit={formData.isRetrofit}
             documents={formData.documents}
+            identityDocuments={formData.identityDocuments}
             onDocumentUpload={handleDocumentUpload}
             onDocumentRemove={handleDocumentRemove}
+            onIdentityDocUpload={handleIdentityDocUpload}
+            onIdentityDocRemove={handleIdentityDocRemove}
             onRetrofitToggle={handleRetrofitToggle}
           />
         )}
@@ -461,125 +532,18 @@ export function SubmitApplicationForm({ organizationId, initialData, prefilledTi
 }
 
 function IdentityStep({ formData, setFormData }: { formData: any, setFormData: any }) {
-  const handleIdentityDocUpload = (docType: string, file: File) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      identityDocuments: {
-        ...prev.identityDocuments,
-        [docType]: {
-          uploaded: true,
-          uploadedAt: new Date().toISOString(),
-          name: file.name,
-          size: file.size
-        }
-      }
-    }));
-    toast.success(`${file.name} uploaded successfully`);
-  };
-
-  const handleIdentityDocRemove = (docType: string) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      identityDocuments: {
-        ...prev.identityDocuments,
-        [docType]: {
-          uploaded: false
-        }
-      }
-    }));
-    toast.success('Document removed');
-  };
-
-  const renderDocumentUpload = (
-    docType: string,
-    label: string,
-    required: boolean = true
-  ) => {
-    const doc = formData.identityDocuments?.[docType];
-    const isUploaded = doc?.uploaded;
-
-    return (
-      <div className="border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <label className="text-sm font-medium text-gray-900">
-              {label} {required && <span className="text-red-500">*</span>}
-            </label>
-          </div>
-          {isUploaded && (
-            <CheckCircle className="w-5 h-5 text-green-600" />
-          )}
-        </div>
-
-        {isUploaded ? (
-          <div className="bg-green-50 border border-green-200 rounded p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Upload className="w-4 h-4 text-green-600 flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-green-900 truncate">
-                    {doc.name}
-                  </p>
-                  <p className="text-xs text-green-700">
-                    Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleIdentityDocRemove(docType)}
-                className="ml-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                Remove
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <input
-              type="file"
-              id={`identity-${docType}`}
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  handleIdentityDocUpload(docType, file);
-                  e.target.value = '';
-                }
-              }}
-              className="hidden"
-            />
-            <label
-              htmlFor={`identity-${docType}`}
-              className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg py-3 px-4 cursor-pointer hover:border-[#023F40] hover:bg-gray-50 transition-colors"
-            >
-              <Upload className="w-5 h-5 text-gray-400" />
-              <span className="text-sm text-gray-600">
-                Click to upload or drag and drop
-              </span>
-            </label>
-            <p className="text-xs text-gray-500 mt-1">
-              PDF, JPG, or PNG (max 10MB)
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Step 1: Rider's Identity</h3>
       <p className="text-sm text-gray-600">
-        Enter the rider's personal and identification information.
+        Please provide the basic information on the individual who requires financial support to acquire an e-moto or retrofit their ICE-moto into an e-moto. The information is mandatory and needs to be filled in, including numbers for the national identification card and motorcycle license.
       </p>
 
       <div className="space-y-4 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              First Name(s) *
+              Individual first name(s) *
             </label>
             <Input 
               type="text" 
@@ -590,7 +554,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Last Name(s) *
+              Individual last name(s) *
             </label>
             <Input 
               type="text" 
@@ -604,18 +568,18 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Woman? *
+              Gender? *
             </label>
             <Select
               value={formData.isWoman}
               onValueChange={(value) => setFormData({ ...formData, isWoman: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select" />
+                <SelectValue placeholder="Select Man or Woman" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="yes">Yes</SelectItem>
-                <SelectItem value="no">No</SelectItem>
+                <SelectItem value="no">Man</SelectItem>
+                <SelectItem value="yes">Woman</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -631,18 +595,18 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Retrofit? *
+              Vehicle Type? *
             </label>
             <Select
               value={formData.isRetrofit ? 'yes' : 'no'}
               onValueChange={(value) => setFormData({ ...formData, isRetrofit: value === 'yes' })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select" />
+                <SelectValue placeholder="Select New E-Moto or Retrofit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no">No — New E-Moto</SelectItem>
-                <SelectItem value="yes">Yes — Retrofit</SelectItem>
+                <SelectItem value="no">New E-Moto</SelectItem>
+                <SelectItem value="yes">Retrofit</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -703,7 +667,7 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Driver's License *
+                Motorcycle Driver's License *
               </label>
               <Input
                 type="text"
@@ -715,17 +679,6 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
           </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-4">
-          <h4 className="font-medium text-gray-900 mb-4">Upload Identification Documents</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {renderDocumentUpload('nationalIdDoc', 'National ID Document', true)}
-            {renderDocumentUpload('driversLicenseDoc', 'Driver\'s License Document', true)}
-            {renderDocumentUpload('dobDoc', 'Date of Birth Document', true)}
-          </div>
-          <div className="mt-4">
-            {renderDocumentUpload('taxiLicense', 'Taxi License (RURA)', false)}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -734,9 +687,9 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
 function VehicleStep({ formData, setFormData }: { formData: any, setFormData: any }) {
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">Step 2: Vehicle & Financing</h3>
+      <h3 className="font-medium text-gray-900">Step 3: Specify vehicle and costs</h3>
       <p className="text-sm text-gray-600">
-        Enter the e-motorcycle details and financing terms.
+        This page is to provide information on the vehicle the individual is financing and the cost. The amount of the rebate will be automatically calculated by the system. Men with financial needs to acquire a new e-moto are eligible for a rebate of 18% of the retail e-moto cost, and a rebate of 20% of the cost of retrofitting their ICE-moto to an e-moto. Women with financial needs to acquire an e-moto or retrofit their ICE-moto are eligible for a rebate covering 25% of the cost.
       </p>
 
       <div className="space-y-4 mt-6">
@@ -745,16 +698,17 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-Moto Supplier *
+                E-Moto Provider *
               </label>
               <Select onValueChange={(value) => setFormData({ ...formData, brand: value })} value={formData.brand}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Supplier" />
+                  <SelectValue placeholder="Select Provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Spiro">Spiro</SelectItem>
                   <SelectItem value="Ampersand">Ampersand</SelectItem>
-                  <SelectItem value="Bboxx">Bboxx</SelectItem>
+                  <SelectItem value="Rem">Rem</SelectItem>
+                  <SelectItem value="Safi">Safi</SelectItem>
+                  <SelectItem value="Spiro">Spiro</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -773,55 +727,45 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           {formData.isRetrofit && (
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Retrofit Assembler *
-              </label>
-              <Input
-                type="text"
-                placeholder="Enter retrofit assembler/company"
-                value={formData.retrofitAssembler}
-                onChange={(e) => setFormData({ ...formData, retrofitAssembler: e.target.value })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Retrofit Assembler *
+                </label>
+                <Select
+                  onValueChange={(value) => setFormData({ ...formData, retrofitAssembler: value })}
+                  value={formData.retrofitAssembler}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select retrofit assembler" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Rem">Rem</SelectItem>
+                    <SelectItem value="Safi">Safi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chassis Number *
-              </label>
-              <Input 
-                type="text" 
-                placeholder="Enter chassis number"
-                value={formData.chassisNumber}
-                onChange={(e) => setFormData({ ...formData, chassisNumber: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Year of Manufacture *
-              </label>
-              <Input 
-                type="text" 
-                placeholder="2024" 
-                value={formData.yearOfManufacture}
-                onChange={(e) => setFormData({ ...formData, yearOfManufacture: e.target.value })}
-              />
-            </div>
-          </div>
 
           <h4 className="font-medium text-gray-900 mb-4 mt-6">Financing Details</h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Retail Cost of E-Moto / Retrofit (RWF) *
+                {formData.isRetrofit ? 'Retrofit Cost (RWF) *' : 'Retail E-Moto Price (RWF) *'}
               </label>
               <Input
                 type="number"
                 placeholder="1,000,000"
-                value={formData.purchasePrice}
-                onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
+                value={formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    ...(formData.isRetrofit
+                      ? { retrofitCost: e.target.value }
+                      : { purchasePrice: e.target.value }),
+                  })
+                }
               />
             </div>
             <div>
@@ -848,11 +792,11 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 className="bg-gray-50 font-semibold text-[#023F40]"
                 value={formData.rebateAmount}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                {getRebateRateLabel({
+              <p className="text-xs text-[#023F40] mt-1">
+                {getRebateEligibilityLabel({
                   isWoman: formData.isWoman === 'yes',
                   isRetrofit: formData.isRetrofit,
-                })} of retail cost
+                })}
               </p>
             </div>
             <div>
@@ -913,13 +857,16 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
   );
 }
 
-function DocumentsStep({ isRetrofit, documents, onDocumentUpload, onDocumentRemove, onRetrofitToggle }: { isRetrofit: boolean, documents: any, onDocumentUpload: any, onDocumentRemove: any, onRetrofitToggle: any }) {
+function DocumentsStep({ isRetrofit, documents, identityDocuments, onDocumentUpload, onDocumentRemove, onIdentityDocUpload, onIdentityDocRemove, onRetrofitToggle }: { isRetrofit: boolean, documents: any, identityDocuments: any, onDocumentUpload: any, onDocumentRemove: any, onIdentityDocUpload: any, onIdentityDocRemove: any, onRetrofitToggle: any }) {
   return (
     <DocumentUploadSection
       isRetrofit={isRetrofit}
       documents={documents}
+      identityDocuments={identityDocuments}
       onDocumentUpload={onDocumentUpload}
       onDocumentRemove={onDocumentRemove}
+      onIdentityDocUpload={onIdentityDocUpload}
+      onIdentityDocRemove={onIdentityDocRemove}
       onRetrofitToggle={onRetrofitToggle}
     />
   );
@@ -936,9 +883,12 @@ function ReviewStep({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">Review & Submit</h3>
+      <h3 className="font-medium text-gray-900">Step 4: Review and Submit</h3>
       <p className="text-sm text-gray-600">
-        Review all lease and rebate information before submitting to RGF Rebate Team for verification (1 business day SLA).
+        This page is for reviewing the rebate application. If all the information and documents are correct, please submit to RGF. The RGF Rebate Team will review your submission and contact you with any issues. The RGF Rebate Quality Assurance Team approves rebate submission within 7 business days. If RGF has received confirmation of E-Moto Possession, RGF's CFO will review the rebate amount and provide authorization within 10 days to withdraw the rebate amount from the advance funds in your designated Rebate Bank Account.
+      </p>
+      <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+        <strong>NOTE:</strong> RGF can verify and approve rebates <strong>without</strong> E-Moto Possession Confirmations. However, funds cannot be withdrawn from the Advance Funds in your Rebate Account until RGF has received and verified the E-Moto Possession Confirmation signed by your company and the client.
       </p>
       <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
         E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the escrow account.
@@ -968,12 +918,12 @@ function ReviewStep({
                 <span className="font-medium">{formData.nationalId || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Woman:</span>
-                <span className="font-medium">{formData.isWoman === 'yes' ? 'Yes' : formData.isWoman === 'no' ? 'No' : '—'}</span>
+                <span className="text-gray-600">Gender:</span>
+                <span className="font-medium">{formData.isWoman === 'yes' ? 'Woman' : formData.isWoman === 'no' ? 'Man' : '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Retrofit:</span>
-                <span className="font-medium">{formData.isRetrofit ? 'Yes' : 'No'}</span>
+                <span className="text-gray-600">Vehicle Type:</span>
+                <span className="font-medium">{formData.isRetrofit ? 'Retrofit' : 'New E-Moto'}</span>
               </div>
             </div>
           </div>
@@ -982,7 +932,7 @@ function ReviewStep({
             <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">E-Moto & Rebate</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">E-Moto Supplier:</span>
+                <span className="text-gray-600">E-Moto Provider:</span>
                 <span className="font-medium">{formData.brand || '—'}</span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
@@ -996,8 +946,14 @@ function ReviewStep({
                 </div>
               )}
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Retail Cost:</span>
-                <span className="font-medium">{formData.purchasePrice ? `${Number(formData.purchasePrice).toLocaleString()} RWF` : '—'}</span>
+                <span className="text-gray-600">
+                  {formData.isRetrofit ? 'Retrofit Cost (RWF):' : 'Retail E-Moto Price (RWF):'}
+                </span>
+                <span className="font-medium">
+                  {(formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice)
+                    ? `${Number(formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice).toLocaleString()} RWF`
+                    : '—'}
+                </span>
               </div>
               <div className="flex justify-between border-b border-gray-200 pb-1.5">
                 <span className="text-gray-600">Rebate Amount:</span>
@@ -1009,20 +965,42 @@ function ReviewStep({
           <div className="mt-6 pt-6 border-t border-gray-300">
             <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Mandatory Documents</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-              {['signedLease', 'affidavit', 'afFinancialNeed', 'nationalId'].map((key) => (
-                <div key={key} className="flex items-center gap-2">
-                  {formData.documents?.[key]?.uploaded ? (
+              {[
+                { label: 'Signed Lease', uploaded: !!formData.documents?.signedLease?.uploaded },
+                { label: 'Notarized Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
+                { label: 'AF Confirmation of Financial Need', uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
+                { label: 'National ID', uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
+                { label: 'Motorcycle License', uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
+                ...(formData.isRetrofit
+                  ? [
+                      { label: 'ICE-Engine Disposal Agreement', uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
+                      { label: 'Signed Retrofit Suitability Statement (authorized retrofit assembler)', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
+                    ]
+                  : []),
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  {item.uploaded ? (
                     <CheckCircle className="w-4 h-4 text-green-600" />
                   ) : (
                     <AlertCircle className="w-4 h-4 text-amber-500" />
                   )}
-                  <span className={formData.documents?.[key]?.uploaded ? 'text-gray-700' : 'text-amber-700'}>
-                    {key === 'signedLease' ? 'Signed Lease' :
-                     key === 'affidavit' ? 'Individual Affidavit' :
-                     key === 'afFinancialNeed' ? 'AF Financial Need Confirmation' : 'National ID'}
-                  </span>
+                  <span className={item.uploaded ? 'text-gray-700' : 'text-amber-700'}>{item.label}</span>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Optional (can be submitted later)</p>
+              <div className="flex items-center gap-2 text-sm">
+                {formData.documents?.possessionConfirmation?.uploaded ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : (
+                  <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
+                )}
+                <span className={formData.documents?.possessionConfirmation?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
+                  AF/Client Confirmation of E-Moto Possession
+                </span>
+              </div>
             </div>
           </div>
         </div>
