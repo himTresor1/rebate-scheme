@@ -21,6 +21,7 @@ import {
 import { QAReview } from './QAReview';
 import { Greeting } from '../ui/Greeting';
 import { LeaseReviewView } from './LeaseReviewView';
+import { QATeamDecisionPage } from './QATeamDecisionPage';
 import { PossessionAnalysisView } from './PossessionAnalysisView';
 import { RebateReassignmentPipeline } from './RebateReassignmentPipeline';
 import { WeeklyDisbursementReport } from './WeeklyDisbursementReport';
@@ -378,6 +379,10 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
     });
     toast.success(`Submitted ${pendingDecisionSubmit} QA decision(s) to next stage weekly batch.`);
   };
+
+  if (currentPage === 'review-queue') {
+    return <QATeamDecisionPage user={user} />;
+  }
 
   // Show reassignment pipeline for Rebate Manager
   if (currentPage === 'reassignment') {

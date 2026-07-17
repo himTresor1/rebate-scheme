@@ -147,8 +147,8 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'review-queue' },
-          { icon: ScrollText, label: 'QA Request to CFO', page: 'qa-cfo-request' },
+          { icon: ClipboardList, label: 'QA Decisions', page: 'review-queue' },
+          { icon: ScrollText, label: 'CFO Disbursement Req.', page: 'qa-cfo-request' },
           { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
           { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
           { icon: FileText, label: 'All Rebates', page: 'applications' },
