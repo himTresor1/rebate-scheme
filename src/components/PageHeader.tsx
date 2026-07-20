@@ -3,13 +3,14 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Info, Mail, Phone, MapPin, HelpCircle } from 'lucide-react';
 
-export function PageHeader() {
+export function PageHeader({ hideActions = false }: { hideActions?: boolean }) {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
 
   return (
     <>
       {/* Header Buttons */}
+      {!hideActions && (
       <div className="fixed top-6 right-6 z-30 flex items-center gap-3">
         <Button
           onClick={() => setShowAboutModal(true)}
@@ -28,6 +29,7 @@ export function PageHeader() {
           Contact Us
         </Button>
       </div>
+      )}
 
       {/* About Rebate Scheme Modal */}
       <Dialog open={showAboutModal} onOpenChange={setShowAboutModal}>

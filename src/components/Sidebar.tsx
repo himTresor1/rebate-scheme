@@ -26,7 +26,8 @@ import {
   Upload,
   Bike,
   Bell,
-  GitBranch
+  GitBranch,
+  Download,
 } from 'lucide-react';
 import { User } from '../utils/auth';
 import { useState } from 'react';
@@ -102,8 +103,10 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
-          { icon: FileText, label: 'Rebate Status', page: 'rebate-status' },
+          { icon: FileText, label: 'Rebate Pipeline Dev.', page: 'rebate-status' },
+          { icon: ClipboardList, label: 'All Rebates', page: 'af-reports' },
           { icon: Bike, label: 'E-Moto Possession', page: 'possession' },
+          { icon: Download, label: 'Mandatory Templates', page: 'af-templates' },
           { icon: FileText, label: 'Client Transfer', page: 'client-transfer' },
           { icon: ScrollText, label: 'Background Info', page: 'background-info' },
           { icon: Users, label: 'Manage Staff', page: 'internal-users' },
@@ -113,21 +116,21 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         // Marketing Agent: submit + own status only
         if (role === 'CLAIMS_OFFICER' || role === 'ASSET_FINANCIER_STAFF') {
           return allAfItems.filter((item) =>
-            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'af-reports', 'profile'].includes(item.page)
           );
         }
 
         // AF Finance Staff: submit + status (including marketing tab), no staff management
         if (role === 'ASSET_FINANCIER_OFFICER') {
           return allAfItems.filter((item) =>
-            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'af-reports', 'profile'].includes(item.page)
           );
         }
 
         const permission = getAfPermissionLevel(user.email);
         if (permission === 'internal-proposal') {
           return allAfItems.filter((item) =>
-            ['dashboard', 'notifications', 'submit', 'rebate-status', 'profile'].includes(item.page)
+            ['dashboard', 'notifications', 'submit', 'rebate-status', 'af-reports', 'profile'].includes(item.page)
           );
         }
         return allAfItems;
@@ -316,12 +319,12 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
                     handleNavigate(item.page);
                   }
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 min-w-0 overflow-hidden ${
                   isActive
                     ? 'bg-[#023F40] text-white shadow-md'
                     : 'text-gray-600 hover:bg-[#023F40]/5 hover:text-[#023F40]'
                 }`}
-                title={!isExpanded ? item.label : undefined}
+                title={item.label}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -333,7 +336,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="text-sm font-medium whitespace-nowrap"
+                    className="text-sm font-medium truncate min-w-0 flex-1 text-left"
                   >
                     {item.label}
                   </motion.span>

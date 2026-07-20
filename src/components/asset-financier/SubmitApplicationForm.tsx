@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../utils/api';
-import { DocumentUploadSection } from './DocumentUploadSection';
+import { DocumentUploadSection, type AdditionalDocument } from './DocumentUploadSection';
 import { calculateRebateAmount, generateTicketPreview, getRebateEligibilityLabel } from '../../utils/rebateCalculation';
 import {
   Dialog,
@@ -28,6 +28,8 @@ interface SubmitApplicationFormProps {
   organizationId: string;
   requireAssetFinancierSelection?: boolean;
   assetFinancierOptions?: Array<{ id: string; name: string }>;
+  /** Marketing agents submit proposals to AF for review; AF users submit to RGF. */
+  submissionMode?: 'rgf' | 'af-proposal';
   initialData?: Partial<{
     firstName: string;
     lastName: string;
@@ -53,8 +55,12 @@ interface SubmitApplicationFormProps {
     monthlyRepayment: string;
     isRetrofit: boolean;
     documents: any;
+    additionalDocuments: AdditionalDocument[];
   }>;
   prefilledTicketNumber?: string;
+  submittedBy?: string;
+  onSaveUnfinished?: (formData: Record<string, unknown>, missingFields: string[], ticketNumber: string) => void;
+  onSubmitted?: (ticketNumber: string) => void;
 }
 
 type ApplicationStep = 'identity' | 'vehicle' | 'documents' | 'review';
@@ -63,9 +69,14 @@ export function SubmitApplicationForm({
   organizationId,
   requireAssetFinancierSelection = false,
   assetFinancierOptions = [],
+  submissionMode = 'rgf',
   initialData,
   prefilledTicketNumber,
+  submittedBy = 'AF User',
+  onSaveUnfinished,
+  onSubmitted,
 }: SubmitApplicationFormProps) {
+  const isAfProposal = submissionMode === 'af-proposal';
   const [currentStep, setCurrentStep] = useState<ApplicationStep>('identity');
   const [loading, setLoading] = useState(false);
   const [ticketNumber] = useState(() => prefilledTicketNumber || generateTicketPreview());
@@ -102,7 +113,8 @@ export function SubmitApplicationForm({
     monthlyRepayment: '',
     // Documents
     isRetrofit: false,
-    documents: {} as any
+    documents: {} as any,
+    additionalDocuments: [] as AdditionalDocument[],
   });
 
   const steps: { key: ApplicationStep; label: string; icon: any }[] = [
@@ -137,6 +149,7 @@ export function SubmitApplicationForm({
       ...initialData,
       identityDocuments: { ...prev.identityDocuments, ...(initialData.identityDocuments || {}) },
       documents: { ...prev.documents, ...(initialData.documents || {}) },
+      additionalDocuments: initialData.additionalDocuments ?? prev.additionalDocuments,
     }));
   }, [initialData]);
 
@@ -211,11 +224,8 @@ export function SubmitApplicationForm({
     }));
   };
 
-  const handleRetrofitToggle = (value: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      isRetrofit: value
-    }));
+  const handleAdditionalDocumentsChange = (docs: AdditionalDocument[]) => {
+    setFormData((prev) => ({ ...prev, additionalDocuments: docs }));
   };
 
   const handleIdentityDocUpload = (docType: string, file: { name: string }) => {
@@ -242,6 +252,20 @@ export function SubmitApplicationForm({
     }));
   };
 
+  const saveUnfinishedDraft = () => {
+    const missing = getMissingMandatoryFields();
+    onSaveUnfinished?.(formData, missing, ticketNumber);
+    toast.success('Saved as unfinished application', {
+      description: isAfProposal
+        ? `${ticketNumber} is saved in your pipeline. Complete Step 4 to send it to your Asset Financier for review.`
+        : `${ticketNumber} is in Rebate Pipeline Dev. Complete Step 4 SUBMIT when ready.`,
+    });
+  };
+
+  const handleSaveProgress = () => {
+    saveUnfinishedDraft();
+  };
+
   const handleSubmit = async () => {
     if (requireAssetFinancierSelection && !selectedAssetFinancierId) {
       toast.error('Please select an Asset Financier first');
@@ -250,6 +274,7 @@ export function SubmitApplicationForm({
     const missing = getMissingMandatoryFields();
     if (missing.length > 0) {
       setMissingFields(missing);
+      saveUnfinishedDraft();
       setShowMissingDialog(true);
       return;
     }
@@ -288,15 +313,27 @@ export function SubmitApplicationForm({
         isWoman: formData.isWoman === 'yes',
         ticketNumber,
         documents: formData.documents,
+        additionalDocuments: formData.additionalDocuments,
         status: 'submitted'
       };
 
       await api.submitApplication(applicationData).catch(() => {
         // UI-only demo: still show success when backend unavailable
       });
-      toast.success('Rebate requirements submitted to RGF Rebate Team', {
-        description: 'E-moto possession confirmation is optional at submit but required before drawing from your rebate escrow account.',
-      });
+      // Persist the completed application into the local pipeline, then apply submit status.
+      onSaveUnfinished?.(formData, [], ticketNumber);
+      if (isAfProposal) {
+        toast.success('Rebate proposal submitted to Asset Financier', {
+          description:
+            'Your AF finance decision-makers will review this proposal and submit eligible rebates to RGF.',
+        });
+      } else {
+        toast.success('Rebate requirements submitted to RGF Rebate Team', {
+          description:
+            'E-moto possession confirmation is optional at submit but required before drawing from your rebate escrow account.',
+        });
+      }
+      onSubmitted?.(ticketNumber);
       
       // Reset form
       setFormData({
@@ -323,7 +360,8 @@ export function SubmitApplicationForm({
         repaymentFrequency: 'daily',
         monthlyRepayment: '',
         isRetrofit: false,
-        documents: {}
+        documents: {},
+        additionalDocuments: [],
       });
       setCurrentStep('identity');
     } catch (error: any) {
@@ -340,9 +378,13 @@ export function SubmitApplicationForm({
     <div className="space-y-6">
       {/* Header */}
       <div className="mt-6">
-        <h2 className="text-lg sm:text-xl text-[#023F40]">Submit Rebate Requirements</h2>
+        <h2 className="text-lg sm:text-xl text-[#023F40]">
+          {isAfProposal ? 'Submit Rebate Proposal' : 'Submit Rebate Requirements'}
+        </h2>
         <p className="text-gray-600 mt-1">
-          Submit leases with documentation for individuals who required financial support (rebates) to meet your e-moto financing requirements.
+          {isAfProposal
+            ? 'Complete the same rebate application steps used by Asset Financiers. Your submission goes to AF finance decision-makers for review — it is not sent to RGF until they approve and submit it.'
+            : 'Submit leases with documentation for individuals who required financial support (rebates) to meet your e-moto financing requirements.'}
         </p>
         {requireAssetFinancierSelection && (
           <div className="mt-4 max-w-md">
@@ -419,18 +461,23 @@ export function SubmitApplicationForm({
 
       {/* Form Content */}
       <div className="bg-white rounded-lg shadow p-6">
-        {currentStep === 'identity' && <IdentityStep formData={formData} setFormData={setFormData} />}
-        {currentStep === 'vehicle' && <VehicleStep formData={formData} setFormData={setFormData} />}
-        {currentStep === 'documents' && (
-          <DocumentsStep 
-            isRetrofit={formData.isRetrofit}
-            documents={formData.documents}
-            identityDocuments={formData.identityDocuments}
-            onDocumentUpload={handleDocumentUpload}
-            onDocumentRemove={handleDocumentRemove}
+        {currentStep === 'identity' && (
+          <IdentityStep
+            formData={formData}
+            setFormData={setFormData}
             onIdentityDocUpload={handleIdentityDocUpload}
             onIdentityDocRemove={handleIdentityDocRemove}
-            onRetrofitToggle={handleRetrofitToggle}
+          />
+        )}
+        {currentStep === 'vehicle' && <VehicleStep formData={formData} setFormData={setFormData} />}
+        {currentStep === 'documents' && (
+          <DocumentsStep
+            isRetrofit={formData.isRetrofit}
+            documents={formData.documents}
+            additionalDocuments={formData.additionalDocuments}
+            onDocumentUpload={handleDocumentUpload}
+            onDocumentRemove={handleDocumentRemove}
+            onAdditionalDocumentsChange={handleAdditionalDocumentsChange}
           />
         )}
         {currentStep === 'review' && (
@@ -438,6 +485,7 @@ export function SubmitApplicationForm({
             formData={formData}
             ticketNumber={ticketNumber}
             rebatePreview={rebatePreview}
+            isAfProposal={isAfProposal}
           />
         )}
 
@@ -449,7 +497,9 @@ export function SubmitApplicationForm({
                 Missing required information
               </DialogTitle>
               <DialogDescription>
-                Please fill in the following mandatory fields and documents, then hit SUBMIT again.
+                {isAfProposal
+                  ? 'This application was saved as unfinished in your pipeline. Fill in the missing items below, then hit SUBMIT on Step 4 to send it to your Asset Financier for review.'
+                  : 'This application was saved as unfinished in your pipeline. Fill in the missing items below, then hit SUBMIT on Step 4 to send it to RGF.'}
               </DialogDescription>
             </DialogHeader>
             <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
@@ -508,6 +558,15 @@ export function SubmitApplicationForm({
             </Button>
           )}
           <div className="flex-1" />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSaveProgress}
+            disabled={loading}
+            className="border-gray-300"
+          >
+            Save Progress
+          </Button>
           {currentStepIndex < steps.length - 1 ? (
             <Button
               onClick={handleNext}
@@ -522,7 +581,7 @@ export function SubmitApplicationForm({
               disabled={loading}
               className="bg-[#023F40] hover:bg-[#035f60]"
             >
-              SUBMIT
+              {isAfProposal ? 'SUBMIT TO AF' : 'SUBMIT'}
             </Button>
           )}
         </div>
@@ -531,7 +590,40 @@ export function SubmitApplicationForm({
   );
 }
 
-function IdentityStep({ formData, setFormData }: { formData: any, setFormData: any }) {
+function IdentityStep({
+  formData,
+  setFormData,
+  onIdentityDocUpload,
+  onIdentityDocRemove,
+}: {
+  formData: any;
+  setFormData: any;
+  onIdentityDocUpload: (docType: string, file: { name: string }) => void;
+  onIdentityDocRemove: (docType: string) => void;
+}) {
+  const identityDocs = [
+    { key: 'nationalIdDoc', label: 'National ID Document', description: 'Upload a copy of the national ID.' },
+    {
+      key: 'driversLicenseDoc',
+      label: "Motorcycle Driver's License Document",
+      description: 'Upload a copy of the motorcycle license.',
+    },
+    { key: 'dobDoc', label: 'Date of Birth Document', description: 'Supporting document confirming date of birth.' },
+  ];
+
+  const handleIdentityFileUpload = (docType: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      onIdentityDocUpload(docType, { name: file.name });
+      toast.success('Document uploaded', { description: file.name });
+    };
+    input.click();
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Step 1: Rider's Identity</h3>
@@ -676,6 +768,62 @@ function IdentityStep({ formData, setFormData }: { formData: any, setFormData: a
                 onChange={(e) => setFormData({ ...formData, driversLicense: e.target.value })}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-4">
+          <h4 className="font-medium text-gray-900 mb-1">Identification Documents</h4>
+          <p className="text-xs text-gray-600 mb-3">Upload copies of the documents listed below.</p>
+          <div className="space-y-2">
+            {identityDocs.map((doc) => {
+              const status = formData.identityDocuments?.[doc.key];
+              const uploaded = status?.uploaded;
+              return (
+                <div
+                  key={doc.key}
+                  className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm">
+                      {doc.label}
+                      <span className="text-red-500 ml-0.5">*</span>
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">{doc.description}</p>
+                    {uploaded && status?.name && (
+                      <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded px-2 py-1 mt-2 truncate">
+                        {status.name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {uploaded ? (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => handleIdentityFileUpload(doc.key)}>
+                          Replace
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onIdentityDocRemove(doc.key)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleIdentityFileUpload(doc.key)}
+                        className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
+                      >
+                        <Upload className="w-3.5 h-3.5 mr-1" />
+                        Upload
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -833,6 +981,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 <SelectContent>
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -847,7 +996,12 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 onChange={(e) => setFormData({ ...formData, monthlyRepayment: e.target.value })}
               />
               <p className="text-xs text-gray-500 mt-1">
-                {formData.repaymentFrequency === 'weekly' ? 'Weekly' : 'Daily'} repayment amount
+                {formData.repaymentFrequency === 'weekly'
+                  ? 'Weekly'
+                  : formData.repaymentFrequency === 'monthly'
+                    ? 'Monthly'
+                    : 'Daily'}{' '}
+                repayment amount
               </p>
             </div>
           </div>
@@ -857,17 +1011,29 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
   );
 }
 
-function DocumentsStep({ isRetrofit, documents, identityDocuments, onDocumentUpload, onDocumentRemove, onIdentityDocUpload, onIdentityDocRemove, onRetrofitToggle }: { isRetrofit: boolean, documents: any, identityDocuments: any, onDocumentUpload: any, onDocumentRemove: any, onIdentityDocUpload: any, onIdentityDocRemove: any, onRetrofitToggle: any }) {
+function DocumentsStep({
+  isRetrofit,
+  documents,
+  additionalDocuments,
+  onDocumentUpload,
+  onDocumentRemove,
+  onAdditionalDocumentsChange,
+}: {
+  isRetrofit: boolean;
+  documents: any;
+  additionalDocuments: AdditionalDocument[];
+  onDocumentUpload: (docType: string, file: { name: string }) => void;
+  onDocumentRemove: (docType: string) => void;
+  onAdditionalDocumentsChange: (docs: AdditionalDocument[]) => void;
+}) {
   return (
     <DocumentUploadSection
       isRetrofit={isRetrofit}
       documents={documents}
-      identityDocuments={identityDocuments}
+      additionalDocuments={additionalDocuments}
       onDocumentUpload={onDocumentUpload}
       onDocumentRemove={onDocumentRemove}
-      onIdentityDocUpload={onIdentityDocUpload}
-      onIdentityDocRemove={onIdentityDocRemove}
-      onRetrofitToggle={onRetrofitToggle}
+      onAdditionalDocumentsChange={onAdditionalDocumentsChange}
     />
   );
 }
@@ -876,89 +1042,142 @@ function ReviewStep({
   formData,
   ticketNumber,
   rebatePreview,
+  isAfProposal = false,
 }: {
   formData: any;
   ticketNumber: string;
   rebatePreview: number;
+  isAfProposal?: boolean;
 }) {
+  const display = (value?: string | number | null) =>
+    value === undefined || value === null || value === '' ? '—' : String(value);
+
+  const formatRwf = (value?: string | number | null) => {
+    if (value === undefined || value === null || value === '') return '—';
+    const n = Number(value);
+    return Number.isNaN(n) ? '—' : `${n.toLocaleString()} RWF`;
+  };
+
+  const repaymentFrequencyLabel =
+    formData.repaymentFrequency === 'weekly'
+      ? 'Weekly'
+      : formData.repaymentFrequency === 'monthly'
+        ? 'Monthly'
+        : formData.repaymentFrequency === 'daily'
+          ? 'Daily'
+          : '—';
+
+  const SummaryRow = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex justify-between gap-4 border-b border-gray-200 pb-1.5">
+      <span className="text-gray-600">{label}</span>
+      <span className="font-medium text-right">{value}</span>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Step 4: Review and Submit</h3>
-      <p className="text-sm text-gray-600">
-        This page is for reviewing the rebate application. If all the information and documents are correct, please submit to RGF. The RGF Rebate Team will review your submission and contact you with any issues. The RGF Rebate Quality Assurance Team approves rebate submission within 7 business days. If RGF has received confirmation of E-Moto Possession, RGF's CFO will review the rebate amount and provide authorization within 10 days to withdraw the rebate amount from the advance funds in your designated Rebate Bank Account.
-      </p>
-      <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-2">
-        <strong>NOTE:</strong> RGF can verify and approve rebates <strong>without</strong> E-Moto Possession Confirmations. However, funds cannot be withdrawn from the Advance Funds in your Rebate Account until RGF has received and verified the E-Moto Possession Confirmation signed by your company and the client.
-      </p>
-      <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-        E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the escrow account.
-      </p>
+      {isAfProposal ? (
+        <>
+          <p className="text-sm text-gray-600">
+            Review the rebate proposal below. If all information and documents are correct, submit to your Asset
+            Financier. AF finance decision-makers will assess eligibility and, when ready, submit the rebate to RGF.
+          </p>
+          <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+            <strong>NOTE:</strong> This submission goes to your Asset Financier for internal review. It is{' '}
+            <strong>not</strong> sent to RGF until AF decision-makers complete and submit it.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-gray-600">
+            This page is for reviewing the rebate application. If all the information and documents are correct, please submit to RGF. The RGF Rebate Team will review your submission and contact you with any issues. The RGF Rebate Quality Assurance Team approves rebate submission within 7 business days. If RGF has received confirmation of E-Moto Possession, RGF's CFO will review the rebate amount and provide authorization within 10 days to withdraw the rebate amount from the advance funds in your designated Rebate Bank Account.
+          </p>
+          <p className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+            <strong>NOTE:</strong> RGF can verify and approve rebates <strong>without</strong> E-Moto Possession Confirmations. However, funds cannot be withdrawn from the Advance Funds in your Rebate Account until RGF has received and verified the E-Moto Possession Confirmation signed by your company and the client.
+          </p>
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the escrow account.
+          </p>
+        </>
+      )}
 
       <div className="mt-6 space-y-4">
         <div className="bg-gray-50 rounded-lg p-6">
           <h4 className="font-medium text-gray-900 mb-4 text-base">Rebate Submission Summary</h4>
-          
+
           <div className="mb-6">
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Ticket & Applicant</h5>
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Ticket</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Ticket Number:</span>
-                <span className="font-medium text-[#023F40]">{ticketNumber}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Name:</span>
-                <span className="font-medium">{formData.firstName} {formData.lastName}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Date of Birth:</span>
-                <span className="font-medium">{formData.dateOfBirth || '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">National ID:</span>
-                <span className="font-medium">{formData.nationalId || '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Gender:</span>
-                <span className="font-medium">{formData.isWoman === 'yes' ? 'Woman' : formData.isWoman === 'no' ? 'Man' : '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Vehicle Type:</span>
-                <span className="font-medium">{formData.isRetrofit ? 'Retrofit' : 'New E-Moto'}</span>
-              </div>
+              <SummaryRow label="Ticket Number" value={ticketNumber} />
             </div>
           </div>
 
           <div className="mb-6">
-            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">E-Moto & Rebate</h5>
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">
+              Individual Information
+            </h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">E-Moto Provider:</span>
-                <span className="font-medium">{formData.brand || '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">E-Moto Model:</span>
-                <span className="font-medium">{formData.model || '—'}</span>
-              </div>
+              <SummaryRow label="Individual first name(s)" value={display(formData.firstName)} />
+              <SummaryRow label="Individual last name(s)" value={display(formData.lastName)} />
+              <SummaryRow
+                label="Gender?"
+                value={
+                  formData.isWoman === 'yes' ? 'Woman' : formData.isWoman === 'no' ? 'Man' : '—'
+                }
+              />
+              <SummaryRow label="Date of Birth" value={display(formData.dateOfBirth)} />
+              <SummaryRow
+                label="Vehicle Type?"
+                value={formData.isRetrofit ? 'Retrofit' : 'New E-Moto'}
+              />
+              <SummaryRow label="Phone Number" value={display(formData.phoneNumber)} />
+              <SummaryRow label="Email (Optional)" value={display(formData.email)} />
+              <SummaryRow label="TIN (Tax Identification Number)" value={display(formData.tin)} />
+              <SummaryRow label="National ID" value={display(formData.nationalId)} />
+              <SummaryRow
+                label="Motorcycle Driver's License"
+                value={display(formData.driversLicense)}
+              />
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">
+              Vehicle and Financing
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
+              <SummaryRow label="E-Moto Provider" value={display(formData.brand)} />
+              <SummaryRow label="E-Moto Model" value={display(formData.model)} />
               {formData.isRetrofit && (
-                <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                  <span className="text-gray-600">Retrofit Assembler:</span>
-                  <span className="font-medium">{formData.retrofitAssembler || '—'}</span>
-                </div>
+                <SummaryRow
+                  label="Retrofit Assembler"
+                  value={display(formData.retrofitAssembler)}
+                />
               )}
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">
-                  {formData.isRetrofit ? 'Retrofit Cost (RWF):' : 'Retail E-Moto Price (RWF):'}
-                </span>
-                <span className="font-medium">
-                  {(formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice)
-                    ? `${Number(formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice).toLocaleString()} RWF`
-                    : '—'}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-gray-200 pb-1.5">
-                <span className="text-gray-600">Rebate Amount:</span>
-                <span className="font-semibold text-[#023F40]">{rebatePreview > 0 ? `${rebatePreview.toLocaleString()} RWF` : '—'}</span>
-              </div>
+              <SummaryRow
+                label={formData.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
+                value={formatRwf(
+                  formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice
+                )}
+              />
+              <SummaryRow
+                label="Total Contract Repayment Amount (RWF)"
+                value={formatRwf(formData.loanAmount)}
+              />
+              <SummaryRow
+                label="Rebate Amount (RWF) — auto-calculated"
+                value={rebatePreview > 0 ? `${rebatePreview.toLocaleString()} RWF` : '—'}
+              />
+              <SummaryRow
+                label="Contract Term (months)"
+                value={display(formData.loanTerm)}
+              />
+              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} />
+              <SummaryRow
+                label="Repayment Amount (RWF)"
+                value={formatRwf(formData.monthlyRepayment)}
+              />
             </div>
           </div>
 
@@ -966,15 +1185,16 @@ function ReviewStep({
             <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Mandatory Documents</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               {[
-                { label: 'Signed Lease', uploaded: !!formData.documents?.signedLease?.uploaded },
-                { label: 'Notarized Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
+                { label: 'Signed Financing Agreement with Retail Cost of E-Moto', uploaded: !!formData.documents?.signedLease?.uploaded },
+                { label: 'Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
                 { label: 'AF Confirmation of Financial Need', uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
-                { label: 'National ID', uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
-                { label: 'Motorcycle License', uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
+                { label: 'National ID Document', uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
+                { label: "Motorcycle Driver's License Document", uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
+                { label: 'Date of Birth Document', uploaded: !!formData.identityDocuments?.dobDoc?.uploaded },
                 ...(formData.isRetrofit
                   ? [
-                      { label: 'ICE-Engine Disposal Agreement', uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
-                      { label: 'Signed Retrofit Suitability Statement (authorized retrofit assembler)', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
+                      { label: 'Signed Retrofit Suitability Statement', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
+                      { label: 'ICE-Engine Disposal Agreement (if Retrofit)', uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
                     ]
                   : []),
               ].map((item) => (
@@ -998,10 +1218,29 @@ function ReviewStep({
                   <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
                 )}
                 <span className={formData.documents?.possessionConfirmation?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
-                  AF/Client Confirmation of E-Moto Possession
+                  AF and Client Confirmation of E-Moto Possession
                 </span>
               </div>
             </div>
+
+            {formData.additionalDocuments?.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Additional Supporting Documents
+                </p>
+                <div className="space-y-1.5 text-sm">
+                  {formData.additionalDocuments.map((doc: AdditionalDocument) => (
+                    <div key={doc.id} className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                      <span className="text-gray-700">
+                        {doc.label}
+                        <span className="text-gray-500"> — {doc.fileName}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
