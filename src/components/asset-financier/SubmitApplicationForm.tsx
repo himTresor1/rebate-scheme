@@ -304,6 +304,7 @@ export function SubmitApplicationForm({
         organizationId: selectedAssetFinancierId || organizationId,
         applicantName: applicantName || 'Sample Rider',
         nationalId: formData.nationalId || '1198780012345678',
+        dateOfBirth: formData.dateOfBirth || '',
         driversLicense: formData.driversLicense || '',
         phoneNumber: formData.phoneNumber || '+250788123456',
         email: formData.email || '',
@@ -693,6 +694,19 @@ function IdentityStep({
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date of Birth *
+            </label>
+            <Input 
+              type="date" 
+              value={formData.dateOfBirth || ''}
+              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vehicle Type? *

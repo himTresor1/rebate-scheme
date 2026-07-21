@@ -276,15 +276,6 @@ export function RebateApplicationDetailsPage({
               <Eye className="w-3.5 h-3.5 mr-1" />
               View
             </Button>
-          ) : canEditDocs ? (
-            <Button
-              size="sm"
-              onClick={() => handleUpload(doc.key, doc.label)}
-              className="bg-[#023F40] hover:bg-[#035f60]"
-            >
-              <Upload className="w-3.5 h-3.5 mr-1" />
-              Upload
-            </Button>
           ) : (
             <Badge className="bg-amber-100 text-amber-800">Missing</Badge>
           )}
@@ -360,6 +351,11 @@ export function RebateApplicationDetailsPage({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <DetailField label="Individual first name(s)" value={data.firstName} record={data} />
               <DetailField label="Individual last name(s)" value={data.lastName} record={data} />
+              <DetailField
+                label="Date of Birth"
+                value={data.dateOfBirth}
+                record={data}
+              />
               <DetailField
                 label="Gender?"
                 value={data.isWoman ? 'Woman' : 'Man'}
