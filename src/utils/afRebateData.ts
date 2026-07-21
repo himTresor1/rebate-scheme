@@ -250,7 +250,6 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     missingFields: [
       'National ID',
       'Motorcycle License',
-      'Date of Birth',
       'E-Moto Provider',
       'E-Moto Model',
       'Retail E-Moto Price',

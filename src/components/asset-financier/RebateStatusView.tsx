@@ -115,6 +115,7 @@ export function RebateStatusView({
       <RebateApplicationDetailsPage
         data={selected.record}
         variant={selected.variant}
+        isMarketingAgent={isMarketingAgent}
         onBack={() => setSelected(null)}
         onFinishApplication={(row) => {
           onFinishApplication?.(row);
@@ -137,42 +138,69 @@ export function RebateStatusView({
     <div className="space-y-6 max-w-full overflow-x-hidden">
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">Rebate Pipeline Development Page</h2>
-        <p className="text-gray-600 mt-1 text-sm">
-          {isMarketingAgent
-            ? 'This page shows rebate proposals you are developing for your Asset Financier. Complete missing information and submit proposals for AF review — they are not sent to RGF until AF decision-makers submit them.'
-            : 'This page provides the Asset Financier with an overview of opportunities to increase the number of leases to individuals who require financial support to acquire an e-moto or retrofit their ICE-moto. Below is the rebate pipeline in development that is not yet submitted to RGF.'}
-        </p>
+        {isMarketingAgent ? (
+          <div className="mt-2 bg-blue-50 border border-blue-100 p-4 rounded-lg">
+            <p className="text-gray-800 text-sm mb-2">
+              You are registered as a marketing person for the following Asset Financier(s) authorized by RGF: <strong>Bank of Kigali</strong>
+            </p>
+            <p className="text-gray-800 text-sm">
+              Below is a summary of the total number of rebate applications you have submitted to date. Double click on the status categories below for a breakout by Asset Financier.
+            </p>
+          </div>
+        ) : (
+          <p className="text-gray-600 mt-1 text-sm">
+            This page provides the Asset Financier with an overview of opportunities to increase the number of leases to individuals who require financial support to acquire an e-moto or retrofit their ICE-moto. Below is the rebate pipeline in development that is not yet submitted to RGF.
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">
-          {isMarketingAgent
-            ? 'Your rebate proposals in the pipeline. Complete applications and submit them to your Asset Financier for review:'
-            : 'Rebates in your pipeline to be assessed. If eligible for financing and rebates, please complete the applications and submit to RGF:'}
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Number of rebates in your pipeline</p>
-              <p className="text-2xl font-bold text-[#023F40]">{summary.count}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Total value of rebates in your pipeline</p>
-              <p className="text-2xl font-bold text-[#023F40]">RWF {summary.totalRebate.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Total value of e-motos based on retail costs in your pipeline</p>
-              <p className="text-2xl font-bold text-[#023F40]">RWF {summary.totalRetail.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-        </div>
-        <p className="text-xs text-gray-500">
-          NOTE: Above values are based on estimates input by your designated marketing people.
-        </p>
+        {isMarketingAgent ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            {[
+              { label: 'Your Total Rebates in Pipeline', value: 45 },
+              { label: 'Your Total Rebates Awaiting review', value: 10 },
+              { label: 'Your Total Rebates Approved', value: 30 },
+              { label: 'Your Total Rebates Rejected', value: 5 },
+            ].map((card, idx) => (
+              <Card key={idx}>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-gray-600">{card.label}</p>
+                  <p className="text-2xl font-bold text-[#023F40]">{card.value}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-700">
+              Rebates in your pipeline to be assessed. If eligible for financing and rebates, please complete the applications and submit to RGF:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-gray-600">Number of rebates in your pipeline</p>
+                  <p className="text-2xl font-bold text-[#023F40]">{summary.count}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-gray-600">Total value of rebates in your pipeline</p>
+                  <p className="text-2xl font-bold text-[#023F40]">RWF {summary.totalRebate.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-gray-600">Total value of e-motos based on retail costs in your pipeline</p>
+                  <p className="text-2xl font-bold text-[#023F40]">RWF {summary.totalRetail.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+            </div>
+            <p className="text-xs text-gray-500">
+              NOTE: Above values are based on estimates input by your designated marketing people.
+            </p>
+          </>
+        )}
       </div>
 
       <Card className="max-w-full print:hidden">

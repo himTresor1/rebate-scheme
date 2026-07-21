@@ -33,7 +33,6 @@ interface SubmitApplicationFormProps {
   initialData?: Partial<{
     firstName: string;
     lastName: string;
-    dateOfBirth: string;
     isWoman: string;
     phoneNumber: string;
     email: string;
@@ -90,7 +89,6 @@ export function SubmitApplicationForm({
     // Identity
     firstName: '',
     lastName: '',
-    dateOfBirth: '',
     isWoman: '',
     phoneNumber: '',
     email: '',
@@ -158,11 +156,7 @@ export function SubmitApplicationForm({
     if (!formData.firstName.trim()) missing.push('First Name');
     if (!formData.lastName.trim()) missing.push('Last Name');
     if (!formData.nationalId.trim()) missing.push('National ID');
-    if (!formData.dateOfBirth) missing.push('Date of Birth');
     if (!formData.isWoman) missing.push('Gender (dropdown)');
-    if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push('National ID Document');
-    if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push("Motorcycle Driver's License Document");
-    if (!formData.identityDocuments?.dobDoc?.uploaded) missing.push('Date of Birth Document');
     if (!formData.driversLicense.trim()) missing.push('Motorcycle License');
     if (!formData.brand) missing.push('E-Moto Supplier');
     if (!formData.model) missing.push('E-Moto Model');
@@ -171,17 +165,35 @@ export function SubmitApplicationForm({
     }
     if (formData.isRetrofit && !formData.retrofitCost) missing.push('Retrofit Cost (RWF)');
     if (!formData.isRetrofit && !formData.purchasePrice) missing.push('Retail E-Moto Price (RWF)');
-    if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
-    if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
-    if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
-    if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
-      missing.push('Signed Retrofit Suitability Statement');
-    }
-    if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
-      missing.push('ICE-Engine Disposal Agreement');
+
+    // Identity doc uploads (required for both modes)
+    if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push('National ID Document');
+    if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push("Motorcycle Driver's License Document");
+
+    if (isAfProposal) {
+      // Marketing agent: no signed lease / AF confirmation required
+      // Affidavit is optional ("can be submitted later")
+      if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
+        missing.push('Retrofit Suitability Statement');
+      }
+      if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
+        missing.push('ICE-Engine Disposal Agreement');
+      }
+    } else {
+      // AF: require full AF document set
+      if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
+      if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
+      if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
+      if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
+        missing.push('Signed Retrofit Suitability Statement');
+      }
+      if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
+        missing.push('ICE-Engine Disposal Agreement');
+      }
     }
     return missing;
   };
+
 
   const DUPLICATE_NATIONAL_IDS = ['1199080012345678', '1199570087654321'];
   const isPotentialDuplicate = () => DUPLICATE_NATIONAL_IDS.includes(formData.nationalId.trim());
@@ -294,7 +306,6 @@ export function SubmitApplicationForm({
         nationalId: formData.nationalId || '1198780012345678',
         driversLicense: formData.driversLicense || '',
         phoneNumber: formData.phoneNumber || '+250788123456',
-        dateOfBirth: formData.dateOfBirth || '',
         email: formData.email || '',
         tin: formData.tin || '',
         identityDocuments: formData.identityDocuments || {},
@@ -467,6 +478,7 @@ export function SubmitApplicationForm({
             setFormData={setFormData}
             onIdentityDocUpload={handleIdentityDocUpload}
             onIdentityDocRemove={handleIdentityDocRemove}
+            isAfProposal={isAfProposal}
           />
         )}
         {currentStep === 'vehicle' && <VehicleStep formData={formData} setFormData={setFormData} />}
@@ -478,6 +490,10 @@ export function SubmitApplicationForm({
             onDocumentUpload={handleDocumentUpload}
             onDocumentRemove={handleDocumentRemove}
             onAdditionalDocumentsChange={handleAdditionalDocumentsChange}
+            isAfProposal={isAfProposal}
+            identityDocuments={formData.identityDocuments}
+            onIdentityDocUpload={handleIdentityDocUpload}
+            onIdentityDocRemove={handleIdentityDocRemove}
           />
         )}
         {currentStep === 'review' && (
@@ -595,11 +611,13 @@ function IdentityStep({
   setFormData,
   onIdentityDocUpload,
   onIdentityDocRemove,
+  isAfProposal = false,
 }: {
   formData: any;
   setFormData: any;
   onIdentityDocUpload: (docType: string, file: { name: string }) => void;
   onIdentityDocRemove: (docType: string) => void;
+  isAfProposal?: boolean;
 }) {
   const identityDocs = [
     { key: 'nationalIdDoc', label: 'National ID Document', description: 'Upload a copy of the national ID.' },
@@ -608,7 +626,7 @@ function IdentityStep({
       label: "Motorcycle Driver's License Document",
       description: 'Upload a copy of the motorcycle license.',
     },
-    { key: 'dobDoc', label: 'Date of Birth Document', description: 'Supporting document confirming date of birth.' },
+    // Date of Birth Document removed — prohibited
   ];
 
   const handleIdentityFileUpload = (docType: string) => {
@@ -674,16 +692,6 @@ function IdentityStep({
                 <SelectItem value="yes">Woman</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date of Birth *
-            </label>
-            <Input
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -771,66 +779,13 @@ function IdentityStep({
           </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-4">
-          <h4 className="font-medium text-gray-900 mb-1">Identification Documents</h4>
-          <p className="text-xs text-gray-600 mb-3">Upload copies of the documents listed below.</p>
-          <div className="space-y-2">
-            {identityDocs.map((doc) => {
-              const status = formData.identityDocuments?.[doc.key];
-              const uploaded = status?.uploaded;
-              return (
-                <div
-                  key={doc.key}
-                  className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm">
-                      {doc.label}
-                      <span className="text-red-500 ml-0.5">*</span>
-                    </p>
-                    <p className="text-xs text-gray-600 mt-0.5">{doc.description}</p>
-                    {uploaded && status?.name && (
-                      <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded px-2 py-1 mt-2 truncate">
-                        {status.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {uploaded ? (
-                      <>
-                        <Button size="sm" variant="outline" onClick={() => handleIdentityFileUpload(doc.key)}>
-                          Replace
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onIdentityDocRemove(doc.key)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          Remove
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleIdentityFileUpload(doc.key)}
-                        className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
-                      >
-                        <Upload className="w-3.5 h-3.5 mr-1" />
-                        Upload
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
       </div>
     </div>
   );
 }
+
+
 
 function VehicleStep({ formData, setFormData }: { formData: any, setFormData: any }) {
   return (
@@ -1018,6 +973,10 @@ function DocumentsStep({
   onDocumentUpload,
   onDocumentRemove,
   onAdditionalDocumentsChange,
+  isAfProposal = false,
+  identityDocuments,
+  onIdentityDocUpload,
+  onIdentityDocRemove,
 }: {
   isRetrofit: boolean;
   documents: any;
@@ -1025,7 +984,26 @@ function DocumentsStep({
   onDocumentUpload: (docType: string, file: { name: string }) => void;
   onDocumentRemove: (docType: string) => void;
   onAdditionalDocumentsChange: (docs: AdditionalDocument[]) => void;
+  isAfProposal?: boolean;
+  identityDocuments?: any;
+  onIdentityDocUpload?: (docType: string, file: { name: string }) => void;
+  onIdentityDocRemove?: (docType: string) => void;
 }) {
+  if (isAfProposal) {
+    return (
+      <MarketingDocumentsSection
+        isRetrofit={isRetrofit}
+        documents={documents}
+        identityDocuments={identityDocuments || {}}
+        additionalDocuments={additionalDocuments}
+        onDocumentUpload={onDocumentUpload}
+        onDocumentRemove={onDocumentRemove}
+        onIdentityDocUpload={onIdentityDocUpload || (() => {})}
+        onIdentityDocRemove={onIdentityDocRemove || (() => {})}
+        onAdditionalDocumentsChange={onAdditionalDocumentsChange}
+      />
+    );
+  }
   return (
     <DocumentUploadSection
       isRetrofit={isRetrofit}
@@ -1037,6 +1015,271 @@ function DocumentsStep({
     />
   );
 }
+
+// Marketing-specific document upload layout (per spec)
+function MarketingDocumentsSection({
+  isRetrofit,
+  documents,
+  identityDocuments,
+  additionalDocuments,
+  onDocumentUpload,
+  onDocumentRemove,
+  onIdentityDocUpload,
+  onIdentityDocRemove,
+  onAdditionalDocumentsChange,
+}: {
+  isRetrofit: boolean;
+  documents: any;
+  identityDocuments: any;
+  additionalDocuments: AdditionalDocument[];
+  onDocumentUpload: (docType: string, file: { name: string }) => void;
+  onDocumentRemove: (docType: string) => void;
+  onIdentityDocUpload: (docType: string, file: { name: string }) => void;
+  onIdentityDocRemove: (docType: string) => void;
+  onAdditionalDocumentsChange: (docs: AdditionalDocument[]) => void;
+}) {
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const MAX_ADDITIONAL = 5;
+
+  const triggerIdentityUpload = (docKey: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      onIdentityDocUpload(docKey, { name: file.name });
+      toast.success('Document uploaded', { description: file.name });
+    };
+    input.click();
+  };
+
+  const triggerDocUpload = (docKey: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      onDocumentUpload(docKey, { name: file.name });
+      toast.success('Document uploaded', { description: file.name });
+    };
+    input.click();
+  };
+
+  const renderIdentityRow = (docKey: string, label: string) => {
+    const status = identityDocuments?.[docKey];
+    const uploaded = !!status?.uploaded;
+    return (
+      <div key={docKey} className="flex items-center gap-4 p-3 rounded-lg border border-gray-200 bg-white">
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-gray-900 text-sm">
+            {label}<span className="text-red-500 ml-0.5">*</span>
+          </p>
+          {uploaded && status?.name && (
+            <p className="text-xs text-green-700 mt-0.5 truncate">{status.name}</p>
+          )}
+        </div>
+        <div className="flex-shrink-0 flex gap-2">
+          {uploaded ? (
+            <>
+              <Button size="sm" variant="outline" onClick={() => triggerIdentityUpload(docKey)}>Replace</Button>
+              <Button size="sm" variant="ghost" onClick={() => onIdentityDocRemove(docKey)} className="text-red-600 hover:text-red-700 hover:bg-red-50">Remove</Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => triggerIdentityUpload(docKey)} className="bg-[#0a7d4b] hover:bg-[#0c6b42]">
+              <Upload className="w-3.5 h-3.5 mr-1" />Upload
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDocRow = (docKey: string, label: string, opts: {
+    template?: string; note?: string; redLabel?: boolean; optional?: boolean;
+  } = {}) => {
+    const status = documents?.[docKey];
+    const uploaded = !!status?.uploaded;
+    return (
+      <div key={docKey} className="flex items-start gap-4 p-3 rounded-lg border border-gray-200 bg-white">
+        <div className="flex-1 min-w-0">
+          <p className={`font-medium text-sm ${opts.redLabel ? 'text-red-600' : 'text-gray-900'}`}>
+            {label}
+            {!opts.optional && <span className="text-red-500 ml-0.5">*</span>}
+            {opts.optional && <span className="text-xs font-normal text-gray-500 ml-2">(can be submitted later)</span>}
+          </p>
+          {opts.note && <p className="text-xs text-gray-500 mt-0.5">{opts.note}</p>}
+          {opts.template && (
+            <button
+              type="button"
+              onClick={() => toast.success('Template ready', { description: opts.template })}
+              className="text-xs text-[#023F40] underline underline-offset-2 mt-1"
+            >
+              Get template here
+            </button>
+          )}
+          {uploaded && status?.name && (
+            <p className="text-xs text-green-700 mt-0.5 truncate">{status.name}</p>
+          )}
+        </div>
+        <div className="flex-shrink-0 flex gap-2">
+          {uploaded ? (
+            <>
+              <Button size="sm" variant="outline" onClick={() => triggerDocUpload(docKey)}>Replace</Button>
+              <Button size="sm" variant="ghost" onClick={() => onDocumentRemove(docKey)} className="text-red-600 hover:text-red-700 hover:bg-red-50">Remove</Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={() => triggerDocUpload(docKey)} className="bg-[#0a7d4b] hover:bg-[#0c6b42]">
+              <Upload className="w-3.5 h-3.5 mr-1" />Upload
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const resetModal = () => { setPendingLabel(''); setPendingFile(null); setAddModalOpen(false); };
+
+  return (
+    <>
+      <div className="space-y-6">
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base mb-1">Step 2: Upload required documents</h3>
+          <p className="text-sm text-gray-600">
+            Documents marked with <span className="text-red-500">*</span> are mandatory.
+          </p>
+        </div>
+
+        {/* Mandatory — submit now */}
+        <div>
+          <h4 className="font-semibold text-gray-900 mb-1">Mandatory Documents</h4>
+          <p className="text-xs text-gray-500 mb-3">Please upload these documents now</p>
+          <div className="space-y-2">
+            {renderIdentityRow('nationalIdDoc', 'National ID')}
+            {renderIdentityRow('driversLicenseDoc', "Motorcycle driver's license")}
+          </div>
+
+          {isRetrofit && (
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">If retrofit</p>
+              <div className="space-y-2">
+                {renderDocRow('retrofitSuitability', 'Retrofit Suitability Statement', {
+                  redLabel: true,
+                  note: 'The retrofit assembler you have selected can give you this signed form.',
+                })}
+                {renderDocRow('iceDisposalAgreement', 'ICE-Engine Disposal Agreement', {
+                  template: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+                  note: 'Your agreement for disposal of your ICE-moto engine.',
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mandatory — can submit later */}
+        <div className="border-t pt-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Mandatory document that can be submitted later</p>
+          <div className="space-y-2">
+            {renderDocRow('affidavit', 'Individual Affidavit of Financial Need', {
+              template: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+              note: 'Needs to be notarized.',
+              optional: true,
+            })}
+          </div>
+        </div>
+
+        {/* Additional documents */}
+        <div className="border-t pt-4">
+          <h4 className="font-semibold text-gray-900 mb-1">Additional Documents</h4>
+          <p className="text-xs text-gray-600 mb-3">
+            You can add up to {MAX_ADDITIONAL} additional supporting documents (e.g., employment letter, personal reference, mobile money statement).
+          </p>
+          {additionalDocuments.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {additionalDocuments.map((doc) => (
+                <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-green-200 bg-green-50">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-green-900">{doc.label}</p>
+                    <p className="text-xs text-green-700 truncate">{doc.fileName}</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm"
+                    onClick={() => onAdditionalDocumentsChange(additionalDocuments.filter(d => d.id !== doc.id))}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0">
+                    ✕
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {additionalDocuments.length < MAX_ADDITIONAL ? (
+            <button type="button" onClick={() => setAddModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#023F40] hover:underline">
+              + Add another document
+            </button>
+          ) : (
+            <p className="text-xs text-gray-500">Maximum of {MAX_ADDITIONAL} additional documents reached.</p>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={addModalOpen} onOpenChange={(open) => !open && resetModal()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add supporting document</DialogTitle>
+            <DialogDescription>
+              Enter the document name then upload the file.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">Document name</label>
+              <Input placeholder="e.g. Employment letter" value={pendingLabel} onChange={(e) => setPendingLabel(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">File</label>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+                  input.onchange = (e: Event) => {
+                    const f = (e.target as HTMLInputElement).files?.[0];
+                    if (f) setPendingFile(f);
+                  };
+                  input.click();
+                }} className="shrink-0">
+                  <Upload className="w-4 h-4 mr-2" />Choose file
+                </Button>
+                <span className="text-sm text-gray-600 truncate">{pendingFile ? pendingFile.name : 'No file selected'}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={resetModal}>Cancel</Button>
+            <Button type="button" className="bg-[#0a7d4b] hover:bg-[#0c6b42]" onClick={() => {
+              const label = pendingLabel.trim();
+              if (!label) { toast.error('Enter a name first.'); return; }
+              if (!pendingFile) { toast.error('Choose a file.'); return; }
+              if (additionalDocuments.length >= MAX_ADDITIONAL) { toast.error(`Max ${MAX_ADDITIONAL} docs.`); return; }
+              onAdditionalDocumentsChange([
+                ...additionalDocuments,
+                { id: `extra-${Date.now()}`, label, fileName: pendingFile.name, uploadedAt: new Date().toISOString() },
+              ]);
+              toast.success('Document added', { description: `${label} — ${pendingFile.name}` });
+              resetModal();
+            }}>Add document</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+
 
 function ReviewStep({
   formData,
@@ -1126,7 +1369,6 @@ function ReviewStep({
                   formData.isWoman === 'yes' ? 'Woman' : formData.isWoman === 'no' ? 'Man' : '—'
                 }
               />
-              <SummaryRow label="Date of Birth" value={display(formData.dateOfBirth)} />
               <SummaryRow
                 label="Vehicle Type?"
                 value={formData.isRetrofit ? 'Retrofit' : 'New E-Moto'}
@@ -1185,15 +1427,16 @@ function ReviewStep({
             <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Mandatory Documents</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               {[
-                { label: 'Signed Financing Agreement with Retail Cost of E-Moto', uploaded: !!formData.documents?.signedLease?.uploaded },
-                { label: 'Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
-                { label: 'AF Confirmation of Financial Need', uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
                 { label: 'National ID Document', uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
                 { label: "Motorcycle Driver's License Document", uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
-                { label: 'Date of Birth Document', uploaded: !!formData.identityDocuments?.dobDoc?.uploaded },
+                ...(!isAfProposal ? [
+                  { label: 'Signed Financing Agreement with Retail Cost of E-Moto', uploaded: !!formData.documents?.signedLease?.uploaded },
+                  { label: 'AF Confirmation of Financial Need', uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
+                ] : []),
+                { label: 'Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
                 ...(formData.isRetrofit
                   ? [
-                      { label: 'Signed Retrofit Suitability Statement', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
+                      { label: 'Retrofit Suitability Statement', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
                       { label: 'ICE-Engine Disposal Agreement (if Retrofit)', uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
                     ]
                   : []),

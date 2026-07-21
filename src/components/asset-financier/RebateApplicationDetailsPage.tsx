@@ -30,6 +30,8 @@ interface RebateApplicationDetailsPageProps {
   /** Marketing agent proposal — AF adds docs before submission to RGF. */
   variant?: 'af-submitted' | 'proposal-review';
   onFinishApplication?: (data: RebateApplicationDetailsData) => void;
+  /** Whether the viewer is a marketing agent (affects doc layout). */
+  isMarketingAgent?: boolean;
 }
 
 const statusBadgeClass: Record<AfRebateStatus, string> = {
@@ -88,6 +90,7 @@ export function RebateApplicationDetailsPage({
   onBack,
   variant = 'af-submitted',
   onFinishApplication,
+  isMarketingAgent = false,
 }: RebateApplicationDetailsPageProps) {
   const isProposalReview = variant === 'proposal-review';
   const isUnfinished = data.status === 'unfinished';
@@ -100,7 +103,6 @@ export function RebateApplicationDetailsPage({
     afFinancialNeed: data.afFinancialNeedUploaded,
     nationalIdDoc: !isAfFieldMissing(data, 'National ID', data.nationalId),
     driversLicenseDoc: !isAfFieldMissing(data, "Motorcycle Driver's License", data.motoLicense),
-    dobDoc: !isAfFieldMissing(data, 'Date of Birth', data.dateOfBirth),
     iceDisposalAgreement: data.iceAgreementUploaded,
     retrofitSuitability: false,
     possessionConfirmation: false,
@@ -186,7 +188,7 @@ export function RebateApplicationDetailsPage({
   const identityDocs: DocRow[] = [
     { key: 'nationalIdDoc', label: 'National ID Document', mandatory: true },
     { key: 'driversLicenseDoc', label: "Motorcycle Driver's License Document", mandatory: true },
-    { key: 'dobDoc', label: 'Date of Birth Document', mandatory: true },
+    // Date of Birth Document removed — prohibited
   ];
 
   const mandatoryDocs: DocRow[] = [
@@ -363,7 +365,6 @@ export function RebateApplicationDetailsPage({
                 value={data.isWoman ? 'Woman' : 'Man'}
                 record={data}
               />
-              <DetailField label="Date of Birth" value={data.dateOfBirth} record={data} />
               <DetailField label="Vehicle Type?" value={data.vehicleType} record={data} />
               <DetailField label="Phone Number" value={data.phoneNumber} record={data} />
               <DetailField label="Email (Optional)" value={data.email} record={data} />
@@ -432,39 +433,69 @@ export function RebateApplicationDetailsPage({
             </div>
           )}
 
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-gray-900 mb-1 text-sm uppercase tracking-wide">
-              Identification Documents
-            </h3>
-            <p className="text-sm text-gray-600 mb-3">Upload copies of the documents listed below.</p>
-            <div className="space-y-2">{identityDocs.map(renderDocRow)}</div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-[#0a7d4b] mb-1 uppercase tracking-wide text-sm">
-              Mandatory Documents
-            </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Please review the provided documents and upload any that are missing.
-            </p>
-            <div className="space-y-2">{mandatoryDocs.map(renderDocRow)}</div>
-
-            {data.isRetrofit && (
+          {isMarketingAgent ? (
+            /* Marketing agent view: merged Mandatory Documents section per spec */
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-[#0a7d4b] mb-1 uppercase tracking-wide text-sm">
+                Mandatory Documents
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Please upload the documents listed below.
+              </p>
+              <div className="space-y-2">
+                {identityDocs.map(renderDocRow)}
+              </div>
+              {data.isRetrofit && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">If retrofit</p>
+                  <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
+                </div>
+              )}
               <div className="mt-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  If retrofit
+                  Optional — can be submitted later
                 </p>
-                <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
+                <div className="space-y-2">
+                  {[{ key: 'affidavit', label: 'Individual Affidavit of Financial Need', optional: true, hasTemplate: true, templateName: 'Individual_Affidavit_of_Financial_Need_Template.pdf' }].map(renderDocRow)}
+                </div>
               </div>
-            )}
-
-            <div className="mt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Optional (can be submitted later)
-              </p>
-              <div className="space-y-2">{optionalDocs.map(renderDocRow)}</div>
             </div>
-          </div>
+          ) : (
+            /* AF view: separate Identification + Mandatory sections */
+            <>
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-900 mb-1 text-sm uppercase tracking-wide">
+                  Identification Documents
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">Upload copies of the documents listed below.</p>
+                <div className="space-y-2">{identityDocs.map(renderDocRow)}</div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-[#0a7d4b] mb-1 uppercase tracking-wide text-sm">
+                  Mandatory Documents
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Please review the provided documents and upload any that are missing.
+                </p>
+                <div className="space-y-2">{mandatoryDocs.map(renderDocRow)}</div>
+
+                {data.isRetrofit && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">If retrofit</p>
+                    <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Optional (can be submitted later)
+                  </p>
+                  <div className="space-y-2">{optionalDocs.map(renderDocRow)}</div>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="border-t pt-4">
             <h3 className="font-semibold text-gray-900 mb-1">Additional Supporting Documents</h3>

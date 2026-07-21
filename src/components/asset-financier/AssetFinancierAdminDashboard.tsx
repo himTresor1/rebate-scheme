@@ -181,8 +181,9 @@ export function AssetFinancierAdminDashboard({
 
   const stats = isMarketingAgent
     ? {
-        submittedToDate: 45,
-        awaitingReview: 10,
+        totalInPipelineAndApproved: 45,
+        pipelineForAf: 10,
+        submittedNoDecision: 30,
         approved: 30,
         rejected: 5,
       }
@@ -246,10 +247,11 @@ export function AssetFinancierAdminDashboard({
                   {isMarketingAgent && stats ? (
                     <>
                       {[
-                        { label: 'Your Total Rebates Submitted to date', value: stats.submittedToDate },
-                        { label: 'Your Total Rebates Awaiting Review', value: stats.awaitingReview },
-                        { label: 'Your Total Rebates Approved', value: stats.approved },
-                        { label: 'Your Total Rebates Rejected', value: stats.rejected },
+                        { label: 'Your Total Rebates In Pipeline and Approved', value: stats.totalInPipelineAndApproved },
+                        { label: 'Your Pipeline being Developed for Submission to AF(s)', value: stats.pipelineForAf },
+                        { label: 'Submitted but No Decision Yet', value: stats.submittedNoDecision },
+                        { label: 'Total Rebates Approved', value: stats.approved },
+                        { label: 'Total Rebates Rejected', value: stats.rejected },
                       ].map((card, index) => (
                         <motion.div
                           key={card.label}
@@ -356,28 +358,55 @@ export function AssetFinancierAdminDashboard({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6 }}
                 >
-                  <h2 className="mb-4 font-semibold text-gray-900">Document Templates</h2>
+                <h2 className="mb-4 font-semibold text-gray-900">Document Templates</h2>
                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                    <p className="text-sm text-gray-600 mb-4">
-                      Download required templates for signature and submission
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {AF_DOCUMENT_TEMPLATES.map((template) => (
-                        <button
-                          key={template.file}
-                          onClick={() => {
-                            toast.success('Template ready for download', { description: template.file });
-                          }}
-                          className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
-                        >
-                          <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">{template.label}</p>
-                            <p className="text-xs text-gray-500">PDF Template</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    {isMarketingAgent ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                          {AF_DOCUMENT_TEMPLATES.filter(t =>
+                            t.file === 'Individual_Affidavit_of_Financial_Need_Template.pdf' ||
+                            t.file === 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf'
+                          ).map((template) => (
+                            <button
+                              key={template.file}
+                              onClick={() => {
+                                toast.success('Template ready for download', { description: template.file });
+                              }}
+                              className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
+                            >
+                              <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">{template.label}</p>
+                                <p className="text-xs text-gray-500">PDF Template</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Download required templates for signature and submission
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {AF_DOCUMENT_TEMPLATES.map((template) => (
+                            <button
+                              key={template.file}
+                              onClick={() => {
+                                toast.success('Template ready for download', { description: template.file });
+                              }}
+                              className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#023F40] hover:bg-[#023F40]/5 text-left transition-all group"
+                            >
+                              <Download className="w-5 h-5 text-[#023F40] flex-shrink-0" />
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">{template.label}</p>
+                                <p className="text-xs text-gray-500">PDF Template</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </motion.div>
               </>

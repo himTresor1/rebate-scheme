@@ -43,6 +43,9 @@ interface DocumentUploadSectionProps {
   onDocumentUpload: (docType: string, file: { name: string }) => void;
   onDocumentRemove: (docType: string) => void;
   onAdditionalDocumentsChange: (docs: AdditionalDocument[]) => void;
+  identityDocuments?: any;
+  onIdentityDocUpload?: (docType: string, file: { name: string }) => void;
+  onIdentityDocRemove?: (docType: string) => void;
 }
 
 const MAX_ADDITIONAL_DOCS = 5;
@@ -54,6 +57,9 @@ export function DocumentUploadSection({
   onDocumentUpload,
   onDocumentRemove,
   onAdditionalDocumentsChange,
+  identityDocuments = {},
+  onIdentityDocUpload = () => {},
+  onIdentityDocRemove = () => {},
 }: DocumentUploadSectionProps) {
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -110,11 +116,12 @@ export function DocumentUploadSection({
 
   const mandatoryRetrofitDocs = retrofitDocs.filter((d) => d.mandatory);
   const uploadedMandatory = mandatoryDocs.filter((d) => documents[d.key as keyof Documents]?.uploaded).length;
+  const uploadedIdentity = identityDocuments?.nationalIdDoc?.uploaded ? 1 : 0 + (identityDocuments?.driversLicenseDoc?.uploaded ? 1 : 0);
   const uploadedRetrofit = isRetrofit
     ? mandatoryRetrofitDocs.filter((d) => documents[d.key as keyof Documents]?.uploaded).length
     : 0;
-  const totalMandatory = mandatoryDocs.length + (isRetrofit ? mandatoryRetrofitDocs.length : 0);
-  const totalUploaded = uploadedMandatory + uploadedRetrofit;
+  const totalMandatory = mandatoryDocs.length + 2 + (isRetrofit ? mandatoryRetrofitDocs.length : 0); // +2 for National ID and License
+  const totalUploaded = uploadedMandatory + uploadedIdentity + uploadedRetrofit;
 
   const triggerTemplateDownload = (templateName: string) => {
     toast.success('Template ready for download', { description: templateName });
@@ -266,6 +273,108 @@ export function DocumentUploadSection({
     );
   };
 
+  const renderIdentityDocumentRow = (
+    doc: {
+      key: string;
+      label: string;
+      description: string;
+      mandatory?: boolean;
+    },
+    isMandatory: boolean
+  ) => {
+    const docStatus = identityDocuments?.[doc.key];
+    const isUploaded = !!docStatus?.uploaded;
+    const isUploading = uploadingDoc === doc.key;
+
+    return (
+      <div key={doc.key} className="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-white">
+        <div className="flex-shrink-0 pt-0.5">
+          {isUploaded ? (
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
+          ) : (
+            <FileText className="w-5 h-5 text-gray-400" />
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-gray-900 text-sm">
+            {doc.label}
+            {isMandatory ? <span className="text-red-500 ml-0.5">*</span> : null}
+          </p>
+          <p className="text-xs text-gray-600 mt-0.5">{doc.description}</p>
+          {isUploaded && docStatus?.name && (
+            <div className="flex items-center gap-2 text-xs text-green-800 bg-green-50 border border-green-200 rounded px-2 py-1.5 mt-2">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate font-medium">{docStatus.name}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {isUploaded ? (
+            <>
+              <Button size="sm" variant="outline" onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+                input.onchange = (e: Event) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  setUploadingDoc(doc.key);
+                  setTimeout(() => {
+                    onIdentityDocUpload(doc.key, { name: file.name });
+                    setUploadingDoc(null);
+                    toast.success('Document uploaded', { description: file.name });
+                  }, 400);
+                };
+                input.click();
+              }} disabled={isUploading}>
+                Replace
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onIdentityDocRemove(doc.key);
+                  toast.success('Document removed');
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+                input.onchange = (e: Event) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  setUploadingDoc(doc.key);
+                  setTimeout(() => {
+                    onIdentityDocUpload(doc.key, { name: file.name });
+                    setUploadingDoc(null);
+                    toast.success('Document uploaded', { description: file.name });
+                  }, 400);
+                };
+                input.click();
+              }}
+              disabled={isUploading}
+              className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
+            >
+              <Upload className="w-3.5 h-3.5 mr-1" />
+              {isUploading ? 'Uploading…' : 'Upload'}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+
   return (
     <>
       <Card className="border-0 shadow-none p-0">
@@ -289,6 +398,22 @@ export function DocumentUploadSection({
                 className="bg-[#023F40] h-2 rounded-full transition-all duration-300"
                 style={{ width: `${totalMandatory > 0 ? (totalUploaded / totalMandatory) * 100 : 0}%` }}
               />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-3">Identification Documents</h3>
+            <div className="space-y-2">
+              {renderIdentityDocumentRow({
+                key: 'nationalIdDoc',
+                label: 'National ID Document',
+                description: 'Upload a copy of the national ID.',
+              }, true)}
+              {renderIdentityDocumentRow({
+                key: 'driversLicenseDoc',
+                label: "Motorcycle Driver's License Document",
+                description: 'Upload a copy of the motorcycle license.',
+              }, true)}
             </div>
           </div>
 

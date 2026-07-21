@@ -561,16 +561,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {!notification.read && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => markAsRead(notification.id)}
-                            className="text-xs h-7"
-                          >
-                            Mark as read
-                          </Button>
-                        )}
                         {notification.actionable && (
                           <Button
                             size="sm"
@@ -580,11 +570,11 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                               if (notification.actionData && onAction) {
                                 onAction(notification.actionData);
                               } else {
-                                toast.info(`Navigating to: ${notification.actionLabel}`);
+                                toast.info('Navigating to application…');
                               }
                             }}
                           >
-                            {notification.actionLabel}
+                            Go to application
                           </Button>
                         )}
                       </div>
