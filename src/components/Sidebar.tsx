@@ -209,7 +209,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       case 'ASSET_FINANCIER_ADMIN': return 'Asset Financier';
       case 'CLAIMS_OFFICER': return 'Claims Officer';
       case 'ASSET_FINANCIER_OFFICER': return 'AF Finance Staff';
-      case 'ASSET_FINANCIER_STAFF': return 'Marketing Agent';
+      case 'ASSET_FINANCIER_STAFF': return `${user.organization || 'Asset Financier'} E-Moto Marketing Person`;
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';
       case 'REBATE_MANAGER': return 'Rebate Team (Manager)';

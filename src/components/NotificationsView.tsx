@@ -257,7 +257,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
         {
           id: 'af-1',
           type: 'application',
-          title: 'New rebate proposal from marketing agent',
+          title: 'New rebate proposal from marketing person',
           message: 'Kevin Agent submitted rebate proposal REB-002 for your review and submission to RGF.',
           timestamp: mins(15),
           read: false,
