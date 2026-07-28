@@ -17,6 +17,12 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     motorcycleModel: 'CXS',
     phoneNumber: '+250-4567',
     email: 'patrick.ndagijimana@example.rw',
+    motoLicense: 'DL-445566',
+    purchasePrice: '3500000',
+    loanAmount: '2800000',
+    loanTerm: '24',
+    monthlyRepayment: '116667',
+    repaymentFrequency: 'monthly',
     submittedBy: 'Pamela Mugabe',
     submittedByEmail: 'pamela.mugabe@equity.rw',
     submittedByPhone: '+250-3256',
@@ -40,6 +46,12 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     motorcycleModel: 'CXS',
     phoneNumber: '+250-4567',
     email: 'alice.mutoni@example.rw',
+    motoLicense: 'DL-778899',
+    purchasePrice: '3600000',
+    loanAmount: '2900000',
+    loanTerm: '24',
+    monthlyRepayment: '120833',
+    repaymentFrequency: 'monthly',
     submittedBy: 'Pamela Mugabe',
     submittedByEmail: 'pamela.mugabe@bboxx.rw',
     submittedByPhone: '+250-3256',
@@ -63,6 +75,12 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     motorcycleBrand: 'Rem',
     motorcycleModel: 'E5',
     phoneNumber: '+250-7890',
+    motoLicense: 'DL-112233',
+    purchasePrice: '3400000',
+    loanAmount: '2700000',
+    loanTerm: '18',
+    monthlyRepayment: '150000',
+    repaymentFrequency: 'monthly',
     submittedBy: 'James Uwizeye',
     submittedByEmail: 'james.uwizeye@bk.rw',
     submittedByPhone: '+250-1122',
@@ -84,7 +102,14 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     isRetrofit: true,
     motorcycleBrand: 'Rem',
     motorcycleModel: 'Retrofit Kit',
+    retrofitAssembler: 'REM Assemblers',
     phoneNumber: '+250-3344',
+    motoLicense: 'DL-998877',
+    purchasePrice: '1800000',
+    loanAmount: '1500000',
+    loanTerm: '12',
+    monthlyRepayment: '125000',
+    repaymentFrequency: 'monthly',
     submittedBy: 'Claire Mukamana',
     submittedByEmail: 'claire.mukamana@rem.rw',
     submittedByPhone: '+250-5566',
@@ -107,6 +132,12 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     motorcycleBrand: 'Safi',
     motorcycleModel: 'Urban',
     phoneNumber: '+250-7788',
+    motoLicense: 'DL-554433',
+    purchasePrice: '3500000',
+    loanAmount: '2800000',
+    loanTerm: '24',
+    monthlyRepayment: '116667',
+    repaymentFrequency: 'monthly',
     submittedBy: 'Pamela Mugabe',
     submittedByEmail: 'pamela.mugabe@bboxx.rw',
     submittedByPhone: '+250-3256',
@@ -146,11 +177,6 @@ export const DEMO_PIPELINE_APPLICATIONS = [
     assignedTo: 'demo-analyst',
   },
 ];
-
-export const ANALYST_DASHBOARD_STATS = {
-  verifiedNotPresentedQA: 23,
-  approvedNoEmotoConfirmation: 12,
-};
 
 export const QA_DASHBOARD_STATS = {
   verifiedForQaReview: 25,
@@ -358,6 +384,13 @@ type AnalystEnrichment = {
   email?: string;
   motorcycleBrand?: string;
   motorcycleModel?: string;
+  motoLicense?: string;
+  purchasePrice?: string;
+  loanAmount?: string;
+  loanTerm?: string;
+  monthlyRepayment?: string;
+  repaymentFrequency?: string;
+  retrofitAssembler?: string;
   submittedBy?: string;
   submittedByEmail?: string;
   submittedByPhone?: string;

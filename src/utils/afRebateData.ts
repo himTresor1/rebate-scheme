@@ -1,3 +1,5 @@
+import { DOC_NAMES, DOC_TEMPLATE_FILES } from './documentNames';
+
 export type AfRebateStatus =
   | 'unfinished'
   | 'submitted-not-approved'
@@ -283,7 +285,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 3500000,
     rebateAmount: 630000,
     status: 'submitted-not-approved',
-    supportingDocuments: ['Signed lease', 'National ID'],
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement, DOC_NAMES.nationalIdCopy],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
@@ -307,7 +309,14 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 1450000,
     rebateAmount: 185000,
     status: 'unfinished',
-    supportingDocuments: ['Client support letter'],
+    phoneNumber: '',
+    email: '',
+    tin: '',
+    loanAmount: undefined,
+    loanTerm: '18',
+    repaymentFrequency: 'monthly',
+    monthlyRepayment: 85000,
+    supportingDocuments: ['Client support letter', DOC_NAMES.signedFinancingAgreement],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: true,
@@ -355,7 +364,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 2800000,
     rebateAmount: 560000,
     status: 'approved-disbursed',
-    supportingDocuments: ['Signed lease', 'Possession confirmation'],
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement, DOC_NAMES.possessionStatement],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: true,
@@ -378,7 +387,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 3400000,
     rebateAmount: 850000,
     status: 'submitted-not-approved',
-    supportingDocuments: ['Signed lease'],
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
@@ -405,7 +414,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     affidavitUploaded: false,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
-    missingFields: ['Individual Affidavit (Financial Need)', 'Signed Financing Agreement'],
+    missingFields: [DOC_NAMES.notarizedAffidavit, DOC_NAMES.signedFinancingAgreement],
   },
   {
     ticketNumber: 'AF-BOK-MKT-201',
@@ -429,7 +438,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     affidavitUploaded: false,
     afFinancialNeedUploaded: false,
     iceAgreementUploaded: false,
-    missingFields: ['Signed Financing Agreement', 'Individual Affidavit (Financial Need)'],
+    missingFields: [DOC_NAMES.signedFinancingAgreement, DOC_NAMES.notarizedAffidavit],
   },
   {
     ticketNumber: 'AF-BOK-MKT-202',
@@ -454,7 +463,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     affidavitUploaded: true,
     afFinancialNeedUploaded: false,
     iceAgreementUploaded: false,
-    missingFields: ['AF Confirmation of Financial Need', 'Signed Retrofit Suitability Statement'],
+    missingFields: [DOC_NAMES.afConfirmationFinancialNeed, DOC_NAMES.retrofitSuitability],
   },
   {
     ticketNumber: 'AF-BOK-MKT-203',
@@ -478,7 +487,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
-    missingFields: ['Signed Financing Agreement'],
+    missingFields: [DOC_NAMES.signedFinancingAgreement],
   },
   {
     ticketNumber: 'AF-BOK-MKT-204',
@@ -502,7 +511,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     affidavitUploaded: false,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
-    missingFields: ['Individual Affidavit (Financial Need)', 'Signed Financing Agreement'],
+    missingFields: [DOC_NAMES.notarizedAffidavit, DOC_NAMES.signedFinancingAgreement],
   },
   {
     ticketNumber: 'AF-BOK-107',
@@ -523,7 +532,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 2900000,
     rebateAmount: 725000,
     status: 'approved-disbursed',
-    supportingDocuments: ['Signed lease', 'Possession confirmation'],
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement, DOC_NAMES.possessionStatement],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: true,
@@ -546,7 +555,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     retailCost: 3300000,
     rebateAmount: 594000,
     status: 'approved-lacking-possession',
-    supportingDocuments: ['Signed lease'],
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement],
     affidavitUploaded: true,
     afFinancialNeedUploaded: true,
     iceAgreementUploaded: false,
@@ -555,23 +564,23 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
 
 export const AF_DOCUMENT_TEMPLATES = [
   {
-    label: 'Individual Affidavit of Financial Need',
-    file: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+    label: DOC_NAMES.notarizedAffidavit,
+    file: DOC_TEMPLATE_FILES.notarizedAffidavit!,
   },
   {
-    label: 'Your Confirmation of Financial Need',
-    file: 'AF_Confirmation_of_Financial_Need_Template.pdf',
+    label: DOC_NAMES.afConfirmationFinancialNeed,
+    file: DOC_TEMPLATE_FILES.afConfirmationFinancialNeed!,
   },
   {
-    label: 'ICE-Moto Engine Disposal Agreement (for retrofits)',
-    file: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+    label: DOC_NAMES.iceEngineDisposal,
+    file: DOC_TEMPLATE_FILES.iceEngineDisposal!,
   },
   {
-    label: 'AF/Client Confirmation of E-Moto Possession',
-    file: 'AF_Client_Confirmation_of_EMoto_Possession_Template.pdf',
+    label: DOC_NAMES.possessionStatement,
+    file: DOC_TEMPLATE_FILES.possessionStatement!,
   },
   {
-    label: 'Retrofit Suitability Statement',
-    file: 'Retrofit_Suitability_Statement_Template.pdf',
+    label: DOC_NAMES.retrofitSuitability,
+    file: DOC_TEMPLATE_FILES.retrofitSuitability!,
   },
 ];

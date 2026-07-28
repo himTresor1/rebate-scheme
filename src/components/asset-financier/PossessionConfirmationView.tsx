@@ -10,6 +10,7 @@ import { DateInput } from '../ui/date-input';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber } from '../../utils/numberFormat';
 import { getRebatePercent } from '../../utils/rebateCalculation';
+import { DOC_NAMES, DOC_TEMPLATE_FILES } from '../../utils/documentNames';
 import {
   Dialog,
   DialogContent,
@@ -292,14 +293,14 @@ export function PossessionConfirmationView() {
           <div className="space-y-3 border rounded-lg p-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Signed AF/Client Confirmation of E-Moto Possession *
+                {DOC_NAMES.possessionStatement} *
               </label>
               <button
                 type="button"
                 className="text-xs text-[#023F40] underline underline-offset-2 mb-2"
                 onClick={() =>
                   toast.success('Template ready for download', {
-                    description: 'AF_Client_Confirmation_of_E_Moto_Possession_Template.pdf',
+                    description: DOC_TEMPLATE_FILES.possessionStatement,
                   })
                 }
               >

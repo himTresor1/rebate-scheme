@@ -136,10 +136,7 @@ export default function App() {
       {/* Main Content */}
       <main 
         className={`
-          flex-1 transition-all duration-300 w-full
-          
-          /* Mobile: No margin (sidebar overlays) */
-          /* Desktop: Dynamic margin based on sidebar state */
+          flex-1 min-w-0 max-w-full overflow-x-hidden transition-all duration-300
           md:ml-[72px]
           ${sidebarExpanded ? 'md:ml-[240px]' : 'md:ml-[72px]'}
         `}
@@ -151,8 +148,8 @@ export default function App() {
         {user?.role === 'CLAIMS_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'ASSET_FINANCIER_STAFF' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'ASSET_FINANCIER_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
-        {user?.role === 'analyst' && <AnalystDashboard user={user} currentPage={currentPage} />}
-        {user?.role === 'REBATE_ANALYST' && <AnalystDashboard user={user} currentPage={currentPage} />}
+        {user?.role === 'analyst' && <AnalystDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
+        {user?.role === 'REBATE_ANALYST' && <AnalystDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'REBATE_MANAGER' && <RebateManagerDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'E_MOTO_PROGRAM_MANAGER' && <ProgramManagerDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'DESIGNATED_FINANCE_OFFICER' && <FinanceDashboard user={user} currentPage={currentPage} />}

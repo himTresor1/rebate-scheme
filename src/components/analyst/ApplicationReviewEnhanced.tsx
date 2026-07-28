@@ -63,9 +63,11 @@ import {
 import { DocumentUploadField } from './DocumentUploadField';
 import { ForwardToMEDialog, MEForwardData } from './ForwardToMEDialog';
 import { CriterionCardEnhanced } from './CriterionCardEnhanced';
+import { FieldLabel } from '../asset-financier/FieldLabel';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber } from '../../utils/numberFormat';
 import { getRebatePercent } from '../../utils/rebateCalculation';
+import { DOC_KEYWORDS, DOC_NAMES } from '../../utils/documentNames';
 interface Application {
   id: string;
   companyName: string;
@@ -131,6 +133,11 @@ interface Application {
   submittedBy?: string;
   submittedByEmail?: string;
   submittedByPhone?: string;
+  tin?: string;
+  motoLicense?: string;
+  driversLicense?: string;
+  retrofitAssembler?: string;
+  repaymentFrequency?: string;
   eligibilityCheck?: {
     nationalIdCheck?: {
       dateOfBirth?: string;
@@ -412,13 +419,64 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
   };
 
   const handleAnalystVerified = async () => {
+    const ticketId =
+      application.ticketNumber ||
+      application.registrationNumber ||
+      application.id.replace('application:', '').toUpperCase();
+    const isRetrofit = Boolean(application.isRetrofit);
+    const requiredDocs = [
+      { label: DOC_NAMES.nationalIdCopy, keywords: DOC_KEYWORDS.nationalIdCopy },
+      { label: DOC_NAMES.motorcycleDriversLicense, keywords: DOC_KEYWORDS.motorcycleDriversLicense },
+      {
+        label: DOC_NAMES.signedFinancingAgreement,
+        keywords: DOC_KEYWORDS.signedFinancingAgreement,
+      },
+      { label: DOC_NAMES.notarizedAffidavit, keywords: DOC_KEYWORDS.notarizedAffidavit },
+      {
+        label: DOC_NAMES.afConfirmationFinancialNeed,
+        keywords: DOC_KEYWORDS.afConfirmationFinancialNeed,
+      },
+      ...(isRetrofit
+        ? [
+            {
+              label: DOC_NAMES.retrofitSuitability,
+              keywords: DOC_KEYWORDS.retrofitSuitability,
+            },
+            {
+              label: DOC_NAMES.iceEngineDisposal,
+              keywords: DOC_KEYWORDS.iceEngineDisposal,
+            },
+          ]
+        : []),
+    ];
+    const docKey = (label: string) => `doc-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const isDemoApp = application.id.includes('demo');
+
+    for (const doc of requiredDocs) {
+      const file = getDocumentByKeyword(doc.keywords);
+      const hasFile = Boolean(file?.url) || isDemoApp;
+      if (!hasFile) {
+        toast.error(`“${doc.label}” has no file. Only the possession statement may be missing.`);
+        return;
+      }
+      const decision = evaluations[docKey(doc.label)];
+      if (decision !== true) {
+        toast.error(
+          decision === false
+            ? `“${doc.label}” was rejected. Resolve it before sending to QA.`
+            : `Verify “${doc.label}” before sending to QA.`
+        );
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       await new Promise((r) => setTimeout(r, 300));
       onRecommendationSaved?.({
         applicationId: application.id,
         decision: 'approve',
-        notes: 'Rebate verified for QA Team review.',
+        notes: `Rebate ${ticketId} verified for QA Team review.`,
         timestamp: new Date().toISOString(),
       });
       toast.success('Rebate verified. Submit from the pipeline page when ready.');
@@ -443,19 +501,6 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
       const name = doc.name.toLowerCase();
       return keywords.some((keyword) => name.includes(keyword));
     });
-  };
-
-  const renderDocAccess = (keywords: string[]) => {
-    const doc = getDocumentByKeyword(keywords);
-    if (!doc?.url) return null;
-    return (
-      <Button size="sm" variant="outline" asChild className="h-8">
-        <a href={doc.url} target="_blank" rel="noreferrer">
-          <Eye className="w-4 h-4 mr-1" />
-          View
-        </a>
-      </Button>
-    );
   };
 
   const score = calculateScore();
@@ -495,33 +540,82 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
     const isRetrofit = Boolean(application.isRetrofit);
     const rebateAmountRwf = formatNumber(parseFloat(application.rebateAmount || '0') || 0);
     const rebatePercent = getRebatePercent({ isWoman, isRetrofit });
+    const isDemoApp = application.id.includes('demo');
+    const nameParts = (application.applicantName || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || '—';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '—';
+    const statusCategory =
+      application.status === 'under-review'
+        ? 'Review in process'
+        : application.status === 'assigned'
+          ? 'Rebates received but not yet verified'
+          : application.status.replace(/-/g, ' ');
 
-    const mandatoryDocs = [
-      { label: 'Signed Financing Contract', keywords: ['financing contract', 'contract', 'loan agreement'] },
-      { label: 'National ID', keywords: ['national id', 'id document', 'nid'] },
-      { label: 'Motorcycle License', keywords: ['license', 'moto license', 'driver'] },
-      { label: 'Individual Affidavit of Financial Need', keywords: ['affidavit'] },
-      { label: 'AF Confirmation of Financial Need', keywords: ['financial need', 'af confirmation'] },
+    type AnalystDoc = {
+      label: string;
+      keywords: string[];
+      mandatory?: boolean;
+      optional?: boolean;
+    };
+
+    const identityDocs: AnalystDoc[] = [
+      { label: DOC_NAMES.nationalIdCopy, keywords: DOC_KEYWORDS.nationalIdCopy, mandatory: true },
+      {
+        label: DOC_NAMES.motorcycleDriversLicense,
+        keywords: DOC_KEYWORDS.motorcycleDriversLicense,
+        mandatory: true,
+      },
     ];
-    const optionalDocs = [
-      { label: 'AF/Client Confirmation of Individual E-Moto Possession', keywords: ['possession'] },
+    const mandatoryDocs: AnalystDoc[] = [
+      {
+        label: DOC_NAMES.signedFinancingAgreement,
+        keywords: DOC_KEYWORDS.signedFinancingAgreement,
+        mandatory: true,
+      },
+      { label: DOC_NAMES.notarizedAffidavit, keywords: DOC_KEYWORDS.notarizedAffidavit, mandatory: true },
+      {
+        label: DOC_NAMES.afConfirmationFinancialNeed,
+        keywords: DOC_KEYWORDS.afConfirmationFinancialNeed,
+        mandatory: true,
+      },
     ];
-    const retrofitDocs = [
-      { label: 'Retrofit Suitability Statement', keywords: ['retrofit suitability', 'suitability'] },
-      { label: 'ICE-Engine Disposal Agreement', keywords: ['ice', 'disposal', 'engine'] },
+    const retrofitDocs: AnalystDoc[] = [
+      {
+        label: DOC_NAMES.retrofitSuitability,
+        keywords: DOC_KEYWORDS.retrofitSuitability,
+        mandatory: true,
+      },
+      {
+        label: DOC_NAMES.iceEngineDisposal,
+        keywords: DOC_KEYWORDS.iceEngineDisposal,
+        mandatory: true,
+      },
     ];
+    const optionalDocs: AnalystDoc[] = [
+      {
+        label: DOC_NAMES.possessionStatement,
+        keywords: DOC_KEYWORDS.possessionStatement,
+        optional: true,
+      },
+    ];
+    const knownLabels = [...identityDocs, ...mandatoryDocs, ...optionalDocs, ...retrofitDocs];
     const additionalDocs = (application.documents || []).filter((doc) => {
       const name = doc.name.toLowerCase();
-      const known = [...mandatoryDocs, ...optionalDocs, ...retrofitDocs].some((item) =>
-        item.keywords.some((kw) => name.includes(kw))
-      );
-      return !known;
+      return !knownLabels.some((item) => item.keywords.some((kw) => name.includes(kw)));
     });
+
     const docActionKey = (label: string) =>
       `doc-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
+    const hasDocFile = (keywords: string[], optional = false) => {
+      const file = getDocumentByKeyword(keywords);
+      if (file?.url) return true;
+      if (optional) return false;
+      return isDemoApp;
+    };
+
     const renderVerificationActions = (key: string) => (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           size="sm"
           className="w-24"
@@ -541,180 +635,322 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
       </div>
     );
 
+    const DetailField = ({
+      label,
+      value,
+      required = false,
+      optional = false,
+      isDate = false,
+    }: {
+      label: string;
+      value?: string | number | null;
+      required?: boolean;
+      optional?: boolean;
+      isDate?: boolean;
+    }) => {
+      const missing = required && (value === undefined || value === null || value === '' || value === '—');
+      const display = missing
+        ? 'Missing'
+        : isDate
+          ? formatDisplayDate(typeof value === 'string' ? value : undefined)
+          : value || '—';
+      return (
+        <div>
+          <FieldLabel as="span" required={required} optional={optional} className="mb-0">
+            {label}
+          </FieldLabel>
+          <p className={`font-medium ${missing ? 'text-amber-700' : 'text-gray-900'}`}>{display}</p>
+        </div>
+      );
+    };
+
+    const renderDocRow = (doc: AnalystDoc) => {
+      const key = docActionKey(doc.label);
+      const file = getDocumentByKeyword(doc.keywords);
+      const uploaded = hasDocFile(doc.keywords, doc.optional);
+      return (
+        <div
+          key={doc.label}
+          className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-white ${
+            doc.optional ? 'border-dashed' : ''
+          }`}
+        >
+          <div className="flex-shrink-0">
+            {uploaded ? (
+              <CheckCircle2 className="w-5 h-5 text-green-600" />
+            ) : (
+              <FileText className="w-5 h-5 text-gray-500" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900 text-sm">
+              {doc.label}
+              {doc.mandatory ? <span className="text-red-500 ml-1">*</span> : null}
+              {doc.optional ? (
+                <span className="text-xs text-gray-500 ml-2">
+                  (optional — can be submitted later; rebate can be verified without this)
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+            {uploaded ? (
+              file?.url ? (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={file.url} target="_blank" rel="noreferrer">
+                    <Eye className="w-3.5 h-3.5 mr-1" />
+                    View
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => toast.info('Document on file', { description: doc.label })}
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1" />
+                  View
+                </Button>
+              )
+            ) : doc.optional ? (
+              <Badge className="bg-gray-100 text-gray-700">No file yet</Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-800">Missing</Badge>
+            )}
+            {renderVerificationActions(key)}
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        <div className="space-y-3">
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden p-4 sm:p-6 lg:p-8 space-y-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <Button variant="outline" onClick={onBack} className="w-fit">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Pipeline
           </Button>
-          <h2 className="text-xl sm:text-2xl font-semibold text-[#023F40]">Rebate Team Verification Page</h2>
-          <p className="text-sm text-gray-600 max-w-4xl">
-            This page is for the Rebate Team to verify each rebate submission. If the information and documents
-            are verified, the Rebate Team clicks on &lsquo;Verified Rebate for QA Team Review.&rsquo;
-          </p>
+          <Badge className="bg-blue-100 text-blue-900">{statusCategory}</Badge>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Ticket ID</p>
-                  <p className="text-base font-semibold text-[#023F40]">{ticketId}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Applicant Name</p>
-                  <p className="text-base font-medium text-gray-900">{application.applicantName}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Date Received</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {formatDisplayDate(application.createdAt)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p>
-                  <p className="text-base font-medium text-gray-900">{application.companyName}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">DOB</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p>
-                  <p className="text-base font-medium text-gray-900">{application.phoneNumber || 'Not provided'}</p>
-                </div>
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Gender</p>
-                  <p className="text-base font-medium text-gray-900">{genderLabel}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p>
-                  <p className="text-base font-medium text-gray-900">
-                    {application.isRetrofit ? 'Retrofit' : 'New E-Moto'}
-                  </p>
-                </div>
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p>
-                  <p className="text-base font-medium text-gray-900">{application.motorcycleBrand || 'Not provided'}</p>
-                </div>
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p>
-                  <p className="text-base font-medium text-gray-900">{application.motorcycleModel || 'Not provided'}</p>
-                </div>
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
-                  <p className="text-base font-semibold text-[#023F40]">{rebateAmountRwf}</p>
-                </div>
-                <div className="bg-gray-50 border rounded-md p-3">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
-                  <p className="text-base font-semibold text-[#023F40]">{rebatePercent}</p>
-                </div>
-              </div>
+        <div>
+          <h2 className="text-lg sm:text-xl text-[#023F40]">Rebate Team Verification Page</h2>
+          <p className="text-gray-600 mt-1 text-sm max-w-4xl">
+            This page is for the Rebate Team to verify each rebate submission. If the information and
+            documents are verified, the Rebate Team clicks on &lsquo;Verified Rebate for QA Team
+            Review.&rsquo;
+          </p>
+          <p className="text-sm text-red-700 mt-2">Status: {statusCategory}</p>
+        </div>
 
-              <div className="border rounded-lg p-4 bg-slate-50 h-fit">
-                <p className="text-sm font-semibold text-[#023F40] mb-3">Submitted By</p>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">Name</p>
-                    <p className="font-medium text-gray-900">{application.submittedBy || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-medium text-gray-900">{application.submittedByEmail || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Phone</p>
-                    <p className="font-medium text-gray-900">{application.submittedByPhone || 'Not provided'}</p>
-                  </div>
+        <Card className="w-full min-w-0 overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-[#023F40]">
+              Rebate Application Details — {ticketId}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Submitted by</span>
+                <p className="font-medium">{application.submittedBy || 'Not provided'}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Email</span>
+                <p className="font-medium">{application.submittedByEmail || 'Not provided'}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Phone</span>
+                <p className="font-medium">{application.submittedByPhone || 'Not provided'}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Date Received</span>
+                <p className="font-medium">{formatDisplayDate(application.createdAt)}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Ticket No.</span>
+                <p className="font-medium text-[#023F40]">{ticketId}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">Asset Financier</span>
+                <p className="font-medium">{application.companyName || '—'}</p>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-gray-900 mb-3">Individual Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <DetailField label="Individual first name(s)" value={firstName} required />
+                <DetailField label="Individual last name(s)" value={lastName} required />
+                <DetailField
+                  label="Date of Birth"
+                  value={application.eligibilityCheck?.nationalIdCheck?.dateOfBirth}
+                  isDate
+                  required
+                />
+                <DetailField label="Gender?" value={genderLabel} required />
+                <DetailField
+                  label="Vehicle Type?"
+                  value={isRetrofit ? 'Retrofit' : 'New E-Moto'}
+                  required
+                />
+                <DetailField label="Phone Number" value={application.phoneNumber} required />
+                <DetailField label="Email" value={application.email} optional />
+                <DetailField label="TIN (Tax Identification Number)" value={application.tin} optional />
+                <DetailField label="National ID" value={application.nationalId} required />
+                <DetailField
+                  label="Motorcycle Driver's License"
+                  value={application.motoLicense || application.driversLicense}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-gray-900 mb-3">Vehicle and Financing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <DetailField
+                  label="E-Moto Provider"
+                  value={isRetrofit ? undefined : application.motorcycleBrand}
+                  required={!isRetrofit}
+                />
+                <DetailField label="E-Moto Model" value={application.motorcycleModel} required />
+                {isRetrofit && (
+                  <DetailField
+                    label="Retrofit Assembler"
+                    value={application.retrofitAssembler}
+                    required
+                  />
+                )}
+                <DetailField
+                  label={isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
+                  value={
+                    application.purchasePrice
+                      ? formatNumber(parseFloat(String(application.purchasePrice)) || 0)
+                      : undefined
+                  }
+                  required
+                />
+                <DetailField
+                  label="Total Contract Repayment Amount (RWF)"
+                  value={
+                    application.loanAmount
+                      ? formatNumber(parseFloat(String(application.loanAmount)) || 0)
+                      : undefined
+                  }
+                  required
+                />
+                <DetailField
+                  label="Rebate Amount (RWF) — auto-calculated"
+                  value={rebateAmountRwf}
+                />
+                <DetailField label="Rebate Percentage (%)" value={rebatePercent} />
+                <DetailField label="Contract Term (months)" value={application.loanTerm} required />
+                <DetailField
+                  label="Repayment Frequency"
+                  value={
+                    application.repaymentFrequency === 'weekly'
+                      ? 'Weekly'
+                      : application.repaymentFrequency === 'daily'
+                        ? 'Daily'
+                        : application.repaymentFrequency === 'monthly'
+                          ? 'Monthly'
+                          : application.repaymentFrequency
+                  }
+                  required
+                />
+                <DetailField
+                  label="Repayment Amount (RWF)"
+                  value={
+                    application.monthlyRepayment
+                      ? formatNumber(parseFloat(String(application.monthlyRepayment)) || 0)
+                      : undefined
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-gray-900 mb-1 text-sm uppercase tracking-wide">
+                Identification Documents
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                For each document, select <span className="font-medium">Verified</span> or{' '}
+                <span className="font-medium">Rejected</span>.
+              </p>
+              <div className="space-y-2">{identityDocs.map(renderDocRow)}</div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-[#0a7d4b] mb-1 uppercase tracking-wide text-sm">
+                Mandatory Documents
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Review and verify required documents. A file is required for every mandatory document.
+              </p>
+              <div className="space-y-2">{mandatoryDocs.map(renderDocRow)}</div>
+
+              {isRetrofit && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    If retrofit
+                  </p>
+                  <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
+                </div>
+              )}
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Optional (can be submitted later)
+                </p>
+                <div className="space-y-2">{optionalDocs.map(renderDocRow)}</div>
+              </div>
+            </div>
+
+            {additionalDocs.length > 0 && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-900 mb-1">{DOC_NAMES.additionalSupporting}</h3>
+                <p className="text-xs text-gray-600 mb-3">Only shown when optional documents were uploaded.</p>
+                <div className="space-y-2">
+                  {additionalDocs.map((doc) => (
+                    <div
+                      key={doc.name}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-white"
+                    >
+                      <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {doc.url ? (
+                          <Button size="sm" variant="outline" asChild>
+                            <a href={doc.url} target="_blank" rel="noreferrer">
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              View
+                            </a>
+                          </Button>
+                        ) : null}
+                        {renderVerificationActions(docActionKey(doc.name))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
+            )}
+
+            <div className="border-t pt-4 flex justify-end">
+              <Button
+                onClick={handleAnalystVerified}
+                disabled={saving}
+                className="bg-[#6DB27F] hover:bg-[#5da170] text-white uppercase tracking-wide"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                {saving ? 'Saving...' : 'Verified Rebate for QA Team Review'}
+              </Button>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-[#023F40]">Mandatory Verification Checklist</CardTitle>
-            <CardDescription className="text-sm text-gray-500">
-              Review required contract data and documentation from the Asset Financier perspective.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {mandatoryDocs.map((doc) => (
-              <div key={doc.label} className="border rounded-lg p-3 space-y-3">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
-                  {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
-                </div>
-                <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.label))}</div>
-              </div>
-            ))}
-            {optionalDocs.map((doc) => (
-              <div key={doc.label} className="border rounded-lg p-3 border-dashed space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{doc.label}</p>
-                  <p className="text-xs text-gray-500">Optional — rebate can be verified without this document</p>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
-                  {renderVerificationActions(docActionKey(doc.label))}
-                </div>
-              </div>
-            ))}
-            {application.isRetrofit && (
-              <div className="space-y-3 pt-2 border-t">
-                <p className="text-sm font-semibold text-gray-700">Retrofit-Specific Documents</p>
-                {retrofitDocs.map((doc) => (
-                  <div key={doc.label} className="border rounded-lg p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="text-sm font-medium text-gray-900">{doc.label}</p>
-                      {renderDocAccess(doc.keywords) || <span className="text-xs text-gray-400">No file</span>}
-                    </div>
-                    <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.label))}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {additionalDocs.length > 0 && (
-              <div className="space-y-3 pt-2 border-t">
-                <p className="text-sm font-semibold text-gray-700">Additional Documents</p>
-                {additionalDocs.map((doc) => (
-                  <div key={doc.name} className="border rounded-lg p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="text-sm font-medium text-gray-900">{doc.name}</p>
-                      {doc.url ? (
-                        <Button size="sm" variant="outline" asChild className="h-8">
-                          <a href={doc.url} target="_blank" rel="noreferrer">
-                            <Eye className="w-4 h-4 mr-1" />
-                            View
-                          </a>
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-gray-400">No file</span>
-                      )}
-                    </div>
-                    <div className="flex justify-end">{renderVerificationActions(docActionKey(doc.name))}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end">
-          <Button
-            onClick={handleAnalystVerified}
-            disabled={saving}
-            className="bg-[#6DB27F] hover:bg-[#5da170] text-white uppercase tracking-wide"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Verified Rebate for QA Team Review'}
-          </Button>
-        </div>
       </div>
     );
   }

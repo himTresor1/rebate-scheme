@@ -31,6 +31,7 @@ import { getQaPresentationApplications } from '../../utils/demoPipelineData';
 import { getRebatePercent } from '../../utils/rebateCalculation';
 import { formatNumber } from '../../utils/numberFormat';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { DOC_NAMES } from '../../utils/documentNames';
 
 interface Application {
   id: string;
@@ -73,35 +74,35 @@ function enrichQaApplication(app: any, index: number): any {
   const createdAt = app.createdAt || new Date().toISOString();
   const defaultDocs = [
     {
-      name: 'Signed Financing Contract',
+      name: DOC_NAMES.signedFinancingAgreement,
       type: 'pdf',
       url: '/mock/documents/financing-contract.pdf',
       uploadedAt: createdAt,
       verified: true,
     },
     {
-      name: 'National ID Document',
+      name: DOC_NAMES.nationalIdCopy,
       type: 'pdf',
       url: '/mock/documents/national-id.pdf',
       uploadedAt: createdAt,
       verified: true,
     },
     {
-      name: 'Motorcycle Driver License',
+      name: DOC_NAMES.motorcycleDriversLicense,
       type: 'pdf',
       url: '/mock/documents/driver-license.pdf',
       uploadedAt: createdAt,
       verified: true,
     },
     {
-      name: 'Individual Affidavit of Financial Need',
+      name: DOC_NAMES.notarizedAffidavit,
       type: 'pdf',
       url: '/mock/documents/affidavit.pdf',
       uploadedAt: createdAt,
       verified: true,
     },
     {
-      name: 'AF Confirmation of Financial Need',
+      name: DOC_NAMES.afConfirmationFinancialNeed,
       type: 'pdf',
       url: '/mock/documents/af-confirmation.pdf',
       uploadedAt: createdAt,
@@ -111,14 +112,14 @@ function enrichQaApplication(app: any, index: number): any {
   if (app.isRetrofit) {
     defaultDocs.push(
       {
-        name: 'Retrofit Suitability Statement',
+        name: DOC_NAMES.retrofitSuitability,
         type: 'pdf',
         url: '/mock/documents/retrofit-suitability.pdf',
         uploadedAt: createdAt,
         verified: true,
       },
       {
-        name: 'ICE-Engine Disposal Agreement',
+        name: DOC_NAMES.iceEngineDisposal,
         type: 'pdf',
         url: '/mock/documents/ice-disposal.pdf',
         uploadedAt: createdAt,
@@ -129,7 +130,7 @@ function enrichQaApplication(app: any, index: number): any {
   // Most demos omit possession — optional for QA approval / CFO exclusion rule
   if (index % 3 === 0) {
     defaultDocs.push({
-      name: 'AF/Client Confirmation of Individual E-Moto Possession',
+      name: DOC_NAMES.possessionStatement,
       type: 'pdf',
       url: '/mock/documents/possession.pdf',
       uploadedAt: createdAt,

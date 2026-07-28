@@ -1917,7 +1917,7 @@ export async function seedData() {
     return [
       // Identity Documents
       {
-        name: 'National ID Document',
+        name: 'National ID Copy',
         type: 'pdf',
         url: `/mock/documents/national-id-${applicantName.replace(/\\s+/g, '-').toLowerCase()}.pdf`,
         uploadedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -1942,7 +1942,7 @@ export async function seedData() {
       },
       // Application Documents
       {
-        name: 'Signed Affidavit',
+        name: 'Notarized Individual Affidavit of Financial Need',
         type: 'pdf',
         url: `/mock/documents/affidavit-${applicantName.replace(/\\s+/g, '-').toLowerCase()}.pdf`,
         uploadedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),

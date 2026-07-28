@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { FileText, X } from 'lucide-react';
+import { DOC_NAMES } from '../../utils/documentNames';
 
 export interface FinancingDetailsData {
   ticketNumber: string;
@@ -27,12 +28,12 @@ interface FinancingDetailsViewProps {
 
 export function FinancingDetailsView({ data, onClose, embedded = false }: FinancingDetailsViewProps) {
   const docs = data.documents ?? [
-    { label: 'National ID', required: true, uploaded: true },
-    { label: 'Motorcycle License', required: true, uploaded: true },
-    { label: 'Notarized Individual Affidavit', required: true, uploaded: true },
-    { label: 'AF Confirmation of Financial Need', required: true, uploaded: true },
-    { label: 'AF/Client Confirmation of E-Moto Possession', required: false, uploaded: false },
-    { label: 'Mobile Money Statements', required: false, uploaded: false },
+    { label: DOC_NAMES.nationalIdCopy, required: true, uploaded: true },
+    { label: DOC_NAMES.motorcycleDriversLicense, required: true, uploaded: true },
+    { label: DOC_NAMES.notarizedAffidavit, required: true, uploaded: true },
+    { label: DOC_NAMES.afConfirmationFinancialNeed, required: true, uploaded: true },
+    { label: DOC_NAMES.possessionStatement, required: false, uploaded: false },
+    { label: DOC_NAMES.additionalSupporting, required: false, uploaded: false },
   ];
 
   const content = (

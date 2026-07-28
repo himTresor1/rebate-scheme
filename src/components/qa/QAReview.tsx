@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { getRebatePercent } from '../../utils/rebateCalculation';
 import { formatNumber } from '../../utils/numberFormat';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { DOC_KEYWORDS, DOC_NAMES } from '../../utils/documentNames';
 
 interface Application {
   id: string;
@@ -116,22 +117,22 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
   };
 
   const mandatoryDocs = [
-    { label: 'Signed Financing Contract', keywords: ['financing contract', 'contract', 'loan agreement'] },
-    { label: 'National ID', keywords: ['national id', 'id document', 'nid'] },
-    { label: 'Motorcycle License', keywords: ['license', 'moto license', 'driver'] },
-    { label: 'Individual Affidavit of Financial Need', keywords: ['affidavit'] },
-    { label: 'AF Confirmation of Financial Need', keywords: ['financial need', 'af confirmation'] },
+    { label: DOC_NAMES.signedFinancingAgreement, keywords: DOC_KEYWORDS.signedFinancingAgreement },
+    { label: DOC_NAMES.nationalIdCopy, keywords: DOC_KEYWORDS.nationalIdCopy },
+    { label: DOC_NAMES.motorcycleDriversLicense, keywords: DOC_KEYWORDS.motorcycleDriversLicense },
+    { label: DOC_NAMES.notarizedAffidavit, keywords: DOC_KEYWORDS.notarizedAffidavit },
+    { label: DOC_NAMES.afConfirmationFinancialNeed, keywords: DOC_KEYWORDS.afConfirmationFinancialNeed },
   ];
   const optionalDocs = [
     {
-      label: 'AF/Client Confirmation of Individual E-Moto Possession',
-      keywords: ['possession'],
+      label: DOC_NAMES.possessionStatement,
+      keywords: DOC_KEYWORDS.possessionStatement,
       note: 'Not mandatory to approve and include in the approved report; if missing, excluded from the CFO Disbursement Request.',
     },
   ];
   const retrofitDocs = [
-    { label: 'Retrofit Suitability Statement', keywords: ['retrofit suitability', 'suitability'] },
-    { label: 'ICE-Engine Disposal Agreement', keywords: ['ice', 'disposal', 'engine'] },
+    { label: DOC_NAMES.retrofitSuitability, keywords: DOC_KEYWORDS.retrofitSuitability },
+    { label: DOC_NAMES.iceEngineDisposal, keywords: DOC_KEYWORDS.iceEngineDisposal },
   ];
   const additionalDocs = (application.documents || []).filter((doc) => {
     const name = doc.name.toLowerCase();

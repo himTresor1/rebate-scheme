@@ -18,6 +18,7 @@ import { calculateRebateAmount, generateTicketPreview, getRebateEligibilityLabel
 import { formatNumber, formatRwfAmount } from '../../utils/numberFormat';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { FieldLabel } from './FieldLabel';
+import { DOC_NAMES, DOC_TEMPLATE_FILES } from '../../utils/documentNames';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,8 @@ interface SubmitApplicationFormProps {
   submittedBy?: string;
   onSaveUnfinished?: (formData: Record<string, unknown>, missingFields: string[], ticketNumber: string) => void;
   onSubmitted?: (ticketNumber: string) => void;
+  /** Opens Background Info for the “HERE” process overview link. */
+  onNavigateToBackgroundInfo?: () => void;
 }
 
 type ApplicationStep = 'identity' | 'vehicle' | 'documents' | 'review';
@@ -78,6 +81,7 @@ export function SubmitApplicationForm({
   submittedBy = 'AF User',
   onSaveUnfinished,
   onSubmitted,
+  onNavigateToBackgroundInfo,
 }: SubmitApplicationFormProps) {
   const isAfProposal = submissionMode === 'af-proposal';
   const [currentStep, setCurrentStep] = useState<ApplicationStep>('identity');
@@ -171,28 +175,30 @@ export function SubmitApplicationForm({
     if (!formData.isRetrofit && !formData.purchasePrice) missing.push('Retail E-Moto Price (RWF)');
 
     // Identity doc uploads (required for both modes)
-    if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push('National ID Document');
-    if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push("Motorcycle Driver's License Document");
+    if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push(DOC_NAMES.nationalIdCopy);
+    if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push(DOC_NAMES.motorcycleDriversLicense);
 
     if (isAfProposal) {
       // Marketing agent: no signed lease / AF confirmation required
       // Affidavit is optional ("can be submitted later")
       if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
-        missing.push('Retrofit Suitability Statement');
+        missing.push(DOC_NAMES.retrofitSuitability);
       }
       if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
-        missing.push('ICE-Engine Disposal Agreement');
+        missing.push(DOC_NAMES.iceEngineDisposal);
       }
     } else {
       // AF: require full AF document set
-      if (!formData.documents?.signedLease?.uploaded) missing.push('Signed Lease');
-      if (!formData.documents?.affidavit?.uploaded) missing.push('Individual Affidavit (Financial Need)');
-      if (!formData.documents?.afFinancialNeed?.uploaded) missing.push('AF Confirmation of Financial Need');
+      if (!formData.documents?.signedLease?.uploaded) missing.push(DOC_NAMES.signedFinancingAgreement);
+      if (!formData.documents?.affidavit?.uploaded) missing.push(DOC_NAMES.notarizedAffidavit);
+      if (!formData.documents?.afFinancialNeed?.uploaded) {
+        missing.push(DOC_NAMES.afConfirmationFinancialNeed);
+      }
       if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
-        missing.push('Signed Retrofit Suitability Statement');
+        missing.push(DOC_NAMES.retrofitSuitability);
       }
       if (formData.isRetrofit && !formData.documents?.iceDisposalAgreement?.uploaded) {
-        missing.push('ICE-Engine Disposal Agreement');
+        missing.push(DOC_NAMES.iceEngineDisposal);
       }
     }
     return missing;
@@ -397,10 +403,30 @@ export function SubmitApplicationForm({
         <h2 className="text-lg sm:text-xl text-[#023F40]">
           {isAfProposal ? 'Submit Rebate Proposal' : 'Submit Rebate Requirements'}
         </h2>
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-600 mt-1 max-w-4xl">
           {isAfProposal
             ? 'Complete the same rebate application steps used by Asset Financiers. Your submission goes to AF finance decision-makers for review — it is not sent to RGF until they approve and submit it.'
-            : 'Submit leases with documentation for individuals who required financial support (rebates) to meet your e-moto financing requirements.'}
+            : (
+              <>
+                Requesting a rebate takes four simple steps: provide your personal information, upload the
+                required documentation, enter your vehicle financing details, and review and submit your
+                application. For a complete overview of the process, click{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onNavigateToBackgroundInfo) {
+                      onNavigateToBackgroundInfo();
+                    } else {
+                      toast.info('Open Background Info from the sidebar for a full process overview.');
+                    }
+                  }}
+                  className="font-semibold text-[#023F40] underline underline-offset-2 hover:text-[#035f60]"
+                >
+                  HERE
+                </button>
+                .
+              </>
+            )}
         </p>
         {requireAssetFinancierSelection && (
           <div className="mt-4 max-w-md">
@@ -623,13 +649,12 @@ function IdentityStep({
   isAfProposal?: boolean;
 }) {
   const identityDocs = [
-    { key: 'nationalIdDoc', label: 'National ID Document', description: 'Upload a copy of the national ID.' },
+    { key: 'nationalIdDoc', label: DOC_NAMES.nationalIdCopy, description: "Copy of beneficiary's National ID card." },
     {
       key: 'driversLicenseDoc',
-      label: "Motorcycle Driver's License Document",
-      description: 'Upload a copy of the motorcycle license.',
+      label: DOC_NAMES.motorcycleDriversLicense,
+      description: "Copy of beneficiary's motorcycle license issued by RNP.",
     },
-    // Date of Birth Document removed — prohibited
   ];
 
   const handleIdentityFileUpload = (docType: string) => {
@@ -1152,20 +1177,20 @@ function MarketingDocumentsSection({
           <h4 className="font-semibold text-gray-900 mb-1">Mandatory Documents</h4>
           <p className="text-xs text-gray-500 mb-3">Please upload these documents now</p>
           <div className="space-y-2">
-            {renderIdentityRow('nationalIdDoc', 'National ID')}
-            {renderIdentityRow('driversLicenseDoc', "Motorcycle driver's license")}
+            {renderIdentityRow('nationalIdDoc', DOC_NAMES.nationalIdCopy)}
+            {renderIdentityRow('driversLicenseDoc', DOC_NAMES.motorcycleDriversLicense)}
           </div>
 
           {isRetrofit && (
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-700 mb-2">If retrofit</p>
               <div className="space-y-2">
-                {renderDocRow('retrofitSuitability', 'Retrofit Suitability Statement', {
+                {renderDocRow('retrofitSuitability', DOC_NAMES.retrofitSuitability, {
                   redLabel: true,
                   note: 'The retrofit assembler you have selected can give you this signed form.',
                 })}
-                {renderDocRow('iceDisposalAgreement', 'ICE-Engine Disposal Agreement', {
-                  template: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+                {renderDocRow('iceDisposalAgreement', DOC_NAMES.iceEngineDisposal, {
+                  template: DOC_TEMPLATE_FILES.iceEngineDisposal,
                   note: 'Your agreement for disposal of your ICE-moto engine.',
                 })}
               </div>
@@ -1177,8 +1202,8 @@ function MarketingDocumentsSection({
         <div className="border-t pt-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Mandatory document that can be submitted later</p>
           <div className="space-y-2">
-            {renderDocRow('affidavit', 'Individual Affidavit of Financial Need', {
-              template: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+            {renderDocRow('affidavit', DOC_NAMES.notarizedAffidavit, {
+              template: DOC_TEMPLATE_FILES.notarizedAffidavit,
               note: 'Needs to be notarized.',
               optional: true,
             })}
@@ -1187,7 +1212,7 @@ function MarketingDocumentsSection({
 
         {/* Additional documents */}
         <div className="border-t pt-4">
-          <h4 className="font-semibold text-gray-900 mb-1">Additional Documents</h4>
+          <h4 className="font-semibold text-gray-900 mb-1">{DOC_NAMES.additionalSupporting}</h4>
           <p className="text-xs text-gray-600 mb-3">
             You can add up to {MAX_ADDITIONAL} additional supporting documents (e.g., employment letter, personal reference, mobile money statement).
           </p>
@@ -1450,17 +1475,17 @@ function ReviewStep({
             <h5 className="text-sm font-semibold text-[#023F40] mb-3 uppercase tracking-wide">Mandatory Documents</h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               {[
-                { label: 'National ID Document', uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
-                { label: "Motorcycle Driver's License Document", uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
+                { label: DOC_NAMES.nationalIdCopy, uploaded: !!formData.identityDocuments?.nationalIdDoc?.uploaded },
+                { label: DOC_NAMES.motorcycleDriversLicense, uploaded: !!formData.identityDocuments?.driversLicenseDoc?.uploaded },
                 ...(!isAfProposal ? [
-                  { label: 'Signed Financing Agreement with Retail Cost of E-Moto', uploaded: !!formData.documents?.signedLease?.uploaded },
-                  { label: 'AF Confirmation of Financial Need', uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
+                  { label: DOC_NAMES.signedFinancingAgreement, uploaded: !!formData.documents?.signedLease?.uploaded },
+                  { label: DOC_NAMES.afConfirmationFinancialNeed, uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
                 ] : []),
-                { label: 'Individual Affidavit of Financial Need', uploaded: !!formData.documents?.affidavit?.uploaded },
+                { label: DOC_NAMES.notarizedAffidavit, uploaded: !!formData.documents?.affidavit?.uploaded },
                 ...(formData.isRetrofit
                   ? [
-                      { label: 'Retrofit Suitability Statement', uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
-                      { label: 'ICE-Engine Disposal Agreement (if Retrofit)', uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
+                      { label: DOC_NAMES.retrofitSuitability, uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
+                      { label: DOC_NAMES.iceEngineDisposal, uploaded: !!formData.documents?.iceDisposalAgreement?.uploaded },
                     ]
                   : []),
               ].map((item) => (
@@ -1484,7 +1509,7 @@ function ReviewStep({
                   <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
                 )}
                 <span className={formData.documents?.possessionConfirmation?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
-                  AF and Client Confirmation of E-Moto Possession
+                  {DOC_NAMES.possessionStatement}
                 </span>
               </div>
             </div>

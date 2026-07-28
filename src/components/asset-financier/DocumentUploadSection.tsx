@@ -13,6 +13,7 @@ import {
 } from '../ui/dialog';
 import { Upload, CheckCircle2, AlertCircle, FileText, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { DOC_NAMES, DOC_TEMPLATE_FILES } from '../../utils/documentNames';
 
 export interface DocumentStatus {
   uploaded: boolean;
@@ -69,58 +70,63 @@ export function DocumentUploadSection({
   const mandatoryDocs = [
     {
       key: 'signedLease',
-      label: 'Signed Financing Agreement with Retail Cost of E-Moto',
-      description: 'Signed lease documenting retail cost (RWF).',
+      label: DOC_NAMES.signedFinancingAgreement,
+      description: 'Executed financing agreement submitted by AF.',
     },
     {
       key: 'affidavit',
-      label: 'Individual Affidavit of Financial Need',
-      description: 'Must be signed by client and notarized.',
+      label: DOC_NAMES.notarizedAffidavit,
+      description: 'Beneficiary declaration of financial need — must be notarized.',
       hasTemplate: true,
-      templateName: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.notarizedAffidavit,
     },
     {
       key: 'afFinancialNeed',
-      label: 'AF Confirmation of Financial Need',
-      description: 'Must be signed by Asset Financier.',
+      label: DOC_NAMES.afConfirmationFinancialNeed,
+      description: 'AF confirmation that the beneficiary requires financial support.',
       hasTemplate: true,
-      templateName: 'AF_Confirmation_of_Financial_Need_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.afConfirmationFinancialNeed,
     },
   ];
 
   const retrofitDocs = [
     {
       key: 'retrofitSuitability',
-      label: 'Signed Retrofit Suitability Statement',
+      label: DOC_NAMES.retrofitSuitability,
       description:
-        'An RGF-authorized retrofit assembler is required to certify safety and reliability.',
+        'Confirmation that the motorcycle is suitable for retrofit (safety and sustainability).',
       mandatory: true,
     },
     {
       key: 'iceDisposalAgreement',
-      label: 'ICE-Engine Disposal Agreement (if Retrofit)',
-      description: 'Must be signed by client for retrofit applications.',
+      label: DOC_NAMES.iceEngineDisposal,
+      description: 'Proof of proper disposal of the ICE-moto engine.',
       mandatory: true,
       hasTemplate: true,
-      templateName: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.iceEngineDisposal,
     },
+  ];
+
+  const optionalDocs = [
     {
       key: 'possessionConfirmation',
-      label: 'AF and Client Confirmation of E-Moto Possession',
-      description: 'Can be submitted later.',
+      label: DOC_NAMES.possessionStatement,
+      description: 'Confirmation that the beneficiary has taken possession of the e-moto. Can be submitted later.',
       mandatory: false,
       hasTemplate: true,
-      templateName: 'AF_Client_Confirmation_of_EMoto_Possession_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.possessionStatement,
     },
   ];
 
   const mandatoryRetrofitDocs = retrofitDocs.filter((d) => d.mandatory);
   const uploadedMandatory = mandatoryDocs.filter((d) => documents[d.key as keyof Documents]?.uploaded).length;
-  const uploadedIdentity = identityDocuments?.nationalIdDoc?.uploaded ? 1 : 0 + (identityDocuments?.driversLicenseDoc?.uploaded ? 1 : 0);
+  const uploadedIdentity =
+    (identityDocuments?.nationalIdDoc?.uploaded ? 1 : 0) +
+    (identityDocuments?.driversLicenseDoc?.uploaded ? 1 : 0);
   const uploadedRetrofit = isRetrofit
     ? mandatoryRetrofitDocs.filter((d) => documents[d.key as keyof Documents]?.uploaded).length
     : 0;
-  const totalMandatory = mandatoryDocs.length + 2 + (isRetrofit ? mandatoryRetrofitDocs.length : 0); // +2 for National ID and License
+  const totalMandatory = mandatoryDocs.length + 2 + (isRetrofit ? mandatoryRetrofitDocs.length : 0);
   const totalUploaded = uploadedMandatory + uploadedIdentity + uploadedRetrofit;
 
   const triggerTemplateDownload = (templateName: string) => {
@@ -406,13 +412,13 @@ export function DocumentUploadSection({
             <div className="space-y-2">
               {renderIdentityDocumentRow({
                 key: 'nationalIdDoc',
-                label: 'National ID Document',
-                description: 'Upload a copy of the national ID.',
+                label: DOC_NAMES.nationalIdCopy,
+                description: "Copy of beneficiary's National ID card.",
               }, true)}
               {renderIdentityDocumentRow({
                 key: 'driversLicenseDoc',
-                label: "Motorcycle Driver's License Document",
-                description: 'Upload a copy of the motorcycle license.',
+                label: DOC_NAMES.motorcycleDriversLicense,
+                description: "Copy of beneficiary's motorcycle license issued by RNP.",
               }, true)}
             </div>
           </div>
@@ -424,7 +430,7 @@ export function DocumentUploadSection({
 
           {isRetrofit && (
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">If retrofit</h3>
+              <h3 className="font-semibold text-gray-900 mb-3">Additional required documents for retrofits</h3>
               <div className="bg-sky-50 border border-sky-200 rounded-lg p-4 space-y-2">
                 {retrofitDocs.map((doc) => renderDocumentRow(doc, !!doc.mandatory))}
               </div>
@@ -432,7 +438,14 @@ export function DocumentUploadSection({
           )}
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">Additional Supporting Documents</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Optional — can be submitted later</h3>
+            <div className="space-y-2">
+              {optionalDocs.map((doc) => renderDocumentRow(doc, false))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-1">{DOC_NAMES.additionalSupporting}</h3>
             <p className="text-xs text-gray-600 mb-2">
               Name each document first, then upload the corresponding file. You can add up to{' '}
               {MAX_ADDITIONAL_DOCS} additional documents.

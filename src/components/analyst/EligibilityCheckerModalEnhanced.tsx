@@ -11,6 +11,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { DOC_NAMES } from '../../utils/documentNames';
 import {
   CheckCircle2,
   AlertCircle,
@@ -229,16 +230,16 @@ export function EligibilityCheckerModalEnhanced({
 
   const documents = application?.documents || {};
   const mandatoryDocs = [
-    { key: 'affidavit', label: 'Signed Affidavit', docType: 'Affidavit' },
-    { key: 'nationalId', label: 'National ID', docType: 'National ID' },
+    { key: 'affidavit', label: DOC_NAMES.notarizedAffidavit, docType: 'Affidavit' },
+    { key: 'nationalId', label: DOC_NAMES.nationalIdCopy, docType: 'National ID' },
     { key: 'taxiLicense', label: 'Taxi License (RURA)', docType: 'Taxi License' },
     { key: 'coopOrReference', label: 'Coop Membership OR Reference Letter', docType: 'Reference' }
   ];
 
   if (application?.isRetrofit) {
     mandatoryDocs.push(
-      { key: 'retrofitCompanyLetter', label: 'E-Moto Company Letter', docType: 'Company Letter' },
-      { key: 'retrofitOwnerLetter', label: 'Engine Disposal Agreement', docType: 'Agreement' }
+      { key: 'retrofitCompanyLetter', label: DOC_NAMES.retrofitSuitability, docType: 'Company Letter' },
+      { key: 'retrofitOwnerLetter', label: DOC_NAMES.iceEngineDisposal, docType: 'Agreement' }
     );
   }
 

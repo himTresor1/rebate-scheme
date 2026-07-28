@@ -4,7 +4,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
-import { Filter } from 'lucide-react';
+import { ClipboardList, Filter, Printer } from 'lucide-react';
+import { motion } from 'motion/react';
 import { User } from '../../utils/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -13,12 +14,18 @@ import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
 import { NotificationsView } from '../NotificationsView';
 import {
-  ANALYST_DASHBOARD_STATS,
   analystDaysAfterReceipt,
   enrichAnalystApplication,
   withDemoPipelineFallback,
 } from '../../utils/demoPipelineData';
+import {
+  ANALYST_DASHBOARD_STATS,
+  ANALYST_METRIC_LABELS,
+  AnalystMetricCategory,
+  metricCount,
+} from '../../utils/analystRebateData';
 import { ReassignmentCheckingPage } from './ReassignmentCheckingPage';
+import { AnalystReportsView } from './AnalystReportsView';
 import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
@@ -49,6 +56,7 @@ interface Application {
 interface AnalystDashboardProps {
   user: User;
   currentPage: string;
+  onNavigate?: (page: string) => void;
 }
 
 interface RecommendationRecord {
@@ -59,7 +67,17 @@ interface RecommendationRecord {
   submitted: boolean;
 }
 
-export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
+const DASHBOARD_CARDS: {
+  category: Exclude<AnalystMetricCategory, 'all'>;
+  value: number;
+}[] = [
+  { category: 'not-yet-verified', value: ANALYST_DASHBOARD_STATS.notYetVerified },
+  { category: 'over-two-days', value: ANALYST_DASHBOARD_STATS.overTwoDays },
+  { category: 'verified-not-qa', value: ANALYST_DASHBOARD_STATS.verifiedNotPresentedQA },
+  { category: 'approved-no-emoto', value: ANALYST_DASHBOARD_STATS.approvedNoEmotoConfirmation },
+];
+
+export function AnalystDashboard({ user, currentPage, onNavigate }: AnalystDashboardProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
@@ -72,6 +90,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
   const [filterSla, setFilterSla] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [recommendations, setRecommendations] = useState<Record<string, RecommendationRecord>>({});
+  const [reportCategory, setReportCategory] = useState<AnalystMetricCategory>('all');
 
   useEffect(() => {
     loadApplications();
@@ -80,7 +99,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
   const loadApplications = async () => {
     try {
       const data = await api.getAllApplications();
-      // Filter applications assigned to this analyst
       const myApps = withDemoPipelineFallback(
         data.filter((app: Application) => app.assignedTo === user.id || app.assignedTo === 'demo-analyst'),
         true
@@ -127,7 +145,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
 
   const financiers = Array.from(new Set(applications.map((a) => a.companyName))).sort();
 
-  // Filter applications
   let filteredApps = applications.filter((app) => {
     if (filterStatus !== 'all' && app.status !== filterStatus) return false;
     if (filterFinancier !== 'all' && app.companyName !== filterFinancier) return false;
@@ -154,7 +171,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     return true;
   });
 
-  // Sort applications
   const sortedApps = [...filteredApps].sort((a, b) => {
     if (sortBy === 'date-oldest') {
       return new Date(a.assignedAt || a.createdAt).getTime() - new Date(b.assignedAt || b.createdAt).getTime();
@@ -177,10 +193,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     return 0;
   });
 
-  const notYetReviewedApps = applications.filter((app) =>
-    ['assigned', 'under-review'].includes(app.status)
-  );
-  const overTwoDaysNotReviewed = notYetReviewedApps.filter((app) => daysSinceReceipt(app) > 2);
   const pendingRecommendations = Object.values(recommendations).filter((r) => !r.submitted).length;
 
   const handleSubmitRecommendations = () => {
@@ -199,6 +211,13 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     });
     toast.success(`Submitted ${pendingRecommendations} recommendation(s) for weekly QA review.`);
   };
+
+  const openMetricReport = (category: AnalystMetricCategory) => {
+    setReportCategory(category);
+    onNavigate?.('analyst-reports');
+  };
+
+  const openApplication = (app: Application) => setSelectedApp(enrichAnalystApplication(app));
 
   if (selectedApp) {
     if (!selectedApp?.id) {
@@ -227,8 +246,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
-  const openApplication = (app: Application) => setSelectedApp(enrichAnalystApplication(app));
-
   if (currentPage === 'notifications') {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -253,6 +270,18 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
+  if (currentPage === 'analyst-reports') {
+    return (
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <Greeting name={user.name || 'Analyst'} />
+        <div className="mt-6 w-full min-w-0 max-w-full">
+          <AnalystReportsView user={user} initialCategory={reportCategory} />
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -261,11 +290,78 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     );
   }
 
+  // Dashboard overview — status cards + quick actions (AF pattern)
+  if (currentPage === 'dashboard') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <PageHeader />
+        <Greeting name={user.name || 'Analyst'} />
+        <div>
+          <h1 className="text-lg sm:text-xl text-[#023F40] mt-2">Rebate Team Dashboard</h1>
+          <p className="text-sm text-gray-600 mt-2 max-w-4xl">
+            The Rebate Team is accountable for verifying rebate submissions against supporting documentation,
+            communicating with Asset Financiers when clarification is needed, and recommending verified rebates
+            to the QA Team for approval before CFO review.
+          </p>
+          <p className="text-sm text-gray-700 mt-3 font-medium">
+            To access rebate details, please click on the below status categories.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {DASHBOARD_CARDS.map((card, index) => (
+            <motion.button
+              key={card.category}
+              type="button"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * (index + 1) }}
+              onClick={() => openMetricReport(card.category)}
+              className="bg-gradient-to-br from-[#023F40] to-[#035f60] p-4 rounded-xl shadow-md text-white text-left hover:from-[#035f60] hover:to-[#047a7c] transition-colors"
+            >
+              <p className="text-3xl font-bold mb-1">{card.value}</p>
+              <p className="text-white/85 text-xs leading-snug">{ANALYST_METRIC_LABELS[card.category]}</p>
+            </motion.button>
+          ))}
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <h2 className="mb-4 font-semibold text-gray-900">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setReportCategory('all');
+                onNavigate?.('analyst-reports');
+              }}
+              className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+            >
+              <Printer className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+              <span className="font-medium text-gray-900 text-sm">Create and Print Reports</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate?.('queue')}
+              className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+            >
+              <ClipboardList className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+              <span className="font-medium text-gray-900 text-sm">Rebate Review Pipeline</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   const showAssignedOnly = currentPage === 'assigned';
   const tableRows = showAssignedOnly
     ? sortedApps.filter((app) => app.status === 'assigned')
     : sortedApps.filter((app) => ['assigned', 'under-review'].includes(app.status));
-  const defaultReportCount = notYetReviewedApps.length;
+  const defaultReportCount = metricCount('not-yet-verified');
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -274,41 +370,26 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
       <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">
         {showAssignedOnly ? 'Assigned Rebates' : 'Rebate Review Pipeline'}
       </h1>
-      <p className="text-sm text-gray-600 mt-1">Check AF documentation, record eligibility results, and recommend to Rebate Team (no final decisions).</p>
-      <div className="mt-4 flex justify-end">
+      <p className="text-sm text-gray-600 mt-1">
+        Check AF documentation, record eligibility results, and recommend to Rebate Team (no final decisions).
+      </p>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button
+          variant="outline"
+          className="border-[#023F40] text-[#023F40]"
+          onClick={() => {
+            setReportCategory('all');
+            onNavigate?.('analyst-reports');
+          }}
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Create and Print Reports
+        </Button>
         <Button onClick={handleSubmitRecommendations} className="bg-[#023F40] hover:bg-[#035f60]">
           Submit Recommendations
         </Button>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Rebates received but not yet reviewed</p>
-            <p className="text-2xl font-bold text-[#023F40]">{notYetReviewedApps.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Of which received more than 2 days ago</p>
-            <p className="text-2xl font-bold text-[#023F40]">{overTwoDaysNotReviewed.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Rebates Verified but not yet presented to QA Team</p>
-            <p className="text-2xl font-bold text-[#023F40]">{ANALYST_DASHBOARD_STATS.verifiedNotPresentedQA}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Rebates Approved but No E-Moto Confirmation</p>
-            <p className="text-2xl font-bold text-[#023F40]">{ANALYST_DASHBOARD_STATS.approvedNoEmotoConfirmation}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
       <Card className="mt-8 mb-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -400,13 +481,15 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
               <SelectContent>
                 <SelectItem value="all">All financiers</SelectItem>
                 {financiers.map((f) => (
-                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <p className="text-xs text-gray-500">
-            Showing {tableRows.length} of {defaultReportCount} assigned applications
+            Showing {tableRows.length} of {defaultReportCount} assigned applications in this view
           </p>
         </CardContent>
       </Card>
@@ -416,7 +499,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
           <CardTitle className="text-base text-[#023F40]">
             {showAssignedOnly
               ? 'Assigned Rebates'
-              : `Default Report: Rebates received but not yet reviewed (${defaultReportCount})`}
+              : `Default Report: Rebates received but not yet verified (${defaultReportCount})`}
           </CardTitle>
           <CardDescription>Click on the Ticket Number to verify the rebate submission.</CardDescription>
         </CardHeader>
@@ -457,9 +540,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
                       <td className="py-3 pr-3">{toGenderLabel(app)}</td>
                       <td className="py-3 pr-3">{daysSinceReceipt(app)}</td>
                       <td className="py-3">
-                        <Badge className={toStatusBadgeClass(app)}>
-                          {toPipelineStatusLabel(app)}
-                        </Badge>
+                        <Badge className={toStatusBadgeClass(app)}>{toPipelineStatusLabel(app)}</Badge>
                       </td>
                     </tr>
                   ))}

@@ -4,6 +4,8 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { DateInput } from '../ui/date-input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
   Dialog,
   DialogContent,
@@ -23,18 +25,19 @@ import {
 } from '../../utils/afRebateData';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber } from '../../utils/numberFormat';
-import { getRebatePercent } from '../../utils/rebateCalculation';
+import { calculateRebateAmount, getRebatePercent } from '../../utils/rebateCalculation';
 import { FieldLabel } from './FieldLabel';
+import { DOC_NAMES, DOC_TEMPLATE_FILES } from '../../utils/documentNames';
 
 export type RebateApplicationDetailsData = AfRebateRecord;
 
 interface RebateApplicationDetailsPageProps {
   data: RebateApplicationDetailsData;
   onBack: () => void;
-  /** Marketing agent proposal — AF adds docs before submission to RGF. */
   variant?: 'af-submitted' | 'proposal-review';
   onFinishApplication?: (data: RebateApplicationDetailsData) => void;
-  /** Whether the viewer is a marketing agent (affects doc layout). */
+  onSubmitApplication?: (data: RebateApplicationDetailsData) => void;
+  onUpdateRecord?: (data: RebateApplicationDetailsData) => void;
   isMarketingAgent?: boolean;
 }
 
@@ -51,6 +54,38 @@ const ACCEPTED_ADDITIONAL_DOCS = [
   'Mobile money statement',
 ];
 
+type FieldInputKind = 'text' | 'date' | 'number' | 'select';
+
+type EditableFieldKey =
+  | 'firstName'
+  | 'lastName'
+  | 'dateOfBirth'
+  | 'gender'
+  | 'vehicleType'
+  | 'phoneNumber'
+  | 'email'
+  | 'tin'
+  | 'nationalId'
+  | 'motoLicense'
+  | 'supplier'
+  | 'model'
+  | 'retrofitAssembler'
+  | 'retailCost'
+  | 'loanAmount'
+  | 'loanTerm'
+  | 'repaymentFrequency'
+  | 'monthlyRepayment';
+
+interface FieldDef {
+  key: EditableFieldKey;
+  label: string;
+  required?: boolean;
+  optional?: boolean;
+  isDate?: boolean;
+  kind: FieldInputKind;
+  selectOptions?: Array<{ value: string; label: string }>;
+}
+
 interface DocRow {
   key: string;
   label: string;
@@ -60,44 +95,164 @@ interface DocRow {
   templateName?: string;
 }
 
-function DetailField({
-  label,
-  value,
-  record,
-  isDate = false,
-  required = false,
-  optional = false,
-}: {
-  label: string;
-  value?: string | number;
-  record: AfRebateRecord;
-  isDate?: boolean;
-  required?: boolean;
-  optional?: boolean;
-}) {
-  const missing = isAfFieldMissing(record, label, value);
-  const formattedValue =
-    missing
-      ? 'Missing'
-      : isDate
-        ? formatDisplayDate(typeof value === 'string' ? value : undefined)
-        : typeof value === 'number'
-          ? formatNumber(value)
-          : value || '—';
-
-  return (
-    <div>
-      <FieldLabel as="span" required={required} optional={optional} className="mb-0">
-        {label}
-      </FieldLabel>
-      <p className={`font-medium ${missing ? 'text-amber-700' : ''}`}>{formattedValue}</p>
-    </div>
-  );
-}
-
 function formatRwf(value?: number) {
   if (value === undefined || value === null || value === 0) return undefined;
   return formatNumber(value);
+}
+
+function getFieldRawValue(record: AfRebateRecord, key: EditableFieldKey): string {
+  switch (key) {
+    case 'firstName':
+      return record.firstName || '';
+    case 'lastName':
+      return record.lastName || '';
+    case 'dateOfBirth':
+      return record.dateOfBirth || '';
+    case 'gender':
+      return record.isWoman ? 'Woman' : record.gender ? 'Man' : '';
+    case 'vehicleType':
+      return record.vehicleType || '';
+    case 'phoneNumber':
+      return record.phoneNumber || '';
+    case 'email':
+      return record.email || '';
+    case 'tin':
+      return record.tin || '';
+    case 'nationalId':
+      return record.nationalId || '';
+    case 'motoLicense':
+      return record.motoLicense || '';
+    case 'supplier':
+      return record.supplier || '';
+    case 'model':
+      return record.model || '';
+    case 'retrofitAssembler':
+      return record.retrofitAssembler || '';
+    case 'retailCost':
+      return record.retailCost ? String(record.retailCost) : '';
+    case 'loanAmount':
+      return record.loanAmount ? String(record.loanAmount) : '';
+    case 'loanTerm':
+      return record.loanTerm || '';
+    case 'repaymentFrequency':
+      return record.repaymentFrequency || '';
+    case 'monthlyRepayment':
+      return record.monthlyRepayment ? String(record.monthlyRepayment) : '';
+    default:
+      return '';
+  }
+}
+
+function applyFieldValue(
+  record: AfRebateRecord,
+  key: EditableFieldKey,
+  raw: string
+): AfRebateRecord {
+  const next = { ...record };
+  const trimmed = raw.trim();
+
+  switch (key) {
+    case 'firstName':
+      next.firstName = trimmed;
+      break;
+    case 'lastName':
+      next.lastName = trimmed;
+      break;
+    case 'dateOfBirth':
+      next.dateOfBirth = trimmed;
+      break;
+    case 'gender': {
+      const isWoman = trimmed === 'Woman';
+      next.isWoman = isWoman;
+      next.gender = isWoman ? 'Female' : 'Male';
+      next.rebateAmount = calculateRebateAmount(next.retailCost || 0, {
+        isWoman: next.isWoman,
+        isRetrofit: next.isRetrofit,
+      });
+      break;
+    }
+    case 'vehicleType': {
+      const isRetrofit = trimmed === 'Retrofit';
+      next.vehicleType = isRetrofit ? 'Retrofit' : 'New E-Moto';
+      next.isRetrofit = isRetrofit;
+      next.rebateAmount = calculateRebateAmount(next.retailCost || 0, {
+        isWoman: next.isWoman,
+        isRetrofit: next.isRetrofit,
+      });
+      break;
+    }
+    case 'phoneNumber':
+      next.phoneNumber = trimmed;
+      break;
+    case 'email':
+      next.email = trimmed;
+      break;
+    case 'tin':
+      next.tin = trimmed || undefined;
+      break;
+    case 'nationalId':
+      next.nationalId = trimmed;
+      break;
+    case 'motoLicense':
+      next.motoLicense = trimmed;
+      break;
+    case 'supplier':
+      next.supplier = trimmed;
+      break;
+    case 'model':
+      next.model = trimmed;
+      break;
+    case 'retrofitAssembler':
+      next.retrofitAssembler = trimmed || undefined;
+      break;
+    case 'retailCost': {
+      const n = parseFloat(trimmed.replace(/,/g, '')) || 0;
+      next.retailCost = n;
+      next.rebateAmount = calculateRebateAmount(n, {
+        isWoman: next.isWoman,
+        isRetrofit: next.isRetrofit,
+      });
+      break;
+    }
+    case 'loanAmount':
+      next.loanAmount = trimmed ? parseFloat(trimmed.replace(/,/g, '')) || 0 : undefined;
+      break;
+    case 'loanTerm':
+      next.loanTerm = trimmed || undefined;
+      break;
+    case 'repaymentFrequency':
+      next.repaymentFrequency = (trimmed as AfRebateRecord['repaymentFrequency']) || undefined;
+      break;
+    case 'monthlyRepayment':
+      next.monthlyRepayment = trimmed ? parseFloat(trimmed.replace(/,/g, '')) || 0 : undefined;
+      break;
+  }
+
+  const labelForKey: Partial<Record<EditableFieldKey, string>> = {
+    firstName: 'Individual first name(s)',
+    lastName: 'Individual last name(s)',
+    dateOfBirth: 'Date of Birth',
+    gender: 'Gender?',
+    vehicleType: 'Vehicle Type?',
+    phoneNumber: 'Phone Number',
+    email: 'Email',
+    tin: 'TIN (Tax Identification Number)',
+    nationalId: 'National ID',
+    motoLicense: "Motorcycle Driver's License",
+    supplier: 'E-Moto Provider',
+    model: 'E-Moto Model',
+    retrofitAssembler: 'Retrofit Assembler',
+    retailCost: next.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)',
+    loanAmount: 'Total Contract Repayment Amount (RWF)',
+    loanTerm: 'Contract Term (months)',
+    repaymentFrequency: 'Repayment Frequency',
+    monthlyRepayment: 'Repayment Amount (RWF)',
+  };
+  const label = labelForKey[key];
+  if (label && next.missingFields?.length) {
+    next.missingFields = next.missingFields.filter((f) => f !== label && !f.toLowerCase().includes(key.toLowerCase()));
+  }
+  return next;
 }
 
 export function RebateApplicationDetailsPage({
@@ -105,22 +260,29 @@ export function RebateApplicationDetailsPage({
   onBack,
   variant = 'af-submitted',
   onFinishApplication,
+  onSubmitApplication,
+  onUpdateRecord,
   isMarketingAgent = false,
 }: RebateApplicationDetailsPageProps) {
   const isProposalReview = variant === 'proposal-review';
   const isUnfinished = data.status === 'unfinished';
   const canEditDocs = isProposalReview || isUnfinished;
-  const submitterContact = getSubmitterContactInfo(data);
+  const canFillMissing = canEditDocs;
+
+  const [record, setRecord] = useState<AfRebateRecord>(data);
+  const submitterContact = getSubmitterContactInfo(record);
 
   const [docStatus, setDocStatus] = useState<Record<string, boolean>>({
-    signedLease: !isUnfinished,
+    signedLease: !isUnfinished || Boolean(data.supportingDocuments?.some((d) => /financ|lease|contract/i.test(d))),
     affidavit: data.affidavitUploaded,
     afFinancialNeed: data.afFinancialNeedUploaded,
     nationalIdDoc: !isAfFieldMissing(data, 'National ID', data.nationalId),
     driversLicenseDoc: !isAfFieldMissing(data, "Motorcycle Driver's License", data.motoLicense),
     iceDisposalAgreement: data.iceAgreementUploaded,
-    retrofitSuitability: false,
-    possessionConfirmation: false,
+    retrofitSuitability: Boolean(data.supportingDocuments?.some((d) => /suitability/i.test(d))),
+    possessionConfirmation: Boolean(
+      data.supportingDocuments?.some((d) => /possession/i.test(d))
+    ),
   });
 
   const [additionalDocs, setAdditionalDocs] = useState<
@@ -142,23 +304,84 @@ export function RebateApplicationDetailsPage({
   const [pendingLabel, setPendingLabel] = useState('');
   const [pendingFileName, setPendingFileName] = useState('');
 
+  const [fieldModal, setFieldModal] = useState<FieldDef | null>(null);
+  const [fieldDraft, setFieldDraft] = useState('');
+  const [docModal, setDocModal] = useState<DocRow | null>(null);
+  const [docFileName, setDocFileName] = useState('');
+
+  const persistRecord = (next: AfRebateRecord) => {
+    setRecord(next);
+    onUpdateRecord?.(next);
+  };
+
+  const openFieldModal = (field: FieldDef) => {
+    setFieldModal(field);
+    setFieldDraft(getFieldRawValue(record, field.key));
+  };
+
+  const saveFieldModal = () => {
+    if (!fieldModal) return;
+    if (fieldModal.required && !fieldDraft.trim()) {
+      toast.error(`Please enter ${fieldModal.label}.`);
+      return;
+    }
+    const next = applyFieldValue(record, fieldModal.key, fieldDraft);
+    persistRecord(next);
+    toast.success(`${fieldModal.label} saved`);
+    setFieldModal(null);
+    setFieldDraft('');
+  };
+
+  const openDocModal = (doc: DocRow) => {
+    setDocModal(doc);
+    setDocFileName('');
+  };
+
+  const chooseDocFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) setDocFileName(file.name);
+    };
+    input.click();
+  };
+
+  const saveDocModal = () => {
+    if (!docModal) return;
+    if (!docFileName) {
+      toast.error('Choose a file to upload.');
+      return;
+    }
+    setDocStatus((prev) => ({ ...prev, [docModal.key]: true }));
+    let next = { ...record };
+    if (docModal.key === 'affidavit') next = { ...next, affidavitUploaded: true };
+    if (docModal.key === 'afFinancialNeed') next = { ...next, afFinancialNeedUploaded: true };
+    if (docModal.key === 'iceDisposalAgreement') next = { ...next, iceAgreementUploaded: true };
+    if (docModal.key === 'possessionConfirmation' || docModal.key === 'retrofitSuitability' || docModal.key === 'signedLease') {
+      const docs = [...(next.supportingDocuments || [])];
+      if (!docs.includes(docModal.label)) docs.push(docModal.label);
+      next = { ...next, supportingDocuments: docs };
+    }
+    if (next.missingFields?.length) {
+      next = {
+        ...next,
+        missingFields: next.missingFields.filter(
+          (f) => !f.toLowerCase().includes(docModal.label.toLowerCase().slice(0, 12).toLowerCase())
+        ),
+      };
+    }
+    persistRecord(next);
+    toast.success(`${docModal.label} uploaded`, { description: docFileName });
+    setDocModal(null);
+    setDocFileName('');
+  };
+
   const openDocument = (name: string) => {
     const blob = new Blob([`Demo document preview for ${name}`], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-  };
-
-  const handleUpload = (key: string, label: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
-    input.onchange = (e: any) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      setDocStatus((prev) => ({ ...prev, [key]: true }));
-      toast.success(`${label} uploaded`, { description: file.name });
-    };
-    input.click();
   };
 
   const resetAddModal = () => {
@@ -171,8 +394,8 @@ export function RebateApplicationDetailsPage({
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
-    input.onchange = (e: any) => {
-      const file = e.target.files?.[0];
+    input.onchange = (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (file) setPendingFileName(file.name);
     };
     input.click();
@@ -201,59 +424,189 @@ export function RebateApplicationDetailsPage({
   };
 
   const identityDocs: DocRow[] = [
-    { key: 'nationalIdDoc', label: 'National ID Document', mandatory: true },
-    { key: 'driversLicenseDoc', label: "Motorcycle Driver's License Document", mandatory: true },
-    // Date of Birth Document removed — prohibited
+    { key: 'nationalIdDoc', label: DOC_NAMES.nationalIdCopy, mandatory: true },
+    { key: 'driversLicenseDoc', label: DOC_NAMES.motorcycleDriversLicense, mandatory: true },
   ];
 
   const mandatoryDocs: DocRow[] = [
-    {
-      key: 'signedLease',
-      label: 'Signed Financing Agreement with Retail Cost of E-Moto',
-      mandatory: true,
-    },
+    { key: 'signedLease', label: DOC_NAMES.signedFinancingAgreement, mandatory: true },
     {
       key: 'affidavit',
-      label: 'Individual Affidavit of Financial Need',
+      label: DOC_NAMES.notarizedAffidavit,
       mandatory: true,
       hasTemplate: true,
-      templateName: 'Individual_Affidavit_of_Financial_Need_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.notarizedAffidavit,
     },
     {
       key: 'afFinancialNeed',
-      label: 'AF Confirmation of Financial Need',
+      label: DOC_NAMES.afConfirmationFinancialNeed,
       mandatory: true,
       hasTemplate: true,
-      templateName: 'AF_Confirmation_of_Financial_Need_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.afConfirmationFinancialNeed,
     },
   ];
 
   const retrofitDocs: DocRow[] = [
     {
       key: 'retrofitSuitability',
-      label: 'Signed Retrofit Suitability Statement',
+      label: DOC_NAMES.retrofitSuitability,
       mandatory: true,
       hasTemplate: true,
-      templateName: 'Retrofit_Suitability_Statement_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.retrofitSuitability,
     },
     {
       key: 'iceDisposalAgreement',
-      label: 'ICE-Engine Disposal Agreement (if Retrofit)',
+      label: DOC_NAMES.iceEngineDisposal,
       mandatory: true,
       hasTemplate: true,
-      templateName: 'ICE_Moto_Engine_Disposal_Agreement_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.iceEngineDisposal,
     },
   ];
 
   const optionalDocs: DocRow[] = [
     {
       key: 'possessionConfirmation',
-      label: 'AF and Client Confirmation of E-Moto Possession',
+      label: DOC_NAMES.possessionStatement,
       optional: true,
       hasTemplate: true,
-      templateName: 'AF_Client_Confirmation_of_EMoto_Possession_Template.pdf',
+      templateName: DOC_TEMPLATE_FILES.possessionStatement,
     },
   ];
+
+  const individualFields: FieldDef[] = [
+    { key: 'firstName', label: 'Individual first name(s)', required: true, kind: 'text' },
+    { key: 'lastName', label: 'Individual last name(s)', required: true, kind: 'text' },
+    { key: 'dateOfBirth', label: 'Date of Birth', required: true, kind: 'date', isDate: true },
+    {
+      key: 'gender',
+      label: 'Gender?',
+      required: true,
+      kind: 'select',
+      selectOptions: [
+        { value: 'Man', label: 'Man' },
+        { value: 'Woman', label: 'Woman' },
+      ],
+    },
+    {
+      key: 'vehicleType',
+      label: 'Vehicle Type?',
+      required: true,
+      kind: 'select',
+      selectOptions: [
+        { value: 'New E-Moto', label: 'New E-Moto' },
+        { value: 'Retrofit', label: 'Retrofit' },
+      ],
+    },
+    { key: 'phoneNumber', label: 'Phone Number', required: true, kind: 'text' },
+    { key: 'email', label: 'Email', optional: true, kind: 'text' },
+    { key: 'tin', label: 'TIN (Tax Identification Number)', optional: true, kind: 'text' },
+    { key: 'nationalId', label: 'National ID', required: true, kind: 'text' },
+    { key: 'motoLicense', label: "Motorcycle Driver's License", required: true, kind: 'text' },
+  ];
+
+  const vehicleFields: FieldDef[] = [
+    { key: 'supplier', label: 'E-Moto Provider', required: true, kind: 'text' },
+    { key: 'model', label: 'E-Moto Model', required: true, kind: 'text' },
+    ...(record.isRetrofit
+      ? [{ key: 'retrofitAssembler' as const, label: 'Retrofit Assembler', required: true, kind: 'text' as const }]
+      : []),
+    {
+      key: 'retailCost',
+      label: record.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)',
+      required: true,
+      kind: 'number',
+    },
+    {
+      key: 'loanAmount',
+      label: 'Total Contract Repayment Amount (RWF)',
+      required: true,
+      kind: 'number',
+    },
+    { key: 'loanTerm', label: 'Contract Term (months)', required: true, kind: 'text' },
+    {
+      key: 'repaymentFrequency',
+      label: 'Repayment Frequency',
+      required: true,
+      kind: 'select',
+      selectOptions: [
+        { value: 'daily', label: 'Daily' },
+        { value: 'weekly', label: 'Weekly' },
+        { value: 'monthly', label: 'Monthly' },
+      ],
+    },
+    { key: 'monthlyRepayment', label: 'Repayment Amount (RWF)', required: true, kind: 'number' },
+  ];
+
+  const displayValue = (field: FieldDef) => {
+    const raw = getFieldRawValue(record, field.key);
+    if (field.key === 'repaymentFrequency') {
+      if (raw === 'weekly') return 'Weekly';
+      if (raw === 'monthly') return 'Monthly';
+      if (raw === 'daily') return 'Daily';
+    }
+    if (field.key === 'retailCost' || field.key === 'loanAmount' || field.key === 'monthlyRepayment') {
+      const n = parseFloat(raw);
+      return raw && !Number.isNaN(n) ? formatNumber(n) : '';
+    }
+    if (field.isDate) return raw ? formatDisplayDate(raw) : '';
+    return raw;
+  };
+
+  const fieldIsMissing = (field: FieldDef) => {
+    const raw = getFieldRawValue(record, field.key);
+    const numeric =
+      field.kind === 'number' ? (raw ? parseFloat(raw.replace(/,/g, '')) : 0) : undefined;
+    return isAfFieldMissing(
+      record,
+      field.label,
+      field.kind === 'number' ? numeric : raw || undefined
+    );
+  };
+
+  const DetailFieldRow = ({ field }: { field: FieldDef }) => {
+    const missing = fieldIsMissing(field);
+    const value = displayValue(field);
+
+    return (
+      <div>
+        <FieldLabel as="span" required={field.required} optional={field.optional} className="mb-0">
+          {field.label}
+        </FieldLabel>
+        {missing && canFillMissing ? (
+          <button
+            type="button"
+            onClick={() => openFieldModal(field)}
+            className="font-medium text-red-600 hover:text-red-700 underline underline-offset-2 text-left"
+          >
+            Missing [Upload]
+          </button>
+        ) : (
+          <p className={`font-medium ${missing ? 'text-amber-700' : ''}`}>
+            {missing ? 'Missing' : value || '—'}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  const requiredDocList = (() => {
+    const docs = isMarketingAgent
+      ? [...identityDocs, ...(record.isRetrofit ? retrofitDocs : [])]
+      : [
+          ...identityDocs,
+          ...mandatoryDocs,
+          ...(record.isRetrofit ? retrofitDocs : []),
+        ];
+    return docs.filter((d) => d.mandatory);
+  })();
+
+  const hasMandatoryGaps = (() => {
+    const fieldGaps = [...individualFields, ...vehicleFields].some(
+      (f) => f.required && fieldIsMissing(f)
+    );
+    const docGaps = requiredDocList.some((d) => !docStatus[d.key]);
+    return fieldGaps || docGaps;
+  })();
 
   const renderDocRow = (doc: DocRow) => {
     const uploaded = !!docStatus[doc.key];
@@ -280,7 +633,9 @@ export function RebateApplicationDetailsPage({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => toast.success('Template ready for download', { description: doc.templateName })}
+              onClick={() =>
+                toast.success('Template ready for download', { description: doc.templateName })
+              }
             >
               <Download className="w-3.5 h-3.5 mr-1" />
               Template
@@ -291,6 +646,14 @@ export function RebateApplicationDetailsPage({
               <Eye className="w-3.5 h-3.5 mr-1" />
               View
             </Button>
+          ) : canFillMissing ? (
+            <button
+              type="button"
+              onClick={() => openDocModal(doc)}
+              className="text-sm font-medium text-red-600 hover:text-red-700 underline underline-offset-2"
+            >
+              Missing [Upload]
+            </button>
           ) : (
             <Badge className="bg-amber-100 text-amber-800">Missing</Badge>
           )}
@@ -306,14 +669,7 @@ export function RebateApplicationDetailsPage({
     ? 'This page provides details on individual rebates that your marketing Rebate Team members and external designated agents have developed for your consideration. If the proposed individual meets financing and rebate eligibility requirements, please add the missing mandatory information and documents and submit to RGF.'
     : 'This page provides details on individual rebates. Please add any missing mandatory information and documents for rebates in your pipeline before submitting to RGF.';
 
-  const repaymentFrequencyLabel =
-    data.repaymentFrequency === 'weekly'
-      ? 'Weekly'
-      : data.repaymentFrequency === 'monthly'
-        ? 'Monthly'
-        : data.repaymentFrequency === 'daily'
-          ? 'Daily'
-          : data.repaymentFrequency;
+  const showBottomActions = isUnfinished || isProposalReview;
 
   return (
     <div className="space-y-6">
@@ -322,26 +678,26 @@ export function RebateApplicationDetailsPage({
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Rebate Pipeline
         </Button>
-        <Badge className={statusBadgeClass[data.status]}>{AF_STATUS_DISPLAY[data.status]}</Badge>
+        <Badge className={statusBadgeClass[record.status]}>{AF_STATUS_DISPLAY[record.status]}</Badge>
       </div>
 
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">{pageTitle}</h2>
         <p className="text-gray-600 mt-1 text-sm">{pageSubtitle}</p>
-        <p className="text-sm text-red-700 mt-2">Status: {AF_STATUS_DISPLAY[data.status]}</p>
+        <p className="text-sm text-red-700 mt-2">Status: {AF_STATUS_DISPLAY[record.status]}</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-[#023F40]">
-            Rebate Application Details — {data.ticketNumber}
+            Rebate Application Details — {record.ticketNumber}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-gray-500">Submitted by</span>
-              <p className="font-medium">{data.submittedBy}</p>
+              <p className="font-medium">{record.submittedBy}</p>
             </div>
             <div>
               <span className="text-gray-500">Email</span>
@@ -353,128 +709,70 @@ export function RebateApplicationDetailsPage({
             </div>
             <div>
               <span className="text-gray-500">Submitted on</span>
-              <p className="font-medium">{formatDisplayDate(data.submittedAt)}</p>
+              <p className="font-medium">{formatDisplayDate(record.submittedAt)}</p>
             </div>
             <div>
               <span className="text-gray-500">Ticket No.</span>
-              <p className="font-medium text-[#023F40]">{data.ticketNumber}</p>
+              <p className="font-medium text-[#023F40]">{record.ticketNumber}</p>
             </div>
           </div>
 
           <div className="border-t pt-4">
             <h3 className="font-semibold text-gray-900 mb-3">Individual Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <DetailField label="Individual first name(s)" value={data.firstName} record={data} required />
-              <DetailField label="Individual last name(s)" value={data.lastName} record={data} required />
-              <DetailField
-                label="Date of Birth"
-                value={data.dateOfBirth}
-                record={data}
-                isDate
-                required
-              />
-              <DetailField
-                label="Gender?"
-                value={data.isWoman ? 'Woman' : 'Man'}
-                record={data}
-                required
-              />
-              <DetailField label="Vehicle Type?" value={data.vehicleType} record={data} required />
-              <DetailField label="Phone Number" value={data.phoneNumber} record={data} required />
-              <DetailField label="Email" value={data.email} record={data} optional />
-              <DetailField label="TIN (Tax Identification Number)" value={data.tin} record={data} optional />
-              <DetailField label="National ID" value={data.nationalId} record={data} required />
-              <DetailField
-                label="Motorcycle Driver's License"
-                value={data.motoLicense}
-                record={data}
-                required
-              />
+              {individualFields.map((field) => (
+                <DetailFieldRow key={field.key} field={field} />
+              ))}
             </div>
           </div>
 
           <div className="border-t pt-4">
             <h3 className="font-semibold text-gray-900 mb-3">Vehicle and Financing</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <DetailField label="E-Moto Provider" value={data.supplier} record={data} required />
-              <DetailField label="E-Moto Model" value={data.model} record={data} required />
-              {data.isRetrofit && (
-                <DetailField
-                  label="Retrofit Assembler"
-                  value={data.retrofitAssembler}
-                  record={data}
-                  required
-                />
-              )}
-              <DetailField
-                label={data.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
-                value={formatRwf(data.retailCost) ?? data.retailCost}
-                record={data}
-                required
-              />
-              <DetailField
-                label="Total Contract Repayment Amount (RWF)"
-                value={data.loanAmount}
-                record={data}
-                required
-              />
-
-              <DetailField
-                label="Rebate Amount (RWF) — auto-calculated"
-                value={formatRwf(data.rebateAmount) ?? data.rebateAmount}
-                record={data}
-              />
-              <DetailField
-                label="Rebate Percentage (%)"
-                value={getRebatePercent({ isWoman: data.isWoman, isRetrofit: data.isRetrofit })}
-                record={data}
-              />
-
-              <DetailField label="Contract Term (months)" value={data.loanTerm} record={data} required />
-              <DetailField
-                label="Repayment Frequency"
-                value={repaymentFrequencyLabel}
-                record={data}
-                required
-              />
-              <DetailField
-                label="Repayment Amount (RWF)"
-                value={data.monthlyRepayment}
-                record={data}
-                required
-              />
+              {vehicleFields.map((field) => (
+                <DetailFieldRow key={field.key} field={field} />
+              ))}
+              <div>
+                <FieldLabel as="span" className="mb-0">
+                  Rebate Amount (RWF) — auto-calculated
+                </FieldLabel>
+                <p className="font-medium">
+                  {formatRwf(record.rebateAmount) ?? record.rebateAmount ?? '—'}
+                </p>
+              </div>
+              <div>
+                <FieldLabel as="span" className="mb-0">
+                  Rebate Percentage (%)
+                </FieldLabel>
+                <p className="font-medium">
+                  {getRebatePercent({ isWoman: record.isWoman, isRetrofit: record.isRetrofit })}
+                </p>
+              </div>
             </div>
           </div>
 
-          {isUnfinished && data.missingFields && data.missingFields.length > 0 && (
+          {isUnfinished && hasMandatoryGaps && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-900 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
-                Missing information — finish the application to complete these fields
+                Missing information — click Missing [Upload] on each gap, or use Finish Application to
+                complete via the form
               </p>
-              <ul className="mt-2 text-sm text-amber-800 list-disc pl-5 space-y-0.5">
-                {data.missingFields.map((field) => (
-                  <li key={field}>{field}</li>
-                ))}
-              </ul>
             </div>
           )}
 
           {isMarketingAgent ? (
-            /* Marketing agent view: merged Mandatory Documents section per spec */
             <div className="border-t pt-4">
               <h3 className="font-semibold text-[#0a7d4b] mb-1 uppercase tracking-wide text-sm">
                 Mandatory Documents
               </h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Please upload the documents listed below.
-              </p>
-              <div className="space-y-2">
-                {identityDocs.map(renderDocRow)}
-              </div>
-              {data.isRetrofit && (
+              <p className="text-sm text-gray-600 mb-3">Please upload the documents listed below.</p>
+              <div className="space-y-2">{identityDocs.map(renderDocRow)}</div>
+              {record.isRetrofit && (
                 <div className="mt-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">If retrofit</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    If retrofit
+                  </p>
                   <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
                 </div>
               )}
@@ -483,18 +781,27 @@ export function RebateApplicationDetailsPage({
                   Optional — can be submitted later
                 </p>
                 <div className="space-y-2">
-                  {[{ key: 'affidavit', label: 'Individual Affidavit of Financial Need', optional: true, hasTemplate: true, templateName: 'Individual_Affidavit_of_Financial_Need_Template.pdf' }].map(renderDocRow)}
+                  {[
+                    {
+                      key: 'affidavit',
+                      label: DOC_NAMES.notarizedAffidavit,
+                      optional: true,
+                      hasTemplate: true,
+                      templateName: DOC_TEMPLATE_FILES.notarizedAffidavit,
+                    },
+                  ].map(renderDocRow)}
                 </div>
               </div>
             </div>
           ) : (
-            /* AF view: separate Identification + Mandatory sections */
             <>
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-gray-900 mb-1 text-sm uppercase tracking-wide">
                   Identification Documents
                 </h3>
-                <p className="text-sm text-gray-600 mb-3">Upload copies of the documents listed below.</p>
+                <p className="text-sm text-gray-600 mb-3">
+                  Upload copies of the documents listed below.
+                </p>
                 <div className="space-y-2">{identityDocs.map(renderDocRow)}</div>
               </div>
 
@@ -507,9 +814,11 @@ export function RebateApplicationDetailsPage({
                 </p>
                 <div className="space-y-2">{mandatoryDocs.map(renderDocRow)}</div>
 
-                {data.isRetrofit && (
+                {record.isRetrofit && (
                   <div className="mt-4">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">If retrofit</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      If retrofit
+                    </p>
                     <div className="space-y-2">{retrofitDocs.map(renderDocRow)}</div>
                   </div>
                 )}
@@ -525,7 +834,7 @@ export function RebateApplicationDetailsPage({
           )}
 
           <div className="border-t pt-4">
-            <h3 className="font-semibold text-gray-900 mb-1">Additional Supporting Documents</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">{DOC_NAMES.additionalSupporting}</h3>
             <p className="text-xs text-gray-600 mb-2">
               Name each document first, then upload the corresponding file. You can add up to 5 additional
               documents.
@@ -555,7 +864,9 @@ export function RebateApplicationDetailsPage({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => setAdditionalDocs((prev) => prev.filter((d) => d.id !== doc.id))}
+                        onClick={() =>
+                          setAdditionalDocs((prev) => prev.filter((d) => d.id !== doc.id))
+                        }
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                       >
                         <X className="w-4 h-4" />
@@ -577,23 +888,127 @@ export function RebateApplicationDetailsPage({
             )}
           </div>
 
-          {isUnfinished && (
+          {showBottomActions && (
             <div className="border-t pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="text-xs text-gray-500">
-                Complete all mandatory fields and documents, then use{' '}
-                <span className="font-medium">SUBMIT</span> on Step 4 of the application form
-                {isProposalReview ? ' to send this rebate to RGF.' : '.'}
+                {hasMandatoryGaps
+                  ? 'Fill missing items with Missing [Upload], or open Finish Application to complete via the form.'
+                  : isProposalReview
+                    ? 'All mandatory items are complete. Submit this rebate to RGF.'
+                    : 'All mandatory items are complete. Submit this rebate to RGF.'}
               </p>
-              <Button
-                className="bg-[#023F40] hover:bg-[#035f60]"
-                onClick={() => onFinishApplication?.(data)}
-              >
-                Finish Application
-              </Button>
+              {hasMandatoryGaps ? (
+                <Button
+                  className="bg-[#023F40] hover:bg-[#035f60]"
+                  onClick={() => onFinishApplication?.(record)}
+                >
+                  Finish Application
+                </Button>
+              ) : (
+                <Button
+                  className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
+                  onClick={() => {
+                    onSubmitApplication?.(record);
+                    toast.success(
+                      isProposalReview || isMarketingAgent
+                        ? 'Rebate submitted'
+                        : 'Rebate submitted to RGF'
+                    );
+                  }}
+                >
+                  Submit
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!fieldModal} onOpenChange={(open) => !open && setFieldModal(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{fieldModal?.label}</DialogTitle>
+            <DialogDescription>Enter the missing information for this field.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-2">
+            <Label htmlFor="missing-field-input">{fieldModal?.label}</Label>
+            {fieldModal?.kind === 'date' ? (
+              <DateInput value={fieldDraft} onChange={setFieldDraft} />
+            ) : fieldModal?.kind === 'select' ? (
+              <Select value={fieldDraft} onValueChange={setFieldDraft}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fieldModal.selectOptions?.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="missing-field-input"
+                type={fieldModal?.kind === 'number' ? 'text' : 'text'}
+                inputMode={fieldModal?.kind === 'number' ? 'numeric' : undefined}
+                value={fieldDraft}
+                onChange={(e) => setFieldDraft(e.target.value)}
+                placeholder={fieldModal?.label}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setFieldModal(null)}>
+              Cancel
+            </Button>
+            <Button type="button" className="bg-[#023F40] hover:bg-[#035f60]" onClick={saveFieldModal}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!docModal} onOpenChange={(open) => !open && setDocModal(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{docModal?.label}</DialogTitle>
+            <DialogDescription>Upload the missing document file.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            {docModal?.hasTemplate && (
+              <button
+                type="button"
+                className="text-xs text-[#023F40] underline underline-offset-2"
+                onClick={() =>
+                  toast.success('Template ready for download', {
+                    description: docModal.templateName,
+                  })
+                }
+              >
+                Get template here
+              </button>
+            )}
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={chooseDocFile} className="shrink-0">
+                <Upload className="w-4 h-4 mr-2" />
+                Choose file
+              </Button>
+              <span className="text-sm text-gray-600 truncate">
+                {docFileName || 'No file selected'}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDocModal(null)}>
+              Cancel
+            </Button>
+            <Button type="button" className="bg-[#0a7d4b] hover:bg-[#0c6b42]" onClick={saveDocModal}>
+              Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={addModalOpen} onOpenChange={(open) => !open && resetAddModal()}>
         <DialogContent className="sm:max-w-md">
@@ -617,7 +1032,12 @@ export function RebateApplicationDetailsPage({
             <div className="space-y-1.5">
               <Label>File</Label>
               <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" onClick={handleChooseAdditionalFile} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleChooseAdditionalFile}
+                  className="shrink-0"
+                >
                   <Upload className="w-4 h-4 mr-2" />
                   Choose file
                 </Button>
@@ -631,7 +1051,11 @@ export function RebateApplicationDetailsPage({
             <Button type="button" variant="outline" onClick={resetAddModal}>
               Cancel
             </Button>
-            <Button type="button" className="bg-[#0a7d4b] hover:bg-[#0c6b42]" onClick={handleConfirmAdditionalDoc}>
+            <Button
+              type="button"
+              className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
+              onClick={handleConfirmAdditionalDoc}
+            >
               Add document
             </Button>
           </DialogFooter>

@@ -22,12 +22,16 @@ export function RebateStatusView({
   currentUserName,
   onDetailOpenChange,
   onFinishApplication,
+  onSubmitApplication,
+  onUpdateRecord,
 }: {
   records?: RebateRecord[];
   isMarketingAgent?: boolean;
   currentUserName?: string;
   onDetailOpenChange?: (open: boolean) => void;
   onFinishApplication?: (record: RebateRecord) => void;
+  onSubmitApplication?: (record: RebateRecord) => void;
+  onUpdateRecord?: (record: RebateRecord) => void;
 } = {}) {
   const [internalRecords] = useState<RebateRecord[]>(AF_MOCK_REBATE_RECORDS);
   const records = externalRecords ?? internalRecords;
@@ -121,6 +125,14 @@ export function RebateStatusView({
         onFinishApplication={(row) => {
           onFinishApplication?.(row);
           setSelected(null);
+        }}
+        onSubmitApplication={(row) => {
+          onSubmitApplication?.(row);
+          setSelected(null);
+        }}
+        onUpdateRecord={(row) => {
+          onUpdateRecord?.(row);
+          setSelected((prev) => (prev ? { ...prev, record: row } : prev));
         }}
       />
     );

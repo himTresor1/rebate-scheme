@@ -28,12 +28,17 @@ import {
   Bell,
   GitBranch,
   Download,
+  Printer,
 } from 'lucide-react';
 import { User } from '../utils/auth';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { ProfileSettings } from './ProfileSettings';
 import { getAfPermissionLevel } from '../utils/afPermissions';
+import {
+  getUnreadNotificationCount,
+  NOTIFICATIONS_CHANGED_EVENT,
+} from '../utils/notifications';
 
 interface SidebarProps {
   user: User;
@@ -48,6 +53,20 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
   const [isExpanded, setIsExpanded] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(() =>
+    getUnreadNotificationCount(user)
+  );
+
+  useEffect(() => {
+    const sync = () => setUnreadNotifications(getUnreadNotificationCount(user));
+    sync();
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [user]);
 
   const toggleSidebar = () => {
     const newState = !isExpanded;
@@ -144,6 +163,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'queue' },
           { icon: GitBranch, label: 'Reassignment Checking', page: 'reassignment-checking' },
           { icon: FileText, label: 'Assigned Rebates', page: 'assigned' },
+          { icon: Printer, label: 'All Rebates', page: 'analyst-reports' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         
@@ -308,7 +328,11 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           {menuItems.map((item, index) => {
             const Icon = item.icon;
             const isActive = item.page === currentPage;
-            
+            const showNotifBadge =
+              item.page === 'notifications' && unreadNotifications > 0;
+            const badgeLabel =
+              unreadNotifications > 99 ? '99+' : String(unreadNotifications);
+
             return (
               <motion.button
                 key={index}
@@ -325,12 +349,23 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
                     ? 'bg-[#023F40] text-white shadow-md'
                     : 'text-gray-600 hover:bg-[#023F40]/5 hover:text-[#023F40]'
                 }`}
-                title={item.label}
+                title={
+                  showNotifBadge
+                    ? `${item.label} (${unreadNotifications} unread)`
+                    : item.label
+                }
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className={`flex items-center ${isExpanded ? '' : 'justify-center w-full'}`}>
+                <div
+                  className={`relative flex items-center ${isExpanded ? '' : 'justify-center w-full'}`}
+                >
                   <Icon className="w-5 h-5 flex-shrink-0" />
+                  {showNotifBadge && !isExpanded && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-semibold leading-[1.125rem] text-center">
+                      {badgeLabel}
+                    </span>
+                  )}
                 </div>
                 {isExpanded && (
                   <motion.span
@@ -341,6 +376,11 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
                   >
                     {item.label}
                   </motion.span>
+                )}
+                {showNotifBadge && isExpanded && (
+                  <span className="ml-auto flex-shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-600 text-white text-[11px] font-semibold leading-5 text-center">
+                    {badgeLabel}
+                  </span>
                 )}
               </motion.button>
             );

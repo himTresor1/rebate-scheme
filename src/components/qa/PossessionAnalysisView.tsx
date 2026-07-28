@@ -9,6 +9,7 @@ import { ArrowLeft, Filter, Upload, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatNumber } from '../../utils/numberFormat';
 import { getRebatePercent } from '../../utils/rebateCalculation';
+import { DOC_NAMES } from '../../utils/documentNames';
 
 type PossessionStatus = 'awaiting-confirmation' | 'confirmation-submitted';
 
@@ -347,11 +348,11 @@ export function PossessionAnalysisView() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between border rounded-lg p-3">
-              <span>Individual Affidavit</span>
+              <span>{DOC_NAMES.notarizedAffidavit}</span>
               <span>{selected.affidavitUploaded ? 'Uploaded' : 'Missing'}</span>
             </div>
             <div className="flex justify-between border rounded-lg p-3">
-              <span>ICE-Engine Disposal Agreement</span>
+              <span>{DOC_NAMES.iceEngineDisposal}</span>
               <span>
                 {selected.iceAgreementUploaded === null
                   ? 'N/A'
@@ -380,7 +381,7 @@ export function PossessionAnalysisView() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="possession-file">AF/Client Confirmation of Individual E-Moto Possession</Label>
+              <Label htmlFor="possession-file">{DOC_NAMES.possessionStatement}</Label>
               <Input
                 id="possession-file"
                 type="file"
@@ -540,8 +541,8 @@ export function PossessionAnalysisView() {
                   <th className="pb-2 pr-3 font-medium">E-Moto Model</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit Assembler</th>
                   <th className="pb-2 pr-3 font-medium">Any supporting documents</th>
-                  <th className="pb-2 pr-3 font-medium">Individual Affidavit</th>
-                  <th className="pb-2 pr-3 font-medium">Disposal Agreement</th>
+                  <th className="pb-2 pr-3 font-medium">{DOC_NAMES.notarizedAffidavit}</th>
+                  <th className="pb-2 pr-3 font-medium">{DOC_NAMES.iceEngineDisposal}</th>
                   <th className="pb-2 pr-3 font-medium">Status</th>
                   <th className="pb-2 font-medium">Actions</th>
                 </tr>

@@ -447,6 +447,10 @@ export function AssetFinancierAdminDashboard({
               );
             }}
             onSubmitted={isMarketingAgent ? markProposalSubmitted : markSubmitted}
+            onNavigateToBackgroundInfo={() => {
+              setActiveTab('background-info');
+              onNavigate('background-info');
+            }}
           />
         )}
         {activeTab === 'rebate-status' && currentPage === 'rebate-status' && (
@@ -456,6 +460,14 @@ export function AssetFinancierAdminDashboard({
             currentUserName={user.name}
             onDetailOpenChange={setHideHeaderActions}
             onFinishApplication={openFinishApplication}
+            onSubmitApplication={(record) => {
+              markSubmitted(record.ticketNumber);
+            }}
+            onUpdateRecord={(record) => {
+              setPipelineRecords((prev) =>
+                prev.map((r) => (r.ticketNumber === record.ticketNumber ? record : r))
+              );
+            }}
           />
         )}
         {activeTab === 'af-reports' && currentPage === 'af-reports' && (
