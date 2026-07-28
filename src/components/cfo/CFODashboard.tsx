@@ -28,6 +28,7 @@ import { Greeting } from '../ui/Greeting';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -100,14 +101,6 @@ export function CFODashboard({ user, currentPage, onNavigate }: CFODashboardProp
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   const handleReviewComplete = () => {
@@ -445,7 +438,7 @@ export function CFODashboard({ user, currentPage, onNavigate }: CFODashboardProp
 interface CFOApplicationCardProps {
   app: Application;
   evaluation?: Evaluation;
-  formatDate: (date: string) => string;
+  formatDisplayDate: (date: string) => string;
   onReview: () => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -455,7 +448,7 @@ interface CFOApplicationCardProps {
 function CFOApplicationCard({
   app,
   evaluation,
-  formatDate,
+  formatDisplayDate,
   onReview,
   isSelected,
   onToggleSelect,
@@ -521,7 +514,7 @@ function CFOApplicationCard({
                 </div>
                 <div>
                   <span className="text-gray-600">Submitted:</span>
-                  <p className="font-medium">{formatDate(app.createdAt)}</p>
+                  <p className="font-medium">{formatDisplayDate(app.createdAt)}</p>
                 </div>
                 <div>
                   <span className="text-gray-600">Criteria:</span>

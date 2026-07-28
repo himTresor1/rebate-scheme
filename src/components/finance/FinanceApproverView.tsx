@@ -19,6 +19,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { User as UserType } from '../../utils/auth';
+import { formatDisplayDateTime } from '../../utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -153,16 +154,6 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(num);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const filteredApps = applications.filter(app => {
@@ -307,7 +298,7 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Initiated At</p>
-                                  <p className="font-medium">{formatDate(app.initiationDetails.initiatedAt)}</p>
+                                  <p className="font-medium">{formatDisplayDateTime(app.initiationDetails.initiatedAt)}</p>
                                 </div>
                                 {app.initiationDetails.notes && (
                                   <div className="md:col-span-2">
@@ -470,7 +461,7 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
                     Initiated by: <strong>{selectedApp.initiationDetails.initiatorName}</strong>
                   </p>
                   <p className="text-xs text-blue-700 mt-1">
-                    {formatDate(selectedApp.initiationDetails.initiatedAt)}
+                    {formatDisplayDateTime(selectedApp.initiationDetails.initiatedAt)}
                   </p>
                 </div>
               )}

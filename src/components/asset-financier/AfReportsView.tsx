@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ArrowUpDown, Filter, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AF_METRIC_LABELS,
+  AF_METRIC_REPORT_TITLES,
   AF_MOCK_REBATE_RECORDS,
   AF_STATUS_DISPLAY,
   AfMetricCategory,
@@ -121,7 +123,7 @@ export function AfReportsView({
   };
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-full">
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">All Rebates</h2>
         <p className="text-gray-600 mt-1 text-sm">
@@ -139,8 +141,8 @@ export function AfReportsView({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <DateInput value={dateFrom} onChange={setDateFrom} />
+            <DateInput value={dateTo} onChange={setDateTo} />
             <Input
               placeholder="Search ticket, applicant, originator…"
               value={query}
@@ -229,7 +231,7 @@ export function AfReportsView({
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <ArrowUpDown className="w-4 h-4" />
-            All rebates report ({filtered.length})
+            Report: {AF_METRIC_REPORT_TITLES[categoryFilter]} ({filtered.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="w-full max-w-full overflow-x-auto px-4 sm:px-6 pb-6">

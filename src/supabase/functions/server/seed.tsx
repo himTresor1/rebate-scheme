@@ -44,7 +44,7 @@ export async function seedDataLite() {
       { name: 'AF View Own Applications', code: 'AF_VIEW_OWN_APPLICATIONS', description: 'View submitted applications', category: 'Asset Financier', action: 'VIEW' },
       { name: 'AF Edit Own Applications', code: 'AF_EDIT_OWN_APPLICATIONS', description: 'Edit draft applications', category: 'Asset Financier', action: 'EDIT' },
       { name: 'AF Upload Documents', code: 'AF_UPLOAD_DOCUMENTS', description: 'Upload and manage documents', category: 'Asset Financier', action: 'UPLOAD' },
-      { name: 'AF Manage Staff', code: 'AF_MANAGE_STAFF', description: 'Manage organization staff members', category: 'Asset Financier', action: 'MANAGE_USERS' },
+      { name: 'AF Manage Rebate Team', code: 'AF_MANAGE_STAFF', description: 'Manage organization Rebate Team members', category: 'Asset Financier', action: 'MANAGE_USERS' },
     ];
 
     for (const perm of permissionsToSeed) {
@@ -70,7 +70,7 @@ export async function seedDataLite() {
         ]
       },
       {
-        name: 'Asset Financier Staff',
+        name: 'Asset Financier Rebate Team',
         code: 'ASSET_FINANCIER_STAFF',
         description: 'Marketing agent role',
         permissions: [
@@ -119,7 +119,7 @@ export async function seedDataLite() {
 
     const demoUsers = [
       { email: 'admin@bankofkigali.rw', password: 'SecureBoK@2026', name: 'BoK Admin', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788890123' },
-      { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Staff', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111' },
+      { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Decision-Maker', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111' },
       { email: 'marketing.agent@bankofkigali.rw', password: 'SecureBoKAgent@2026', name: 'BoK Marketing Agent', role: 'ASSET_FINANCIER_STAFF', phone: '+250788901112' },
     ];
 
@@ -158,8 +158,8 @@ export async function seedDataLite() {
     const applications = [
       { applicantName: 'Jean M', status: 'submitted', submittedBy: marketingId, submittedByName: 'BoK Marketing Agent' },
       { applicantName: 'Aline U', status: 'under-review', submittedBy: marketingId, submittedByName: 'BoK Marketing Agent' },
-      { applicantName: 'Patrick N', status: 'approved', submittedBy: officerId, submittedByName: 'BoK AF Finance Staff' },
-      { applicantName: 'Claire K', status: 'awaiting-final-approval', submittedBy: officerId, submittedByName: 'BoK AF Finance Staff' },
+      { applicantName: 'Patrick N', status: 'approved', submittedBy: officerId, submittedByName: 'BoK AF Finance Decision-Maker' },
+      { applicantName: 'Claire K', status: 'awaiting-final-approval', submittedBy: officerId, submittedByName: 'BoK AF Finance Decision-Maker' },
       { applicantName: 'Eric B', status: 'disbursed', submittedBy: adminId, submittedByName: 'BoK Admin' },
     ];
 
@@ -313,7 +313,7 @@ export async function seedData() {
     { name: 'AF View Bank Details', code: 'AF_VIEW_BANK_DETAILS', description: 'View organization bank account', category: 'Asset Financier', action: 'VIEW' },
     { name: 'AF Update Bank Details', code: 'AF_UPDATE_BANK_DETAILS', description: 'Update bank account information', category: 'Asset Financier', action: 'UPDATE' },
     { name: 'AF Record Repayments', code: 'AF_RECORD_REPAYMENTS', description: 'Record monthly rider repayments', category: 'Asset Financier', action: 'RECORD' },
-    { name: 'AF Manage Staff', code: 'AF_MANAGE_STAFF', description: 'Manage organization staff members', category: 'Asset Financier', action: 'MANAGE_USERS' },
+    { name: 'AF Manage Rebate Team', code: 'AF_MANAGE_STAFF', description: 'Manage organization Rebate Team members', category: 'Asset Financier', action: 'MANAGE_USERS' },
   ];
 
   console.log('Seeding permissions...');
@@ -461,9 +461,9 @@ export async function seedData() {
       ]
     },
     {
-      name: 'Asset Financier Staff',
+      name: 'Asset Financier Rebate Team',
       code: 'ASSET_FINANCIER_STAFF',
-      description: 'Asset financing company staff member',
+      description: 'Asset financing company Rebate Team member',
       permissions: [
         'permission:applications.view',
         'permission:applications.submit',
@@ -526,7 +526,7 @@ export async function seedData() {
     { email: 'admin@equitybank.rw', password: 'SecureEquity@2026', name: 'Henry Ntirenganya', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788901234', organization: 'Equity Bank Rwanda' },
     { email: 'admin@visionfinance.rw', password: 'SecureVision@2026', name: 'Irene Uwimana', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788012345', organization: 'Vision Finance Company' },
     { email: 'admin@umurenge.rw', password: 'SecureUmurenge@2026', name: 'James Nshimiyimana', role: 'ASSET_FINANCIER_ADMIN', phone: '+250788123567', organization: 'Umurenge SACCO' },
-    { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Staff', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111', organization: 'Bank of Kigali' },
+    { email: 'af.finance@bankofkigali.rw', password: 'SecureBoKFinance@2026', name: 'BoK AF Finance Decision-Maker', role: 'ASSET_FINANCIER_OFFICER', phone: '+250788901111', organization: 'Bank of Kigali' },
     { email: 'marketing.agent@bankofkigali.rw', password: 'SecureBoKAgent@2026', name: 'BoK Marketing Agent', role: 'ASSET_FINANCIER_STAFF', phone: '+250788901112', organization: 'Bank of Kigali' },
     
     // E-Moto Companies (Claims Officers)
@@ -634,21 +634,21 @@ export async function seedData() {
     // Create 2-3 staff members per organization  
     const staffMembers = [
       { 
-        name: `${orgName.split(' ')[0]} Staff Member 1`, 
+        name: `${orgName.split(' ')[0]} Rebate Team Member 1`, 
         email: `staff1@${orgName.toLowerCase().replace(/\s+/g, '')}.rw`,
         password: `Secure${orgName.split(' ')[0]}@2026`,
         role: 'ASSET_FINANCIER_STAFF',
         phone: `+250788${Math.floor(100000 + Math.random() * 900000)}`
       },
       { 
-        name: `${orgName.split(' ')[0]} Staff Member 2`, 
+        name: `${orgName.split(' ')[0]} Rebate Team Member 2`, 
         email: `staff2@${orgName.toLowerCase().replace(/\s+/g, '')}.rw`,
         password: `Secure${orgName.split(' ')[0]}@2026`,
         role: 'ASSET_FINANCIER_OFFICER',
         phone: `+250788${Math.floor(100000 + Math.random() * 900000)}`
       },
       { 
-        name: `${orgName.split(' ')[0]} Staff Member 3`, 
+        name: `${orgName.split(' ')[0]} Rebate Team Member 3`, 
         email: `staff3@${orgName.toLowerCase().replace(/\s+/g, '')}.rw`,
         password: `Secure${orgName.split(' ')[0]}@2026`,
         role: 'ASSET_FINANCIER_STAFF',

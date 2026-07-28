@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ArrowUpDown, Filter, Printer } from 'lucide-react';
 import { toast } from 'sonner';
@@ -135,7 +136,7 @@ export function RebateStatusView({
   };
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-full">
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">Rebate Pipeline Development Page</h2>
         {isMarketingAgent ? (
@@ -215,8 +216,8 @@ export function RebateStatusView({
             Filter below report by: time period, e-moto company, retrofit assembler, women, retrofits
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <DateInput value={dateFrom} onChange={setDateFrom} />
+            <DateInput value={dateTo} onChange={setDateTo} />
             <Input
               placeholder="Search ticket, applicant, originator…"
               value={query}
@@ -281,7 +282,7 @@ export function RebateStatusView({
             Pipeline Report: rebates applications in development
           </CardTitle>
         </CardHeader>
-        <CardContent className="w-full max-w-full overflow-x-auto px-4 sm:px-6 pb-6">
+        <CardContent className="w-full max-w-full px-4 sm:px-6 pb-6">
           <p className="text-sm text-gray-600 mb-4 print:hidden">
             Click on the Rebate Ticket Number to access information on specific rebates and complete the submission to
             RGF.

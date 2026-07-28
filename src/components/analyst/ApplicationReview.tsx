@@ -9,6 +9,7 @@ import { ArrowLeft, Save, CheckCircle, XCircle, FileText, AlertCircle } from 'lu
 import { User } from '../../utils/auth';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { formatDisplayDateTime } from '../../utils/dateFormat';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -284,13 +285,7 @@ export function ApplicationReview({ application, user, onBack }: ApplicationRevi
                   <div>
                     <label className="text-sm font-medium text-gray-600">Submitted</label>
                     <p className="mt-1">
-                      {new Date(application.createdAt).toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {formatDisplayDateTime(application.createdAt)}
                     </p>
                   </div>
                 </CardContent>

@@ -28,7 +28,9 @@ import { WeeklyDisbursementReport } from './WeeklyDisbursementReport';
 import { PageHeader } from '../PageHeader';
 import { NotificationsView } from '../NotificationsView';
 import { getQaPresentationApplications } from '../../utils/demoPipelineData';
-import { getRebateRateLabel } from '../../utils/rebateCalculation';
+import { getRebatePercent } from '../../utils/rebateCalculation';
+import { formatNumber } from '../../utils/numberFormat';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -286,20 +288,16 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
 
   const formatShortDate = (dateString?: string) => {
     if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDisplayDate(dateString);
   };
 
-  const getRebateDisplay = (app: Application) => {
+  const getRebateAmount = (app: Application) =>
+    formatNumber(parseFloat(app.rebateAmount || '0') || 0);
+
+  const getRebatePercentForApp = (app: Application) => {
     const isWoman = app.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
     const isRetrofit = Boolean(app.isRetrofit);
-    const rateLabel = getRebateRateLabel({ isWoman, isRetrofit });
-    const percent = rateLabel.match(/\d+%/)?.[0] || '18%';
-    const amount = Math.round(parseFloat(app.rebateAmount || '0') || 0).toLocaleString();
-    return `${amount} (${percent})`;
+    return getRebatePercent({ isWoman, isRetrofit });
   };
 
   const captureDecision = (
@@ -590,7 +588,8 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
                   <th className="pb-3 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-3 pr-3 font-medium">E-Moto Provider</th>
                   <th className="pb-3 pr-3 font-medium">E-Moto Retail Cost (RWF)</th>
-                  <th className="pb-3 pr-3 font-medium">Rebate RWF Amount and Percent</th>
+                  <th className="pb-3 pr-3 font-medium">Rebate Amount (RWF)</th>
+                  <th className="pb-3 pr-3 font-medium">Rebate Percentage (%)</th>
                   {showQaColumns && (
                     <>
                       <th className="pb-3 pr-3 font-medium">QA Team Approval</th>
@@ -630,10 +629,9 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
                       <td className="py-3 pr-3">{app.isRetrofit ? 'Yes' : 'No'}</td>
                       <td className="py-3 pr-3">{app.companyName}</td>
                       <td className="py-3 pr-3">{app.motorcycleBrand || 'N/A'}</td>
-                      <td className="py-3 pr-3">
-                        {parseFloat(app.purchasePrice || '0').toLocaleString()}
-                      </td>
-                      <td className="py-3 pr-3">{getRebateDisplay(app)}</td>
+                      <td className="py-3 pr-3">{formatNumber(parseFloat(app.purchasePrice || '0'))}</td>
+                      <td className="py-3 pr-3">{getRebateAmount(app)}</td>
+                      <td className="py-3 pr-3">{getRebatePercentForApp(app)}</td>
                       {showQaColumns && (
                         <>
                           <td className="py-3 pr-3">

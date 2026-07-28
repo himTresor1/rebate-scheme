@@ -4,6 +4,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Filter } from 'lucide-react';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -74,7 +75,7 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
         ticketNumber: app.ticketNumber || app.registrationNumber || app.id.replace('application:', '').slice(0, 8).toUpperCase(),
         oldClient: idx % 2 === 0 ? 'Albert JAMES' : 'Grace UWASE',
         newClient: (app.applicantName || 'Unknown Client').toUpperCase(),
-        priorApprovalDate: new Date(app.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        priorApprovalDate: formatDisplayDate(app.createdAt),
         vehicleType: app.isRetrofit ? 'Retrofit' : 'New E-Moto',
         provider: app.motorcycleBrand || 'N/A',
         vin: app.chassisNumber || 'N/A',

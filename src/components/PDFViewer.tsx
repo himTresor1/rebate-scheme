@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatDisplayDate } from '../utils/dateFormat';
 import { 
   Download, 
   Printer, 
@@ -212,7 +213,7 @@ export function PDFViewer({ fileName = 'Document.pdf', onClose }: PDFViewerProps
                   </div>
                   <div>
                     <span className="text-gray-500">Date Created:</span>
-                    <span className="ml-2 font-medium">{new Date().toLocaleDateString()}</span>
+                    <span className="ml-2 font-medium">{formatDisplayDate(new Date())}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Status:</span>

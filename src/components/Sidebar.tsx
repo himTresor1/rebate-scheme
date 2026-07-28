@@ -103,13 +103,14 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
           { icon: FilePlus, label: 'Submit Rebate', page: 'submit' },
-          { icon: FileText, label: 'Rebate Pipeline Dev.', page: 'rebate-status' },
+          { icon: FileText, label: 'Pipeline Development', page: 'rebate-status' },
           { icon: ClipboardList, label: 'All Rebates', page: 'af-reports' },
           { icon: Bike, label: 'E-Moto Possession', page: 'possession' },
           { icon: Download, label: 'Mandatory Templates', page: 'af-templates' },
-          { icon: FileText, label: 'Client Transfer', page: 'client-transfer' },
+          // Paused — Client Transfer hidden from sidebar pending product decision
+          // { icon: FileText, label: 'Client Transfer', page: 'client-transfer' },
           { icon: ScrollText, label: 'Background Info', page: 'background-info' },
-          { icon: Users, label: 'Manage Staff', page: 'internal-users' },
+          { icon: Users, label: 'Manage Rebate Team', page: 'internal-users' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
 
@@ -208,7 +209,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       case 'applicant': return 'E-Moto Company';
       case 'ASSET_FINANCIER_ADMIN': return 'Asset Financier';
       case 'CLAIMS_OFFICER': return 'Claims Officer';
-      case 'ASSET_FINANCIER_OFFICER': return 'AF Finance Staff';
+      case 'ASSET_FINANCIER_OFFICER': return 'AF Finance Decision-Maker';
       case 'ASSET_FINANCIER_STAFF': return `${user.organization || 'Asset Financier'} E-Moto Marketing Person`;
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';

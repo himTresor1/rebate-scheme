@@ -10,6 +10,7 @@ import { Mail, Copy, Trash2, UserPlus, CheckCircle, Clock, XCircle } from 'lucid
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { TableSkeleton } from '../ui/skeletons';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Invitation {
   id: string;
@@ -278,7 +279,7 @@ export function InvitationManager() {
                       </td>
                       <td className="p-3">
                         <div className="text-sm text-gray-600">
-                          {new Date(invitation.invitedAt).toLocaleDateString()}
+                          {formatDisplayDate(invitation.invitedAt)}
                         </div>
                       </td>
                       <td className="p-3">

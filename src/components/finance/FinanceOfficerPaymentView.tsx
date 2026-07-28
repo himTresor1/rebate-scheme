@@ -17,6 +17,7 @@ import {
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface FinanceOfficerPaymentViewProps {
   user: User;
@@ -215,11 +216,11 @@ export function FinanceOfficerPaymentView({ user }: FinanceOfficerPaymentViewPro
               <div className="text-sm text-green-800 space-y-2">
                 <p className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
-                  Final Approval: {new Date(selectedApp.updatedAt).toLocaleDateString()}
+                  Final Approval: {formatDisplayDate(selectedApp.updatedAt)}
                 </p>
                 <p className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
-                  Lease Approved: {selectedApp.leaseApprovedAt ? new Date(selectedApp.leaseApprovedAt).toLocaleDateString() : 'Recently'}
+                  Lease Approved: {selectedApp.leaseApprovedAt ? formatDisplayDate(selectedApp.leaseApprovedAt) : 'Recently'}
                 </p>
                 <p className="flex items-center gap-2">
                   <FileText className="w-4 h-4" />

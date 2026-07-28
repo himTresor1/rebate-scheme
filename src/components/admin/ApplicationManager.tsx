@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -98,14 +99,6 @@ export function ApplicationManager({ user }: ApplicationManagerProps) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const getAnalystName = (analystId?: string) => {
     if (!analystId) return 'Unassigned';
     const analyst = analysts.find(a => a.id === analystId);
@@ -179,7 +172,7 @@ export function ApplicationManager({ user }: ApplicationManagerProps) {
                       setSelectedApp(app);
                       setAssignDialogOpen(true);
                     }}
-                    formatDate={formatDate}
+                    formatDisplayDate={formatDisplayDate}
                     getAnalystName={getAnalystName}
                   />
                 ))}
@@ -197,7 +190,7 @@ export function ApplicationManager({ user }: ApplicationManagerProps) {
                     key={app.id}
                     app={app}
                     analysts={analysts}
-                    formatDate={formatDate}
+                    formatDisplayDate={formatDisplayDate}
                     getAnalystName={getAnalystName}
                   />
                 ))}
@@ -215,7 +208,7 @@ export function ApplicationManager({ user }: ApplicationManagerProps) {
                     key={app.id}
                     app={app}
                     analysts={analysts}
-                    formatDate={formatDate}
+                    formatDisplayDate={formatDisplayDate}
                     getAnalystName={getAnalystName}
                   />
                 ))}
@@ -280,11 +273,11 @@ interface ApplicationCardProps {
   app: Application;
   analysts: User[];
   onAssign?: (app: Application) => void;
-  formatDate: (date: string) => string;
+  formatDisplayDate: (date: string) => string;
   getAnalystName: (id?: string) => string;
 }
 
-function ApplicationCard({ app, analysts, onAssign, formatDate, getAnalystName }: ApplicationCardProps) {
+function ApplicationCard({ app, analysts, onAssign, formatDisplayDate, getAnalystName }: ApplicationCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   return (
@@ -309,7 +302,7 @@ function ApplicationCard({ app, analysts, onAssign, formatDate, getAnalystName }
         </div>
         <div className="flex justify-between">
           <span className="font-medium">Submitted:</span>
-          <span>{formatDate(app.createdAt)}</span>
+          <span>{formatDisplayDate(app.createdAt)}</span>
         </div>
         <div className="flex justify-between">
           <span className="font-medium">Assigned to:</span>

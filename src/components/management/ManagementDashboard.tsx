@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
 import { NotificationsView } from '../NotificationsView';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -100,14 +101,6 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   // Calculate statistics
@@ -233,7 +226,7 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
         <Card>
           <CardHeader>
             <CardTitle>All rebate applications</CardTitle>
-            <CardDescription>Read-only list for external reviewers and M&E staff.</CardDescription>
+            <CardDescription>Read-only list for external reviewers and M&E Rebate Team.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -255,7 +248,7 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
                     <td className="py-3 pr-3">
                       <Badge variant="outline">{app.status}</Badge>
                     </td>
-                    <td className="py-3">{formatDate(app.createdAt)}</td>
+                    <td className="py-3">{formatDisplayDate(app.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

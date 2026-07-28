@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatNumber, formatRwfAmount } from '../../utils/numberFormat';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
@@ -150,14 +153,6 @@ interface WeeklyDisbursementReportProps {
   mode?: 'cfo-authorization' | 'af-notification';
 }
 
-function formatShortDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyDisbursementReportProps) {
   const [query, setQuery] = useState('');
   const [filterAf, setFilterAf] = useState('all');
@@ -241,7 +236,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
 
   const dateRangeLabel =
     dateFrom && dateTo
-      ? `${formatShortDate(dateFrom)} – ${formatShortDate(dateTo)}`
+      ? `${formatDisplayDate(dateFrom)} – ${formatDisplayDate(dateTo)}`
       : 'Selected period';
 
   const exportExcel = (withSignature: boolean) => {
@@ -254,7 +249,8 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
       'E-Moto Provider',
       'Retrofit Assembler',
       'E-Moto Retail Cost (RWF)',
-      'Rebate Amount (RWF) and Percent',
+      'Rebate Amount (RWF)',
+      'Rebate Percentage (%)',
       'Date of AF Submission',
       'Date of Rebate Team Verification',
       'Date of QA Team Approval',
@@ -267,11 +263,12 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
       r.af,
       r.provider,
       r.assembler,
-      r.retailCost.toString(),
-      `${r.amount} (${r.rebatePercent})`,
-      formatShortDate(r.afSubmittedAt),
-      formatShortDate(r.rebateVerifiedAt),
-      formatShortDate(r.qaApprovedAt),
+      formatNumber(r.retailCost),
+      formatNumber(r.amount),
+      r.rebatePercent,
+      formatDisplayDate(r.afSubmittedAt),
+      formatDisplayDate(r.rebateVerifiedAt),
+      formatDisplayDate(r.qaApprovedAt),
     ]);
     const csv = [headers, ...rows]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
@@ -357,20 +354,18 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
       <div className="flex flex-wrap items-end gap-4 print:hidden">
         <div className="space-y-1">
           <Label className="text-xs text-gray-600">Approved rebates from</Label>
-          <Input
-            type="date"
+          <DateInput
             className="w-[170px]"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={setDateFrom}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-600">Approved rebates to</Label>
-          <Input
-            type="date"
+          <DateInput
             className="w-[170px]"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={setDateTo}
           />
         </div>
         <p className="text-sm text-gray-600 pb-2">
@@ -573,23 +568,21 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-600">AF submission from</p>
-              <Input
-                type="date"
+              <DateInput
                 value={filterAfSubmitFrom}
-                onChange={(e) => setFilterAfSubmitFrom(e.target.value)}
+                onChange={setFilterAfSubmitFrom}
               />
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-600">Rebate Team verification from</p>
-              <Input
-                type="date"
+              <DateInput
                 value={filterVerifiedFrom}
-                onChange={(e) => setFilterVerifiedFrom(e.target.value)}
+                onChange={setFilterVerifiedFrom}
               />
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-600">QA approval from</p>
-              <Input type="date" value={filterQaFrom} onChange={(e) => setFilterQaFrom(e.target.value)} />
+              <DateInput value={filterQaFrom} onChange={setFilterQaFrom} />
             </div>
           </div>
           <p className="text-xs text-gray-500">
@@ -625,33 +618,34 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
                   <th className="pb-2 pr-3 font-medium">E-Moto Provider</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit Assembler</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Retail Cost (RWF)</th>
-                  <th className="pb-2 font-medium">Rebate Amount (RWF) and %</th>
+                  <th className="pb-2 pr-3 font-medium">Rebate Amount (RWF)</th>
+                  <th className="pb-2 font-medium">Rebate Percentage (%)</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.map((r) => (
                   <tr key={r.ticket} className="border-b last:border-0">
                     <td className="py-2 pr-3 font-semibold text-[#023F40]">{r.ticket}</td>
-                    <td className="py-2 pr-3">{formatShortDate(r.afSubmittedAt)}</td>
-                    <td className="py-2 pr-3">{formatShortDate(r.rebateVerifiedAt)}</td>
-                    <td className="py-2 pr-3">{formatShortDate(r.qaApprovedAt)}</td>
+                    <td className="py-2 pr-3">{formatDisplayDate(r.afSubmittedAt)}</td>
+                    <td className="py-2 pr-3">{formatDisplayDate(r.rebateVerifiedAt)}</td>
+                    <td className="py-2 pr-3">{formatDisplayDate(r.qaApprovedAt)}</td>
                     <td className="py-2 pr-3">{r.applicant}</td>
                     <td className="py-2 pr-3">{r.woman ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.retrofit ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.af}</td>
                     <td className="py-2 pr-3">{r.provider}</td>
                     <td className="py-2 pr-3">{r.assembler}</td>
-                    <td className="py-2 pr-3">{r.retailCost.toLocaleString()}</td>
-                    <td className="py-2">
-                      {r.amount.toLocaleString()} ({r.rebatePercent})
-                    </td>
+                    <td className="py-2 pr-3">{formatNumber(r.retailCost)}</td>
+                    <td className="py-2 pr-3">{formatNumber(r.amount)}</td>
+                    <td className="py-2">{r.rebatePercent}</td>
                   </tr>
                 ))}
                 <tr className="font-semibold">
-                  <td colSpan={11} className="py-3 text-right pr-3">
+                  <td colSpan={12} className="py-3 text-right pr-3">
                     Total for Approval{filterAf !== 'all' ? ` (${filterAf})` : ''}
                   </td>
-                  <td className="py-3">RWF {Math.round(total).toLocaleString()}</td>
+                  <td className="py-3">{formatRwfAmount(total)}</td>
+                  <td className="py-3" />
                 </tr>
               </tbody>
             </table>

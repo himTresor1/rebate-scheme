@@ -21,6 +21,10 @@ import {
   getSubmitterContactInfo,
   isAfFieldMissing,
 } from '../../utils/afRebateData';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatNumber } from '../../utils/numberFormat';
+import { getRebatePercent } from '../../utils/rebateCalculation';
+import { FieldLabel } from './FieldLabel';
 
 export type RebateApplicationDetailsData = AfRebateRecord;
 
@@ -60,29 +64,40 @@ function DetailField({
   label,
   value,
   record,
+  isDate = false,
+  required = false,
+  optional = false,
 }: {
   label: string;
   value?: string | number;
   record: AfRebateRecord;
+  isDate?: boolean;
+  required?: boolean;
+  optional?: boolean;
 }) {
   const missing = isAfFieldMissing(record, label, value);
+  const formattedValue =
+    missing
+      ? 'Missing'
+      : isDate
+        ? formatDisplayDate(typeof value === 'string' ? value : undefined)
+        : typeof value === 'number'
+          ? formatNumber(value)
+          : value || '—';
+
   return (
     <div>
-      <span className="text-gray-500">{label}</span>
-      <p className={`font-medium ${missing ? 'text-amber-700' : ''}`}>
-        {missing
-          ? 'Missing'
-          : typeof value === 'number'
-            ? value.toLocaleString()
-            : value || '—'}
-      </p>
+      <FieldLabel as="span" required={required} optional={optional} className="mb-0">
+        {label}
+      </FieldLabel>
+      <p className={`font-medium ${missing ? 'text-amber-700' : ''}`}>{formattedValue}</p>
     </div>
   );
 }
 
 function formatRwf(value?: number) {
   if (value === undefined || value === null || value === 0) return undefined;
-  return value;
+  return formatNumber(value);
 }
 
 export function RebateApplicationDetailsPage({
@@ -288,7 +303,7 @@ export function RebateApplicationDetailsPage({
     ? 'Details on Rebates for Potential Submission to RGF'
     : 'Details on Individual Rebates';
   const pageSubtitle = isProposalReview
-    ? 'This page provides details on individual rebates that your marketing staff and external designated agents have developed for your consideration. If the proposed individual meets financing and rebate eligibility requirements, please add the missing mandatory information and documents and submit to RGF.'
+    ? 'This page provides details on individual rebates that your marketing Rebate Team members and external designated agents have developed for your consideration. If the proposed individual meets financing and rebate eligibility requirements, please add the missing mandatory information and documents and submit to RGF.'
     : 'This page provides details on individual rebates. Please add any missing mandatory information and documents for rebates in your pipeline before submitting to RGF.';
 
   const repaymentFrequencyLabel =
@@ -338,7 +353,7 @@ export function RebateApplicationDetailsPage({
             </div>
             <div>
               <span className="text-gray-500">Submitted on</span>
-              <p className="font-medium">{data.submittedAt}</p>
+              <p className="font-medium">{formatDisplayDate(data.submittedAt)}</p>
             </div>
             <div>
               <span className="text-gray-500">Ticket No.</span>
@@ -349,27 +364,31 @@ export function RebateApplicationDetailsPage({
           <div className="border-t pt-4">
             <h3 className="font-semibold text-gray-900 mb-3">Individual Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <DetailField label="Individual first name(s)" value={data.firstName} record={data} />
-              <DetailField label="Individual last name(s)" value={data.lastName} record={data} />
+              <DetailField label="Individual first name(s)" value={data.firstName} record={data} required />
+              <DetailField label="Individual last name(s)" value={data.lastName} record={data} required />
               <DetailField
                 label="Date of Birth"
                 value={data.dateOfBirth}
                 record={data}
+                isDate
+                required
               />
               <DetailField
                 label="Gender?"
                 value={data.isWoman ? 'Woman' : 'Man'}
                 record={data}
+                required
               />
-              <DetailField label="Vehicle Type?" value={data.vehicleType} record={data} />
-              <DetailField label="Phone Number" value={data.phoneNumber} record={data} />
-              <DetailField label="Email (Optional)" value={data.email} record={data} />
-              <DetailField label="TIN (Tax Identification Number)" value={data.tin} record={data} />
-              <DetailField label="National ID" value={data.nationalId} record={data} />
+              <DetailField label="Vehicle Type?" value={data.vehicleType} record={data} required />
+              <DetailField label="Phone Number" value={data.phoneNumber} record={data} required />
+              <DetailField label="Email" value={data.email} record={data} optional />
+              <DetailField label="TIN (Tax Identification Number)" value={data.tin} record={data} optional />
+              <DetailField label="National ID" value={data.nationalId} record={data} required />
               <DetailField
                 label="Motorcycle Driver's License"
                 value={data.motoLicense}
                 record={data}
+                required
               />
             </div>
           </div>
@@ -377,40 +396,52 @@ export function RebateApplicationDetailsPage({
           <div className="border-t pt-4">
             <h3 className="font-semibold text-gray-900 mb-3">Vehicle and Financing</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <DetailField label="E-Moto Provider" value={data.supplier} record={data} />
-              <DetailField label="E-Moto Model" value={data.model} record={data} />
+              <DetailField label="E-Moto Provider" value={data.supplier} record={data} required />
+              <DetailField label="E-Moto Model" value={data.model} record={data} required />
               {data.isRetrofit && (
                 <DetailField
                   label="Retrofit Assembler"
                   value={data.retrofitAssembler}
                   record={data}
+                  required
                 />
               )}
               <DetailField
                 label={data.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
                 value={formatRwf(data.retailCost) ?? data.retailCost}
                 record={data}
+                required
               />
               <DetailField
                 label="Total Contract Repayment Amount (RWF)"
                 value={data.loanAmount}
                 record={data}
+                required
               />
+
               <DetailField
                 label="Rebate Amount (RWF) — auto-calculated"
                 value={formatRwf(data.rebateAmount) ?? data.rebateAmount}
                 record={data}
               />
-              <DetailField label="Contract Term (months)" value={data.loanTerm} record={data} />
+              <DetailField
+                label="Rebate Percentage (%)"
+                value={getRebatePercent({ isWoman: data.isWoman, isRetrofit: data.isRetrofit })}
+                record={data}
+              />
+
+              <DetailField label="Contract Term (months)" value={data.loanTerm} record={data} required />
               <DetailField
                 label="Repayment Frequency"
                 value={repaymentFrequencyLabel}
                 record={data}
+                required
               />
               <DetailField
                 label="Repayment Amount (RWF)"
                 value={data.monthlyRepayment}
                 record={data}
+                required
               />
             </div>
           </div>

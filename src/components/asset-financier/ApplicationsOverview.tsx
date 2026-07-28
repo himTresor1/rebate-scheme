@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
+import { formatDisplayDate } from '../../utils/dateFormat';
 import { Button } from '../ui/button';
 import { Search, Filter, FileText, Calendar, Eye, Upload, Loader2, CheckCircle2, X, AlertCircle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -373,17 +375,15 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoO
 
           {/* Date Range */}
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            <Input
-              type="date"
+            <DateInput
               value={dateRange.start}
-              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+              onChange={(start) => setDateRange({ ...dateRange, start })}
               className="flex-1 text-sm"
             />
             <span className="text-gray-500 text-sm">to</span>
-            <Input
-              type="date"
+            <DateInput
               value={dateRange.end}
-              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+              onChange={(end) => setDateRange({ ...dateRange, end })}
               className="flex-1 text-sm"
             />
           </div>
@@ -470,7 +470,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoO
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1 text-gray-900">
                         <Calendar className="w-3 h-3 text-gray-400" />
-                        {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : 'N/A'}
+                        {application.submittedAt ? formatDisplayDate(application.submittedAt) : 'N/A'}
                       </div>
                       <span className="text-xs text-gray-500 ml-4">
                         {application.submittedAt ? new Date(application.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}

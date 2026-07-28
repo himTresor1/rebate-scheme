@@ -24,6 +24,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDisplayDate } from '../../utils/dateFormat';
 import {
   mockSocialRegistryCheck,
   mockRuraRraCheck,
@@ -250,7 +251,7 @@ export function EligibilityCheckerModal({
                       <p className="text-gray-700">Household Size: {checkData.householdSize} members</p>
                       <p className="text-gray-700">Ubudehe Category: {checkData.ubudeheCategory}</p>
                       <p className="text-gray-700">Location: {checkData.location}</p>
-                      <p className="text-gray-600 text-xs mt-2">Registered: {new Date(checkData.registeredDate).toLocaleDateString()}</p>
+                      <p className="text-gray-600 text-xs mt-2">Registered: {formatDisplayDate(checkData.registeredDate)}</p>
                     </>
                   ) : (
                     <p className="text-red-800 font-semibold">{checkData.reason}</p>
@@ -310,7 +311,7 @@ export function EligibilityCheckerModal({
                       <p className="text-gray-700">License: {checkData.licenseNumber}</p>
                       <p className="text-gray-700">Type: {checkData.licenseType}</p>
                       <p className="text-gray-700">Status: {checkData.status}</p>
-                      <p className="text-gray-700">Expires: {new Date(checkData.expiryDate).toLocaleDateString()}</p>
+                      <p className="text-gray-700">Expires: {formatDisplayDate(checkData.expiryDate)}</p>
                     </>
                   ) : (
                     <p className="text-red-800 font-semibold">{checkData.reason}</p>

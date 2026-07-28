@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -238,10 +239,9 @@ export function FinanceOfficerAfTrackingPage({ afSummary, leases, onBack }: Fina
             </div>
             <div className="space-y-2">
               <Label>Date withdrawn</Label>
-              <Input
-                type="date"
+              <DateInput
                 value={trackForm.dateWithdrawn}
-                onChange={(e) => setTrackForm((prev) => ({ ...prev, dateWithdrawn: e.target.value }))}
+                onChange={(dateWithdrawn) => setTrackForm((prev) => ({ ...prev, dateWithdrawn }))}
               />
             </div>
             <div className="space-y-2">

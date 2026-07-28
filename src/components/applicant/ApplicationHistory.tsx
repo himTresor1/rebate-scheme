@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from '../ui/dialog';
 import { Pagination, usePagination } from '../ui/pagination';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -91,11 +92,7 @@ export function ApplicationHistory({ user }: ApplicationHistoryProps) {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return formatDisplayDate(dateString);
   };
 
   // Use pagination

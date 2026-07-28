@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Upload, X, FileText, Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDisplayDateTime } from '../../utils/dateFormat';
 
 interface UploadedDocument {
   name: string;
@@ -95,17 +96,6 @@ export function DocumentUploadField({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   return (
     <div className="space-y-3">
       {/* Upload Button */}
@@ -165,7 +155,7 @@ export function DocumentUploadField({
                     {doc.name}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {formatDate(doc.uploadedAt)}
+                    {formatDisplayDateTime(doc.uploadedAt)}
                     {doc.uploadedBy && ` • ${doc.uploadedBy}`}
                   </p>
                 </div>

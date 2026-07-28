@@ -3850,12 +3850,12 @@ app.post("/make-server-324f6e20/asset-financier/users/create", async (c) => {
     return c.json({
       success: true,
       userId,
-      message: 'Staff member created successfully',
+      message: 'Rebate Team member created successfully',
       tempPassword // In production, this should only be sent via email
     });
   } catch (error: any) {
     console.error('Error creating staff user:', error);
-    return c.json({ error: 'Failed to create staff member' }, 500);
+    return c.json({ error: 'Failed to create Rebate Team member' }, 500);
   }
 });
 

@@ -49,7 +49,7 @@ export function AfPermissionsView() {
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">AF Submission Permissions</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Decision makers submit signed leases directly to RGF. Marketing agents and field staff submit internal proposals to AF decision makers only.
+          Decision makers submit signed leases directly to RGF. Marketing agents and field Rebate Team members submit internal proposals to AF decision makers only.
         </p>
       </div>
 

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Organization {
   id: string;
@@ -202,7 +203,7 @@ export function PendingRegistrations() {
               <InfoField label="Registration Number" value={selectedOrg.companyRegistrationNumber} />
               <InfoField label="Phone" value={selectedOrg.companyPhoneNumber} icon={<Phone className="w-4 h-4" />} />
               <InfoField label="Email" value={selectedOrg.companyEmail} icon={<Mail className="w-4 h-4" />} />
-              <InfoField label="Submitted" value={new Date(selectedOrg.submittedAt).toLocaleDateString()} />
+              <InfoField label="Submitted" value={formatDisplayDate(selectedOrg.submittedAt)} />
             </div>
 
             <InfoField label="Address" value={selectedOrg.companyAddress} fullWidth />

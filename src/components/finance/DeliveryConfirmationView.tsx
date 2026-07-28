@@ -19,6 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { User as UserType } from '../../utils/auth';
+import { formatDisplayDateTime } from '../../utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -128,16 +129,6 @@ export function DeliveryConfirmationView({ user }: DeliveryConfirmationViewProps
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(num);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   const calculateDeliveryDeadline = (fundedAt: string) => {
@@ -286,14 +277,14 @@ export function DeliveryConfirmationView({ user }: DeliveryConfirmationViewProps
                               {app.fundedAt && (
                                 <div>
                                   <p className="text-gray-600">Funded At</p>
-                                  <p className="font-medium">{formatDate(app.fundedAt)}</p>
+                                  <p className="font-medium">{formatDisplayDateTime(app.fundedAt)}</p>
                                 </div>
                               )}
                               {deadline && (
                                 <div>
                                   <p className="text-gray-600">Delivery Deadline</p>
                                   <p className={`font-medium ${isUrgent ? 'text-orange-600' : ''}`}>
-                                    {formatDate(deadline.toISOString())}
+                                    {formatDisplayDateTime(deadline.toISOString())}
                                   </p>
                                 </div>
                               )}

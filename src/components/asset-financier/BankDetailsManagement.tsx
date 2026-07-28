@@ -5,6 +5,7 @@ import { Building2, AlertTriangle, CheckCircle, DollarSign } from 'lucide-react'
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { FormSkeleton } from '../ui/skeletons';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface BankDetails {
   bankName: string;
@@ -277,7 +278,7 @@ export function BankDetailsManagement({ organizationId }: BankDetailsManagementP
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span>
-                  Last updated {new Date(bankDetails.updatedAt!).toLocaleDateString()}
+                  Last updated {formatDisplayDate(bankDetails.updatedAt!)}
                 </span>
               </div>
             </div>

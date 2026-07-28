@@ -7,6 +7,8 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ArrowLeft, Filter, Upload, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatNumber } from '../../utils/numberFormat';
+import { getRebatePercent } from '../../utils/rebateCalculation';
 
 type PossessionStatus = 'awaiting-confirmation' | 'confirmation-submitted';
 
@@ -312,11 +314,17 @@ export function PossessionAnalysisView() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Retail Cost (RWF)</p>
-              <p className="font-medium">{selected.retailCost.toLocaleString()}</p>
+              <p className="font-medium">{formatNumber(selected.retailCost)}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
-              <p className="font-semibold text-[#023F40]">{selected.rebateAmount.toLocaleString()}</p>
+              <p className="font-semibold text-[#023F40]">{formatNumber(selected.rebateAmount)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
+              <p className="font-semibold text-[#023F40]">
+                {getRebatePercent({ isWoman: selected.isWoman, isRetrofit: selected.isRetrofit })}
+              </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Phone</p>
@@ -527,6 +535,7 @@ export function PossessionAnalysisView() {
                   <th className="pb-2 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-2 pr-3 font-medium">Retail Cost of E-Moto (RWF)</th>
                   <th className="pb-2 pr-3 font-medium">Rebate Amount (RWF)</th>
+                  <th className="pb-2 pr-3 font-medium">Rebate Percentage (%)</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Supplier</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Model</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit Assembler</th>
@@ -550,8 +559,11 @@ export function PossessionAnalysisView() {
                     <td className="py-2 pr-3">{r.isWoman ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.isRetrofit ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.assetFinancier}</td>
-                    <td className="py-2 pr-3">{r.retailCost.toLocaleString()}</td>
-                    <td className="py-2 pr-3">{r.rebateAmount.toLocaleString()}</td>
+                    <td className="py-2 pr-3">{formatNumber(r.retailCost)}</td>
+                    <td className="py-2 pr-3">{formatNumber(r.rebateAmount)}</td>
+                    <td className="py-2 pr-3">
+                      {getRebatePercent({ isWoman: r.isWoman, isRetrofit: r.isRetrofit })}
+                    </td>
                     <td className="py-2 pr-3">{r.supplier}</td>
                     <td className="py-2 pr-3">{r.model}</td>
                     <td className="py-2 pr-3">{r.retrofitAssembler}</td>

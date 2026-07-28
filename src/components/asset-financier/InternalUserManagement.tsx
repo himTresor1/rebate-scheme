@@ -21,13 +21,14 @@ import {
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { TableSkeleton } from '../ui/skeletons';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface InternalUser {
   id: string;
   name: string;
   email: string;
   phoneNumber: string;
-  role: 'ASSET_FINANCIER_STAFF' | 'ASSET_FINANCIER_OFFICER';
+  role: 'ASSET_FINANCIER_STAFF' | 'ASSET_FINANCIER_OFFICER' | 'CLAIMS_OFFICER';
   permissions: string[];
   createdAt: string;
   createdBy: string;
@@ -43,15 +44,24 @@ interface InternalUserManagementProps {
   organizationId: string;
 }
 
+const AF_REBATE_TEAM_ROLES = [
+  { value: 'ASSET_FINANCIER_OFFICER' as const, label: 'AF Decision Maker – Submit Rebates' },
+  { value: 'ASSET_FINANCIER_STAFF' as const, label: 'AF Staff – Propose Rebates' },
+  { value: 'CLAIMS_OFFICER' as const, label: 'External Individuals – Propose Rebates' },
+];
+
+type AfRebateTeamRole = (typeof AF_REBATE_TEAM_ROLES)[number]['value'];
+
+function getAfRebateTeamRoleLabel(role: string): string {
+  return AF_REBATE_TEAM_ROLES.find((r) => r.value === role)?.label ?? role;
+}
+
 const ASSET_FINANCIER_PERMISSIONS = [
   { code: 'AF_SUBMIT_APPLICATIONS', label: 'Submit Applications', description: 'Submit new rebate applications' },
   { code: 'AF_VIEW_OWN_APPLICATIONS', label: 'View Applications', description: 'View submitted applications' },
   { code: 'AF_EDIT_OWN_APPLICATIONS', label: 'Edit Applications', description: 'Edit draft applications' },
   { code: 'AF_UPLOAD_DOCUMENTS', label: 'Upload Documents', description: 'Upload and manage documents' },
   { code: 'AF_RESPOND_TO_INFO_REQUESTS', label: 'Respond to Requests', description: 'Respond to analyst feedback' },
-  { code: 'AF_VIEW_BANK_DETAILS', label: 'View Bank Details', description: 'View organization bank account' },
-  { code: 'AF_UPDATE_BANK_DETAILS', label: 'Update Bank Details', description: 'Update bank account information' },
-  { code: 'AF_RECORD_REPAYMENTS', label: 'Record Loan Repayments', description: 'Record monthly rider repayments' }
 ];
 
 export function InternalUserManagement({ organizationId }: InternalUserManagementProps) {
@@ -138,7 +148,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
       
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      toast.error(error.message || 'Failed to load staff members');
+      toast.error(error.message || 'Failed to load Rebate Team members');
       setLoading(false);
     }
   };
@@ -191,9 +201,9 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
       <div className="mt-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-[#023F40]">Staff Management</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-[#023F40]">Rebate Team Management</h2>
             <p className="text-gray-600 mt-1">
-              Manage staff accounts, permissions, and view application workload
+              Designate the people within the Asset Financier organisation who are authorised to submit rebates to Rwanda Green Fund and the individuals authorised to propose rebate applications to AF Decision Makers.
             </p>
           </div>
           <Button
@@ -218,7 +228,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
             }`}
           >
             <Users className="w-4 h-4 inline mr-2" />
-            Staff List
+            Rebate Team List
           </button>
           <button
             onClick={() => setViewMode('workload')}
@@ -229,7 +239,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
             }`}
           >
             <BarChart3 className="w-4 h-4 inline mr-2" />
-            Workload View
+            Rebate Team Workload Overview
           </button>
         </div>
 
@@ -237,7 +247,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
         <div className="flex items-center gap-4">
           <div className="text-center">
             <p className="text-2xl font-bold text-[#023F40]">{users.length}</p>
-            <p className="text-xs text-gray-600">Total Staff</p>
+            <p className="text-xs text-gray-600">Total Rebate Team</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-blue-600">{totalApplications}</p>
@@ -269,7 +279,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
         <div className="bg-white rounded-lg border p-8 text-center">
           <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600 mb-4">
-            {searchTerm ? 'No staff members found matching your search' : 'No staff members yet'}
+            {searchTerm ? 'No Rebate Team members found matching your search' : 'No Rebate Team members yet'}
           </p>
           {!searchTerm && (
             <Button
@@ -297,8 +307,16 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                          <Badge className={user.role === 'ASSET_FINANCIER_OFFICER' ? 'bg-blue-100 text-blue-700 border-0' : 'bg-gray-100 text-gray-700 border-0'}>
-                            {user.role === 'ASSET_FINANCIER_STAFF' ? 'E-Moto Marketing Person' : 'AF Finance Staff'}
+                          <Badge
+                            className={
+                              user.role === 'ASSET_FINANCIER_OFFICER'
+                                ? 'bg-blue-100 text-blue-700 border-0'
+                                : user.role === 'CLAIMS_OFFICER'
+                                  ? 'bg-purple-100 text-purple-700 border-0'
+                                  : 'bg-gray-100 text-gray-700 border-0'
+                            }
+                          >
+                            {getAfRebateTeamRoleLabel(user.role)}
                           </Badge>
                           {user.isActive ? (
                             <span className="flex items-center gap-1 text-green-600 text-xs">
@@ -393,7 +411,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
                                 {app.riderName} • {app.vehicleBrand} {app.vehicleModel}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
-                                Submitted {new Date(app.submittedAt).toLocaleDateString()}
+                                Submitted {formatDisplayDate(app.submittedAt)}
                               </p>
                             </div>
                             <div className="text-right">
@@ -419,7 +437,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-[#023F40]" />
-              Staff Workload Overview
+              Rebate Team Workload Overview
             </h3>
           </div>
           <div className="divide-y divide-gray-200">
@@ -544,7 +562,7 @@ function CreateUserModal({
     name: '',
     email: '',
     phoneNumber: '',
-    role: 'ASSET_FINANCIER_STAFF' as 'ASSET_FINANCIER_STAFF' | 'ASSET_FINANCIER_OFFICER'
+    role: 'ASSET_FINANCIER_STAFF' as AfRebateTeamRole
   });
   const [loading, setLoading] = useState(false);
 
@@ -579,11 +597,11 @@ function CreateUserModal({
         throw new Error(error.error || 'Failed to create user');
       }
 
-      toast.success('Staff member created successfully. Welcome email sent.');
+      toast.success('Rebate Team member created successfully. Welcome email sent.');
       onSuccess();
     } catch (error: any) {
       console.error('Error creating user:', error);
-      toast.error(error.message || 'Failed to create staff member');
+      toast.error(error.message || 'Failed to create Rebate Team member');
     } finally {
       setLoading(false);
     }
@@ -592,7 +610,7 @@ function CreateUserModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <h3 className="text-xl font-semibold mb-4 text-[#023F40]">Add Team Member</h3>
+        <h3 className="text-xl font-semibold mb-4 text-[#023F40]">Add Rebate Team Member</h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -640,17 +658,22 @@ function CreateUserModal({
             </label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ 
-                ...formData, 
-                role: e.target.value as typeof formData.role 
-              })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  role: e.target.value as AfRebateTeamRole,
+                })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#023F40]"
             >
-              <option value="ASSET_FINANCIER_STAFF">E-Moto Marketing Person</option>
-              <option value="ASSET_FINANCIER_OFFICER">AF Finance Staff</option>
+              {AF_REBATE_TEAM_ROLES.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              E-Moto Marketing Person: submit + own statuses | AF Finance Staff: direct submit to RGF + review marketing submissions
+              AF Decision Makers submit rebates to RGF. AF Staff and External Individuals propose rebate applications to AF Decision Makers.
             </p>
           </div>
 

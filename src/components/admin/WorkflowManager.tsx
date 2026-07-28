@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Plus, Search, Filter, Edit2, Trash2, Play, Pause, GitBranch } from 'lucide-react';
@@ -8,6 +7,7 @@ import { cn } from '../ui/utils';
 import { Workflow } from '../../types/workflow';
 import { WorkflowEditor } from './WorkflowEditor';
 import { User } from '../../utils/auth';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface WorkflowManagerProps {
   user: User;
@@ -164,7 +164,7 @@ export function WorkflowManager({ }: WorkflowManagerProps) {
                             <span className="text-xs font-medium">{workflow.stages.length} Configured Stages</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-gray-500">
-                            <span className="text-xs italic">Effective: {format(new Date(workflow.effectiveFrom), 'MMM dd, yyyy')}</span>
+                            <span className="text-xs italic">Effective: {formatDisplayDate(workflow.effectiveFrom)}</span>
                           </div>
                         </div>
                       </div>

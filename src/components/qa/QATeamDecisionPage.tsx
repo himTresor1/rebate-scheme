@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
+import { formatDisplayDate } from '../../utils/dateFormat';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
@@ -31,7 +33,8 @@ import { toast } from 'sonner';
 import { User } from '../../utils/auth';
 import { api } from '../../utils/api';
 import { getQaPresentationApplications } from '../../utils/demoPipelineData';
-import { getRebateRateLabel } from '../../utils/rebateCalculation';
+import { getRebatePercent } from '../../utils/rebateCalculation';
+import { formatNumber } from '../../utils/numberFormat';
 import { QAReview } from './QAReview';
 import { PageHeader } from '../PageHeader';
 import { Greeting } from '../ui/Greeting';
@@ -61,21 +64,12 @@ type RowDecision = {
   comment: string;
 };
 
-function formatShortDate(dateString?: string) {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 function enrichDecisionRow(app: any, index: number): DecisionRow {
   const woman = app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' || index % 3 === 1;
   const retrofit = Boolean(app.isRetrofit);
   const retail = parseFloat(app.purchasePrice || `${3500000 + index * 50000}`) || 3500000;
   const amount = parseFloat(app.rebateAmount || '0') || Math.round(retail * (woman ? 0.25 : retrofit ? 0.2 : 0.18));
-  const percent = getRebateRateLabel({ isWoman: woman, isRetrofit: retrofit }).match(/\d+%/)?.[0] || '18%';
+  const percent = getRebatePercent({ isWoman: woman, isRetrofit: retrofit });
   return {
     id: app.id,
     ticket: app.ticketNumber || app.registrationNumber || app.id.replace('application:', '').toUpperCase(),
@@ -203,7 +197,7 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
 
   const dateRangeLabel =
     dateFrom && dateTo
-      ? `${formatShortDate(dateFrom)} – ${formatShortDate(dateTo)}`
+      ? `${formatDisplayDate(dateFrom)} – ${formatDisplayDate(dateTo)}`
       : 'Selected period';
 
   const setRowDecision = (id: string, decision: DecisionValue) => {
@@ -288,22 +282,24 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
       'E-Moto Provider',
       'Retrofit Assembler',
       'E-Moto Retail Cost (RWF)',
-      'Rebate Amount (RWF) and Percent',
+      'Rebate Amount (RWF)',
+      'Rebate Percentage (%)',
       'QA Team Decision',
       'Comment',
     ];
     const dataRows = approvedRows.map((r) => [
       r.ticket,
-      formatShortDate(r.afSubmittedAt),
-      formatShortDate(r.verifiedAt),
+      formatDisplayDate(r.afSubmittedAt),
+      formatDisplayDate(r.verifiedAt),
       r.applicant,
       r.woman ? 'Yes' : 'No',
       r.retrofit ? 'Yes' : 'No',
       r.af,
       r.provider,
       r.assembler,
-      r.retailCost.toString(),
-      `${r.rebateAmount} (${r.rebatePercent})`,
+      formatNumber(r.retailCost),
+      formatNumber(r.rebateAmount),
+      r.rebatePercent,
       'YES',
       decisions[r.id]?.comment || '',
     ]);
@@ -406,20 +402,18 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
       <div className="flex flex-wrap items-end gap-4 print:hidden">
         <div className="space-y-1">
           <Label className="text-xs text-gray-600">Verified rebates from</Label>
-          <Input
-            type="date"
+          <DateInput
             className="w-[170px]"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={setDateFrom}
           />
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-gray-600">Verified rebates to</Label>
-          <Input
-            type="date"
+          <DateInput
             className="w-[170px]"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={setDateTo}
           />
         </div>
         <p className="text-sm text-gray-600 pb-2">
@@ -662,7 +656,8 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                   <th className="pb-2 pr-3 font-medium">E-Moto Provider</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit Assembler</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Retail Cost (RWF)</th>
-                  <th className="pb-2 pr-3 font-medium">Rebate Amount (RWF) and %</th>
+                  <th className="pb-2 pr-3 font-medium">Rebate Amount (RWF)</th>
+                  <th className="pb-2 pr-3 font-medium">Rebate Percentage (%)</th>
                   <th className="pb-2 pr-3 font-medium">QA Team Decision [YES/NO]</th>
                   <th className="pb-2 font-medium">Comment (from ticket review)</th>
                 </tr>
@@ -688,18 +683,17 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                           {r.ticket}
                         </button>
                       </td>
-                      <td className="py-2 pr-3">{formatShortDate(r.afSubmittedAt)}</td>
-                      <td className="py-2 pr-3">{formatShortDate(r.verifiedAt)}</td>
+                      <td className="py-2 pr-3">{formatDisplayDate(r.afSubmittedAt)}</td>
+                      <td className="py-2 pr-3">{formatDisplayDate(r.verifiedAt)}</td>
                       <td className="py-2 pr-3">{r.applicant}</td>
                       <td className="py-2 pr-3">{r.woman ? 'Yes' : 'No'}</td>
                       <td className="py-2 pr-3">{r.retrofit ? 'Yes' : 'No'}</td>
                       <td className="py-2 pr-3">{r.af}</td>
                       <td className="py-2 pr-3">{r.provider}</td>
                       <td className="py-2 pr-3">{r.assembler}</td>
-                      <td className="py-2 pr-3">{Math.round(r.retailCost).toLocaleString()}</td>
-                      <td className="py-2 pr-3">
-                        {Math.round(r.rebateAmount).toLocaleString()} ({r.rebatePercent})
-                      </td>
+                      <td className="py-2 pr-3">{formatNumber(r.retailCost)}</td>
+                      <td className="py-2 pr-3">{formatNumber(r.rebateAmount)}</td>
+                      <td className="py-2 pr-3">{r.rebatePercent}</td>
                       <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1 print:hidden">
                           <Button

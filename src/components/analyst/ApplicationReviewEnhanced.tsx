@@ -63,6 +63,9 @@ import {
 import { DocumentUploadField } from './DocumentUploadField';
 import { ForwardToMEDialog, MEForwardData } from './ForwardToMEDialog';
 import { CriterionCardEnhanced } from './CriterionCardEnhanced';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatNumber } from '../../utils/numberFormat';
+import { getRebatePercent } from '../../utils/rebateCalculation';
 interface Application {
   id: string;
   companyName: string;
@@ -488,7 +491,10 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
       application.id.replace('application:', '').toUpperCase();
     const genderLabel =
       application.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Woman' : 'Man';
-    const rebateAmountRwf = parseFloat(application.rebateAmount || '0').toLocaleString('en-US');
+    const isWoman = application.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
+    const isRetrofit = Boolean(application.isRetrofit);
+    const rebateAmountRwf = formatNumber(parseFloat(application.rebateAmount || '0') || 0);
+    const rebatePercent = getRebatePercent({ isWoman, isRetrofit });
 
     const mandatoryDocs = [
       { label: 'Signed Financing Contract', keywords: ['financing contract', 'contract', 'loan agreement'] },
@@ -564,7 +570,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                 <div>
                   <p className="text-xs uppercase tracking-wide text-gray-500">Date Received</p>
                   <p className="text-base font-medium text-gray-900">
-                    {new Date(application.createdAt).toLocaleDateString('en-US')}
+                    {formatDisplayDate(application.createdAt)}
                   </p>
                 </div>
                 <div>
@@ -599,9 +605,13 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                   <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p>
                   <p className="text-base font-medium text-gray-900">{application.motorcycleModel || 'Not provided'}</p>
                 </div>
-                <div className="bg-gray-50 border rounded-md p-3 sm:col-span-2">
+                <div className="bg-gray-50 border rounded-md p-3">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
                   <p className="text-base font-semibold text-[#023F40]">{rebateAmountRwf}</p>
+                </div>
+                <div className="bg-gray-50 border rounded-md p-3">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
+                  <p className="text-base font-semibold text-[#023F40]">{rebatePercent}</p>
                 </div>
               </div>
 
@@ -953,7 +963,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                 {application.registrationDate && (
                   <div>
                     <p className="text-sm text-gray-600">Registration Date</p>
-                    <p className="font-medium text-gray-900">{new Date(application.registrationDate).toLocaleDateString()}</p>
+                    <p className="font-medium text-gray-900">{formatDisplayDate(application.registrationDate)}</p>
                   </div>
                 )}
               </div>
@@ -1123,7 +1133,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                         <div>
                           <p className="font-medium text-gray-900">{doc.name}</p>
                           <p className="text-xs text-gray-500">
-                            Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                            Uploaded {formatDisplayDate(doc.uploadedAt)}
                           </p>
                         </div>
                       </div>

@@ -28,6 +28,7 @@ import { Workflow, WorkflowStage, WorkflowRule, StageType } from '../../types/wo
 import { StageCard } from './StageCard';
 import { RuleCard } from './RuleCard';
 import { toast } from 'sonner';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface WorkflowEditorProps {
   onSave: (workflow: Workflow) => void;
@@ -310,7 +311,7 @@ export function WorkflowEditor({ onSave, onCancel, workflow }: WorkflowEditorPro
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.effectiveFrom ? format(new Date(formData.effectiveFrom), "PPP") : <span>Pick a date</span>}
+                      {formData.effectiveFrom ? formatDisplayDate(formData.effectiveFrom) : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -336,7 +337,7 @@ export function WorkflowEditor({ onSave, onCancel, workflow }: WorkflowEditorPro
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.effectiveTo ? format(new Date(formData.effectiveTo), "PPP") : <span>Pick a date</span>}
+                      {formData.effectiveTo ? formatDisplayDate(formData.effectiveTo) : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">

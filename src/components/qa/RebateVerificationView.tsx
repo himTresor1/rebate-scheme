@@ -15,6 +15,7 @@ import {
 import { ArrowLeft, CheckCircle, FileCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '../../utils/auth';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -155,7 +156,7 @@ export function RebateVerificationView({ application, onBack }: RebateVerificati
             <p className="text-gray-700">
               All mandatory eligibility criteria met. Lease documentation complete. Applicant qualifies for new e-moto rebate at 18%.
             </p>
-            <p className="text-xs text-gray-500">Submitted by Rebate Analyst · {new Date(application.createdAt).toLocaleDateString()}</p>
+            <p className="text-xs text-gray-500">Submitted by Rebate Analyst · {formatDisplayDate(application.createdAt)}</p>
           </CardContent>
         </Card>
 

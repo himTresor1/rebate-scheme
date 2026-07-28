@@ -14,7 +14,9 @@ import {
 import { ArrowLeft, CheckCircle, Eye, XCircle } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { toast } from 'sonner';
-import { getRebateRateLabel } from '../../utils/rebateCalculation';
+import { getRebatePercent } from '../../utils/rebateCalculation';
+import { formatNumber } from '../../utils/numberFormat';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -88,9 +90,9 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
   const isWoman = application.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
   const genderLabel = isWoman ? 'Woman' : 'Man';
   const isRetrofit = Boolean(application.isRetrofit);
-  const rebateAmountRwf = Math.round(parseFloat(application.rebateAmount || '0') || 0).toLocaleString();
-  const retailCost = Math.round(parseFloat(application.purchasePrice || '0') || 0).toLocaleString();
-  const rebatePercent = getRebateRateLabel({ isWoman, isRetrofit }).match(/\d+%/)?.[0] || '18%';
+  const rebateAmountRwf = formatNumber(parseFloat(application.rebateAmount || '0') || 0);
+  const retailCost = formatNumber(parseFloat(application.purchasePrice || '0') || 0);
+  const rebatePercent = getRebatePercent({ isWoman, isRetrofit });
 
   const getDocumentByKeyword = (keywords: string[]) => {
     if (!application.documents || application.documents.length === 0) return undefined;
@@ -195,15 +197,15 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-500">Date of AF Submission</p>
                 <p className="text-base font-medium text-gray-900">
-                  {new Date(application.createdAt).toLocaleDateString('en-US')}
+                  {formatDisplayDate(application.createdAt)}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-gray-500">Date of Rebate Team Verification</p>
                 <p className="text-base font-medium text-gray-900">
-                  {new Date(
+                  {formatDisplayDate(
                     application.verifiedAt || application.lastReviewedAt || application.createdAt
-                  ).toLocaleDateString('en-US')}
+                  )}
                 </p>
               </div>
               <div>
@@ -251,10 +253,12 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
                 <p className="text-base font-medium text-gray-900">{retailCost}</p>
               </div>
               <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF) and Percent</p>
-                <p className="text-base font-semibold text-[#023F40]">
-                  {rebateAmountRwf} ({rebatePercent})
-                </p>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
+                <p className="text-base font-semibold text-[#023F40]">{rebateAmountRwf}</p>
+              </div>
+              <div className="bg-gray-50 border rounded-md p-3">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
+                <p className="text-base font-semibold text-[#023F40]">{rebatePercent}</p>
               </div>
             </div>
 
@@ -358,7 +362,7 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
                   <div>
                     <p className="text-sm font-medium text-gray-900">{doc.name}</p>
                     <p className="text-xs text-gray-500">
-                      {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Upload date unavailable'}
+                      {doc.uploadedAt ? formatDisplayDate(doc.uploadedAt) : 'Upload date unavailable'}
                     </p>
                   </div>
                   {doc.url ? (

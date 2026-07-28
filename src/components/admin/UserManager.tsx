@@ -17,6 +17,7 @@ import {
 import { Pagination, usePagination } from '../ui/pagination';
 import { projectId } from '../../utils/supabase/info';
 import { authService } from '../../utils/auth';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 export function UserManager() {
   const [users, setUsers] = useState<User[]>([]);
@@ -168,7 +169,7 @@ export function UserManager() {
                     )}
                   </TableCell>
                   <TableCell className="text-gray-600">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                    {user.createdAt ? formatDisplayDate(user.createdAt) : 'N/A'}
                   </TableCell>
                   <TableCell>
                     <button

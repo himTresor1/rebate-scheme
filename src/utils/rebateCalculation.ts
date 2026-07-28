@@ -21,6 +21,13 @@ export function getRebateRateLabel(options: { isWoman: boolean; isRetrofit: bool
   return '18% (new e-moto)';
 }
 
+/** Short rebate percentage for tables and detail views (e.g. "18%"). */
+export function getRebatePercent(options: { isWoman: boolean; isRetrofit: boolean }): string {
+  if (options.isWoman) return '25%';
+  if (options.isRetrofit) return '20%';
+  return '18%';
+}
+
 export function getRebateEligibilityLabel(options: { isWoman: boolean; isRetrofit: boolean }): string {
   let percent = '18%';
   if (options.isWoman) percent = '25%';
@@ -34,7 +41,9 @@ export function getRebateEligibilityLabel(options: { isWoman: boolean; isRetrofi
       ? 'men retrofitting their ICE-moto'
       : 'men acquiring a new e-moto';
 
-  return `Rebate percent for ${category}: ${percent} of Retail E-Moto Price`;
+  const priceBasis = options.isRetrofit ? 'Retrofit Price' : 'Retail E-Moto Price';
+
+  return `Rebate percent for ${category}: ${percent} of ${priceBasis}`;
 }
 
 export function generateTicketPreview(): string {

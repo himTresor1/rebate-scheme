@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
 import { Label } from '../ui/label';
 import { Pagination, usePagination } from '../ui/pagination';
+import { formatDisplayDate } from '../../utils/dateFormat';
 import {
   Select,
   SelectContent,
@@ -364,7 +366,7 @@ export function RepaymentTracking({ organizationId }: RepaymentTrackingProps) {
                   </div>
                   <div className="space-y-2">
                     <Label>Payment Date</Label>
-                    <Input type="date" />
+                    <DateInput value="" onChange={() => {}} />
                   </div>
                   <div className="space-y-2">
                     <Label>Payment Method</Label>
@@ -501,7 +503,7 @@ export function RepaymentTracking({ organizationId }: RepaymentTrackingProps) {
                     <p className="text-xs text-gray-500">of {formatCurrency(repayment.loanAmount)}</p>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {new Date(repayment.nextPaymentDate).toLocaleDateString()}
+                    {formatDisplayDate(repayment.nextPaymentDate)}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(repayment.status)}`}>
@@ -634,13 +636,13 @@ export function RepaymentTracking({ organizationId }: RepaymentTrackingProps) {
                     <Label className="text-sm text-gray-500">Last Payment Date</Label>
                     <p className="font-medium">
                       {selectedRepayment.lastPaymentDate 
-                        ? new Date(selectedRepayment.lastPaymentDate).toLocaleDateString()
+                        ? formatDisplayDate(selectedRepayment.lastPaymentDate)
                         : 'No payments yet'}
                     </p>
                   </div>
                   <div>
                     <Label className="text-sm text-gray-500">Next Payment Due</Label>
-                    <p className="font-medium">{new Date(selectedRepayment.nextPaymentDate).toLocaleDateString()}</p>
+                    <p className="font-medium">{formatDisplayDate(selectedRepayment.nextPaymentDate)}</p>
                   </div>
                 </div>
               </div>

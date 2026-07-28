@@ -7,6 +7,7 @@ import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-rea
 import { toast } from 'sonner';
 import { api } from '../../utils/api';
 import { Alert, AlertDescription } from '../ui/alert';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface LeaseUploadViewProps {
   user: User;
@@ -183,7 +184,7 @@ export function LeaseUploadView({ user }: LeaseUploadViewProps) {
 
                   <div className="flex items-center justify-between pt-4 border-t">
                     <div className="text-sm text-gray-600">
-                      <p>Approved on: {new Date(app.updatedAt).toLocaleDateString()}</p>
+                      <p>Approved on: {formatDisplayDate(app.updatedAt)}</p>
                       <p>Rider: {app.applicantName}</p>
                     </div>
                     <Button

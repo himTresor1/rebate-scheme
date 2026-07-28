@@ -30,7 +30,7 @@ export function InternalUserManagement({ organizationId }: { organizationId: str
         <div>
           <h2 className="text-[#023F40]">Internal User Management</h2>
           <p className="text-gray-600 mt-1">
-            Manage staff accounts and operational permissions
+            Manage Rebate Team accounts and operational permissions
           </p>
         </div>
         <Button
@@ -38,7 +38,7 @@ export function InternalUserManagement({ organizationId }: { organizationId: str
           className="bg-[#023F40] hover:bg-[#035f60]"
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Staff Member
+          Add Rebate Team Member
         </Button>
       </div>
 
@@ -49,7 +49,7 @@ export function InternalUserManagement({ organizationId }: { organizationId: str
         </div>
         <h3 className="font-medium text-gray-900 mb-2">Internal User Management</h3>
         <p className="text-gray-600">
-          This feature allows you to create staff accounts with granular permissions for:
+          This feature allows you to create Rebate Team accounts with granular permissions for:
         </p>
         <ul className="mt-4 text-sm text-gray-600 space-y-1 max-w-md mx-auto">
           <li>✓ Application Entry</li>

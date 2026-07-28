@@ -19,6 +19,7 @@ import {
   User
 } from 'lucide-react';
 import { User as UserType } from '../../utils/auth';
+import { formatDisplayDate } from '../../utils/dateFormat';
 import {
   Dialog,
   DialogContent,
@@ -162,14 +163,6 @@ export function FinanceInitiatorView({ user }: FinanceInitiatorViewProps) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(num);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -384,7 +377,7 @@ export function FinanceInitiatorView({ user }: FinanceInitiatorViewProps) {
                             <p className="font-medium text-gray-900">
                               {app.registrationNumber || app.id.slice(-8)}
                             </p>
-                            <p className="text-sm text-gray-500">{formatDate(app.createdAt)}</p>
+                            <p className="text-sm text-gray-500">{formatDisplayDate(app.createdAt)}</p>
                           </div>
                         </td>
                         <td className="py-3 px-4">

@@ -3,6 +3,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Loader2, CheckCircle, AlertCircle, FileText, User, Calendar, MapPin, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface IdentityVerificationStepProps {
   formData: any;
@@ -167,7 +168,7 @@ export function IdentityVerificationStep({ formData, setFormData }: IdentityVeri
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Date of Birth</p>
-                <p className="font-medium text-gray-900">{nidaData.dateOfBirth}</p>
+                <p className="font-medium text-gray-900">{formatDisplayDate(nidaData.dateOfBirth)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Gender</p>
@@ -209,13 +210,13 @@ export function IdentityVerificationStep({ formData, setFormData }: IdentityVeri
                     <p className="text-xs font-medium text-gray-700">Father</p>
                     <p className="text-sm text-gray-900">{nidaData.fatherInfo.name}</p>
                     <p className="text-xs text-gray-600">ID: {nidaData.fatherInfo.nationalId}</p>
-                    <p className="text-xs text-gray-600">DOB: {nidaData.fatherInfo.dateOfBirth}</p>
+                    <p className="text-xs text-gray-600">DOB: {formatDisplayDate(nidaData.fatherInfo.dateOfBirth)}</p>
                   </div>
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="text-xs font-medium text-gray-700">Mother</p>
                     <p className="text-sm text-gray-900">{nidaData.motherInfo.name}</p>
                     <p className="text-xs text-gray-600">ID: {nidaData.motherInfo.nationalId}</p>
-                    <p className="text-xs text-gray-600">DOB: {nidaData.motherInfo.dateOfBirth}</p>
+                    <p className="text-xs text-gray-600">DOB: {formatDisplayDate(nidaData.motherInfo.dateOfBirth)}</p>
                   </div>
                 </div>
               </div>

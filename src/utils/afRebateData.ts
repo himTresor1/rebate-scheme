@@ -192,6 +192,15 @@ export const AF_METRIC_LABELS: Record<AfMetricCategory, string> = {
   'disbursements-to-date': 'Approved Rebates Disbursements to date',
 };
 
+/** Short titles for filtered reports opened from dashboard status cards */
+export const AF_METRIC_REPORT_TITLES: Record<AfMetricCategory, string> = {
+  all: 'Total Rebates in Pipeline and Disbursed',
+  unfinished: 'Pipeline Being Developed',
+  'submitted-not-approved': 'Submitted to RGF but not yet Approved',
+  'lacking-possession': 'Approved Rebates Lacking AF Confirmation of E-Moto Possession',
+  'disbursements-to-date': 'Approved Rebates Disbursements to Date',
+};
+
 export function getPipelineRecords(records: AfRebateRecord[]): AfRebateRecord[] {
   return records.filter((r) => r.status === 'unfinished');
 }
@@ -560,5 +569,9 @@ export const AF_DOCUMENT_TEMPLATES = [
   {
     label: 'AF/Client Confirmation of E-Moto Possession',
     file: 'AF_Client_Confirmation_of_EMoto_Possession_Template.pdf',
+  },
+  {
+    label: 'Retrofit Suitability Statement',
+    file: 'Retrofit_Suitability_Statement_Template.pdf',
   },
 ];

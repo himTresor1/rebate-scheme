@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
+import { DateInput } from './ui/date-input';
 import { Card } from './ui/card';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -92,7 +93,7 @@ export function DemoInputStates() {
           {/* Date Type */}
           <div className="space-y-2">
             <Label htmlFor="input-date">Date</Label>
-            <Input id="input-date" type="date" />
+            <DateInput id="input-date" value="" onChange={() => {}} />
           </div>
 
         </div>

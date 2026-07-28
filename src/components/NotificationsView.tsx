@@ -16,6 +16,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDisplayDate } from '../utils/dateFormat';
 
 interface NotificationsViewProps {
   user: User;
@@ -63,7 +64,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
           id: 'sa-2',
           type: 'system',
           title: 'New internal users invited',
-          message: 'Bank of Kigali added a Marketing Agent and an AF Finance Staff user to their organization.',
+          message: 'Bank of Kigali added a Marketing Agent and an AF Finance Decision-Maker to their organization.',
           timestamp: hrs(6),
           read: false,
         },
@@ -316,7 +317,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
           id: 'ma-1',
           type: 'success',
           title: 'Proposal submitted to RGF',
-          message: 'Your rebate proposal REB-002 was reviewed and submitted to RGF by your AF finance staff.',
+          message: 'Your rebate proposal REB-002 was reviewed and submitted to RGF by your AF finance Rebate Team.',
           timestamp: mins(20),
           read: false,
         },
@@ -417,7 +418,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
     if (diffMins < 60) return `${diffMins} ${diffMins === 1 ? 'minute' : 'minutes'} ago`;
     if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
     if (diffDays < 7) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
-    return date.toLocaleDateString();
+    return formatDisplayDate(date);
   };
 
   const markAsRead = (notifId: string) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { 
   User, 
@@ -13,7 +14,10 @@ import {
 import { toast } from 'sonner';
 import { api } from '../../utils/api';
 import { DocumentUploadSection, type AdditionalDocument } from './DocumentUploadSection';
-import { calculateRebateAmount, generateTicketPreview, getRebateEligibilityLabel } from '../../utils/rebateCalculation';
+import { calculateRebateAmount, generateTicketPreview, getRebateEligibilityLabel, getRebatePercent } from '../../utils/rebateCalculation';
+import { formatNumber, formatRwfAmount } from '../../utils/numberFormat';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import { FieldLabel } from './FieldLabel';
 import {
   Dialog,
   DialogContent,
@@ -270,7 +274,7 @@ export function SubmitApplicationForm({
     toast.success('Saved as unfinished application', {
       description: isAfProposal
         ? `${ticketNumber} is saved in your pipeline. Complete Step 4 to send it to your Asset Financier for review.`
-        : `${ticketNumber} is in Rebate Pipeline Dev. Complete Step 4 SUBMIT when ready.`,
+        : `${ticketNumber} is in Pipeline Development. Complete Step 4 SUBMIT when ready.`,
     });
   };
 
@@ -342,7 +346,7 @@ export function SubmitApplicationForm({
       } else {
         toast.success('Rebate requirements submitted to RGF Rebate Team', {
           description:
-            'E-moto possession confirmation is optional at submit but required before drawing from your rebate escrow account.',
+            'E-moto possession confirmation is optional at submit but required before drawing from your Rebate Bank Account.',
         });
       }
       onSubmitted?.(ticketNumber);
@@ -400,9 +404,7 @@ export function SubmitApplicationForm({
         </p>
         {requireAssetFinancierSelection && (
           <div className="mt-4 max-w-md">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Asset Financier *
-            </label>
+            <FieldLabel required>Asset Financier</FieldLabel>
             <Select value={selectedAssetFinancierId} onValueChange={setSelectedAssetFinancierId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Asset Financier" />
@@ -653,9 +655,7 @@ function IdentityStep({
       <div className="space-y-4 mt-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Individual first name(s) *
-            </label>
+            <FieldLabel required>Individual first name(s)</FieldLabel>
             <Input 
               type="text" 
               placeholder="Rider's first name"
@@ -664,9 +664,7 @@ function IdentityStep({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Individual last name(s) *
-            </label>
+            <FieldLabel required>Individual last name(s)</FieldLabel>
             <Input 
               type="text" 
               placeholder="Rider's last name"
@@ -678,9 +676,7 @@ function IdentityStep({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Gender? *
-            </label>
+            <FieldLabel required>Gender?</FieldLabel>
             <Select
               value={formData.isWoman}
               onValueChange={(value) => setFormData({ ...formData, isWoman: value })}
@@ -695,22 +691,17 @@ function IdentityStep({
             </Select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date of Birth *
-            </label>
-            <Input 
-              type="date" 
+            <FieldLabel required>Date of Birth</FieldLabel>
+            <DateInput
               value={formData.dateOfBirth || ''}
-              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+              onChange={(isoValue) => setFormData({ ...formData, dateOfBirth: isoValue })}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Vehicle Type? *
-            </label>
+            <FieldLabel required>Vehicle Type?</FieldLabel>
             <Select
               value={formData.isRetrofit ? 'yes' : 'no'}
               onValueChange={(value) => setFormData({ ...formData, isRetrofit: value === 'yes' })}
@@ -728,9 +719,7 @@ function IdentityStep({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number *
-            </label>
+            <FieldLabel required>Phone Number</FieldLabel>
             <Input
               type="tel"
               placeholder="+250 XXX XXX XXX"
@@ -739,9 +728,7 @@ function IdentityStep({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email (Optional)
-            </label>
+            <FieldLabel optional>Email</FieldLabel>
             <Input 
               type="email" 
               placeholder="rider@example.com"
@@ -752,12 +739,10 @@ function IdentityStep({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            TIN (Tax Identification Number)
-          </label>
+          <FieldLabel optional>TIN (Tax Identification Number)</FieldLabel>
           <Input 
             type="text" 
-            placeholder="Optional"
+            placeholder="Enter tax identification number"
             value={formData.tin}
             onChange={(e) => setFormData({ ...formData, tin: e.target.value })}
           />
@@ -767,9 +752,7 @@ function IdentityStep({
           <h4 className="font-medium text-gray-900 mb-4">Identification Numbers</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                National ID *
-              </label>
+              <FieldLabel required>National ID</FieldLabel>
               <Input
                 type="text"
                 placeholder="1 XXXX X XXXXXXX X XX"
@@ -780,9 +763,7 @@ function IdentityStep({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Motorcycle Driver's License *
-              </label>
+              <FieldLabel required>Motorcycle Driver's License</FieldLabel>
               <Input
                 type="text"
                 placeholder="DL-YYYY-XXXXXX"
@@ -814,9 +795,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           <h4 className="font-medium text-gray-900 mb-4">Vehicle Information</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-Moto Provider *
-              </label>
+              <FieldLabel required>E-Moto Provider</FieldLabel>
               <Select onValueChange={(value) => setFormData({ ...formData, brand: value })} value={formData.brand}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Provider" />
@@ -830,9 +809,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-Moto Model *
-              </label>
+              <FieldLabel required>E-Moto Model</FieldLabel>
               <Input
                 type="text"
                 placeholder="Enter e-moto model"
@@ -845,9 +822,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
           {formData.isRetrofit && (
             <div className="mt-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Retrofit Assembler *
-                </label>
+                <FieldLabel required>Retrofit Assembler</FieldLabel>
                 <Select
                   onValueChange={(value) => setFormData({ ...formData, retrofitAssembler: value })}
                   value={formData.retrofitAssembler}
@@ -868,9 +843,9 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {formData.isRetrofit ? 'Retrofit Cost (RWF) *' : 'Retail E-Moto Price (RWF) *'}
-              </label>
+              <FieldLabel required>
+                {formData.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
+              </FieldLabel>
               <Input
                 type="number"
                 placeholder="1,000,000"
@@ -886,9 +861,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Contract Repayment Amount (RWF) *
-              </label>
+              <FieldLabel required>Total Contract Repayment Amount (RWF)</FieldLabel>
               <Input
                 type="number"
                 placeholder="2,550,000"
@@ -900,14 +873,12 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rebate Amount (RWF) — auto-calculated
-              </label>
+              <FieldLabel>Rebate Amount (RWF) — auto-calculated</FieldLabel>
               <Input
-                type="number"
+                type="text"
                 readOnly
                 className="bg-gray-50 font-semibold text-[#023F40]"
-                value={formData.rebateAmount}
+                value={formatNumber(formData.rebateAmount)}
               />
               <p className="text-xs text-[#023F40] mt-1">
                 {getRebateEligibilityLabel({
@@ -917,9 +888,22 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contract Term (months) *
-              </label>
+              <FieldLabel>Rebate Percentage (%)</FieldLabel>
+              <Input
+                type="text"
+                readOnly
+                className="bg-gray-50 font-semibold text-[#023F40]"
+                value={getRebatePercent({
+                  isWoman: formData.isWoman === 'yes',
+                  isRetrofit: formData.isRetrofit,
+                })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <FieldLabel required>Contract Term (months)</FieldLabel>
               <Input
                 type="number"
                 min="1"
@@ -933,13 +917,8 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 }}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Repayment Frequency *
-              </label>
+              <FieldLabel required>Repayment Frequency</FieldLabel>
               <Select 
                 value={formData.repaymentFrequency || 'daily'}
                 onValueChange={(value: string) => setFormData({ ...formData, repaymentFrequency: value })}
@@ -954,10 +933,11 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Repayment Amount (RWF) *
-              </label>
+              <FieldLabel required>Repayment Amount (RWF)</FieldLabel>
               <Input
                 type="number"
                 placeholder="4,167"
@@ -1311,8 +1291,7 @@ function ReviewStep({
 
   const formatRwf = (value?: string | number | null) => {
     if (value === undefined || value === null || value === '') return '—';
-    const n = Number(value);
-    return Number.isNaN(n) ? '—' : `${n.toLocaleString()} RWF`;
+    return formatRwfAmount(value);
   };
 
   const repaymentFrequencyLabel =
@@ -1324,9 +1303,23 @@ function ReviewStep({
           ? 'Daily'
           : '—';
 
-  const SummaryRow = ({ label, value }: { label: string; value: string }) => (
+  const SummaryRow = ({
+    label,
+    value,
+    required,
+    optional,
+  }: {
+    label: string;
+    value: string;
+    required?: boolean;
+    optional?: boolean;
+  }) => (
     <div className="flex justify-between gap-4 border-b border-gray-200 pb-1.5">
-      <span className="text-gray-600">{label}</span>
+      <span className="text-gray-600">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {optional && <span className="text-gray-500"> (Optional)</span>}
+      </span>
       <span className="font-medium text-right">{value}</span>
     </div>
   );
@@ -1354,7 +1347,7 @@ function ReviewStep({
             <strong>NOTE:</strong> RGF can verify and approve rebates <strong>without</strong> E-Moto Possession Confirmations. However, funds cannot be withdrawn from the Advance Funds in your Rebate Account until RGF has received and verified the E-Moto Possession Confirmation signed by your company and the client.
           </p>
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the escrow account.
+            E-moto possession confirmation is <strong>optional</strong> at initial submit. It is <strong>required</strong> before your AF draws rebate funds from the Rebate Bank Account.
           </p>
         </>
       )}
@@ -1375,25 +1368,29 @@ function ReviewStep({
               Individual Information
             </h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <SummaryRow label="Individual first name(s)" value={display(formData.firstName)} />
-              <SummaryRow label="Individual last name(s)" value={display(formData.lastName)} />
+              <SummaryRow label="Individual first name(s)" value={display(formData.firstName)} required />
+              <SummaryRow label="Individual last name(s)" value={display(formData.lastName)} required />
+              <SummaryRow label="Date of Birth" value={formatDisplayDate(formData.dateOfBirth)} required />
               <SummaryRow
                 label="Gender?"
                 value={
                   formData.isWoman === 'yes' ? 'Woman' : formData.isWoman === 'no' ? 'Man' : '—'
                 }
+                required
               />
               <SummaryRow
                 label="Vehicle Type?"
                 value={formData.isRetrofit ? 'Retrofit' : 'New E-Moto'}
+                required
               />
-              <SummaryRow label="Phone Number" value={display(formData.phoneNumber)} />
-              <SummaryRow label="Email (Optional)" value={display(formData.email)} />
-              <SummaryRow label="TIN (Tax Identification Number)" value={display(formData.tin)} />
-              <SummaryRow label="National ID" value={display(formData.nationalId)} />
+              <SummaryRow label="Phone Number" value={display(formData.phoneNumber)} required />
+              <SummaryRow label="Email" value={display(formData.email)} optional />
+              <SummaryRow label="TIN (Tax Identification Number)" value={display(formData.tin)} optional />
+              <SummaryRow label="National ID" value={display(formData.nationalId)} required />
               <SummaryRow
                 label="Motorcycle Driver's License"
                 value={display(formData.driversLicense)}
+                required
               />
             </div>
           </div>
@@ -1403,12 +1400,13 @@ function ReviewStep({
               Vehicle and Financing
             </h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5 text-sm">
-              <SummaryRow label="E-Moto Provider" value={display(formData.brand)} />
-              <SummaryRow label="E-Moto Model" value={display(formData.model)} />
+              <SummaryRow label="E-Moto Provider" value={display(formData.brand)} required />
+              <SummaryRow label="E-Moto Model" value={display(formData.model)} required />
               {formData.isRetrofit && (
                 <SummaryRow
                   label="Retrofit Assembler"
                   value={display(formData.retrofitAssembler)}
+                  required
                 />
               )}
               <SummaryRow
@@ -1416,23 +1414,34 @@ function ReviewStep({
                 value={formatRwf(
                   formData.isRetrofit ? formData.retrofitCost : formData.purchasePrice
                 )}
+                required
               />
               <SummaryRow
                 label="Total Contract Repayment Amount (RWF)"
                 value={formatRwf(formData.loanAmount)}
+                required
               />
               <SummaryRow
                 label="Rebate Amount (RWF) — auto-calculated"
-                value={rebatePreview > 0 ? `${rebatePreview.toLocaleString()} RWF` : '—'}
+                value={rebatePreview > 0 ? formatNumber(rebatePreview) : '—'}
+              />
+              <SummaryRow
+                label="Rebate Percentage (%)"
+                value={getRebatePercent({
+                  isWoman: formData.isWoman === 'yes',
+                  isRetrofit: formData.isRetrofit,
+                })}
               />
               <SummaryRow
                 label="Contract Term (months)"
                 value={display(formData.loanTerm)}
+                required
               />
-              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} />
+              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} required />
               <SummaryRow
                 label="Repayment Amount (RWF)"
                 value={formatRwf(formData.monthlyRepayment)}
+                required
               />
             </div>
           </div>

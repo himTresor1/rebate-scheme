@@ -6,6 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '../ui/input';
+import { DateInput } from '../ui/date-input';
+import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatNumber } from '../../utils/numberFormat';
+import { getRebatePercent } from '../../utils/rebateCalculation';
 import {
   Dialog,
   DialogContent,
@@ -123,7 +127,7 @@ export function PossessionConfirmationView() {
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">E-Moto Possession Status</h2>
         <p className="text-gray-600 mt-1 text-sm">
-          Confirm when individuals have taken possession of their e-motos. Click the action in the table below to upload the E-Moto Possession Statement signed by you and the client.
+          Please use this page to notify Rwanda Green Fund that an approved beneficiary has taken possession of the e-moto. Once the signed possession form has been submitted and verified by Rwanda Green Fund, you will receive confirmation that the approved rebate amount may be deducted from your Rebate Bank Account.
         </p>
       </div>
 
@@ -218,7 +222,8 @@ export function PossessionConfirmationView() {
                 <th className="pb-3 pr-4">E-Moto Provider</th>
                 <th className="pb-3 pr-4">Gender</th>
                 <th className="pb-3 pr-4">Days since approval</th>
-                <th className="pb-3 pr-4">Rebate (RWF)</th>
+                <th className="pb-3 pr-4">Rebate Amount (RWF)</th>
+                <th className="pb-3 pr-4">Rebate Percentage (%)</th>
                 <th className="pb-3">Actions</th>
               </tr>
             </thead>
@@ -227,12 +232,15 @@ export function PossessionConfirmationView() {
                 <tr key={r.ticketNumber} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="py-4 pr-4 pl-2 font-semibold text-[#023F40]">{r.ticketNumber}</td>
                   <td className="py-4 pr-4 font-medium">{r.applicantName}</td>
-                  <td className="py-4 pr-4">{r.submittedAt}</td>
+                  <td className="py-4 pr-4">{formatDisplayDate(r.submittedAt)}</td>
                   <td className="py-4 pr-4">{r.vehicleType}</td>
                   <td className="py-4 pr-4">{r.brand}</td>
                   <td className="py-4 pr-4">{r.isWoman ? 'Woman' : 'Man'}</td>
                   <td className="py-4 pr-4">{r.daysSinceSubmission}</td>
-                  <td className="py-4 pr-4">{r.rebateAmount.toLocaleString()}</td>
+                  <td className="py-4 pr-4">{formatNumber(r.rebateAmount)}</td>
+                  <td className="py-4 pr-4">
+                    {getRebatePercent({ isWoman: r.isWoman, isRetrofit: r.vehicleType === 'Retrofit' })}
+                  </td>
                   <td className="py-4">
                     {r.hasPossession ? (
                       <Badge className="bg-green-100 text-green-800">
@@ -277,7 +285,7 @@ export function PossessionConfirmationView() {
           <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg text-sm">
             <Bike className="w-8 h-8 text-[#023F40]" />
             <div>
-              <p className="font-medium">Rebate amount: RWF {confirmTarget?.rebateAmount.toLocaleString()}</p>
+              <p className="font-medium">Rebate amount: RWF {formatNumber(confirmTarget?.rebateAmount)}</p>
               <p className="text-gray-600">Funds will be released from escrow after RGF records this confirmation.</p>
             </div>
           </div>
@@ -336,11 +344,9 @@ export function PossessionConfirmationView() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date of E-Moto Possession *
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={possessionDate}
-                onChange={(e) => setPossessionDate(e.target.value)}
-                className="w-full rounded-md border px-3 py-2 text-sm"
+                onChange={setPossessionDate}
               />
             </div>
           </div>

@@ -37,6 +37,7 @@ import {
   simulateApiCall
 } from '../../utils/mockApiResponses';
 import { DocumentUploadField } from './DocumentUploadField';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface EligibilityCheckerModalEnhancedProps {
   open: boolean;
@@ -325,7 +326,7 @@ export function EligibilityCheckerModalEnhanced({
                       <p className="text-gray-700">Household Size: {checkData.householdSize} members</p>
                       <p className="text-gray-700">Ubudehe Category: {checkData.ubudeheCategory}</p>
                       <p className="text-gray-700">Location: {checkData.location}</p>
-                      <p className="text-gray-600 text-xs mt-2">Registered: {new Date(checkData.registeredDate).toLocaleDateString()}</p>
+                      <p className="text-gray-600 text-xs mt-2">Registered: {formatDisplayDate(checkData.registeredDate)}</p>
                     </>
                   ) : (
                     <p className="text-red-800 font-semibold">{checkData.reason}</p>
@@ -367,7 +368,7 @@ export function EligibilityCheckerModalEnhanced({
                           {moto.brand} {moto.model} • {moto.year}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Registered: {new Date(moto.registeredDate).toLocaleDateString()}
+                          Registered: {formatDisplayDate(moto.registeredDate)}
                         </p>
                       </div>
                     ))}
@@ -427,7 +428,7 @@ export function EligibilityCheckerModalEnhanced({
                       <p className="text-gray-700">License: {checkData.licenseNumber}</p>
                       <p className="text-gray-700">Type: {checkData.licenseType}</p>
                       <p className="text-gray-700">Status: {checkData.status}</p>
-                      <p className="text-gray-700">Expires: {new Date(checkData.expiryDate).toLocaleDateString()}</p>
+                      <p className="text-gray-700">Expires: {formatDisplayDate(checkData.expiryDate)}</p>
                     </>
                   ) : (
                     <p className="text-red-800 font-semibold">{checkData.reason}</p>

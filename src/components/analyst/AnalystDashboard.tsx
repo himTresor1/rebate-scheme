@@ -19,6 +19,7 @@ import {
   withDemoPipelineFallback,
 } from '../../utils/demoPipelineData';
 import { ReassignmentCheckingPage } from './ReassignmentCheckingPage';
+import { formatDisplayDate } from '../../utils/dateFormat';
 
 interface Application {
   id: string;
@@ -91,14 +92,6 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
   };
 
   const handleReviewComplete = () => {
@@ -458,7 +451,7 @@ export function AnalystDashboard({ user, currentPage }: AnalystDashboardProps) {
                         </button>
                       </td>
                       <td className="py-3 pr-3">{app.applicantName || app.companyName}</td>
-                      <td className="py-3 pr-3">{formatDate(app.createdAt)}</td>
+                      <td className="py-3 pr-3">{formatDisplayDate(app.createdAt)}</td>
                       <td className="py-3 pr-3">{app.companyName}</td>
                       <td className="py-3 pr-3">{toVehicleLabel(app)}</td>
                       <td className="py-3 pr-3">{toGenderLabel(app)}</td>
