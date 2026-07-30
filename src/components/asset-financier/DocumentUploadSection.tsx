@@ -387,8 +387,7 @@ export function DocumentUploadSection({
         <CardHeader className="px-0 pt-0">
           <CardTitle className="text-[#023F40] text-lg">Step 2: Add documentation</CardTitle>
           <CardDescription className="text-sm">
-            This page is used for submitting the documents required to be eligible for a rebate. The documents
-            marked with an asterisk are mandatory and need to be provided before the rebate can be submitted.
+            This page is used for submitting the documents required to be eligible for a rebate
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0 space-y-6">

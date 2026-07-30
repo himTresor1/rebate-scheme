@@ -128,15 +128,6 @@ export function AssetFinancierAdminDashboard({
     setResumeDraft(null);
   };
 
-  const openFinishApplication = (record: AfRebateRecord) => {
-    setResumeDraft({
-      ticket: record.ticketNumber,
-      data: afRecordToFormDraft(record),
-    });
-    setActiveTab('submit');
-    onNavigate('submit');
-  };
-
   // Debug logging
   console.log('AssetFinancierAdminDashboard rendering for user:', user);
   console.log('Active tab:', activeTab);
@@ -179,16 +170,6 @@ export function AssetFinancierAdminDashboard({
     return () => clearTimeout(timer);
   }, [activeTab]);
 
-  const stats = isMarketingAgent
-    ? {
-        totalInPipelineAndApproved: 45,
-        pipelineForAf: 10,
-        submittedNoDecision: 30,
-        approved: 30,
-        rejected: 5,
-      }
-    : null;
-
   const afMetricCards: { category: AfMetricCategory; value: number; icon: typeof Users }[] = [
     { category: 'all', value: AF_DASHBOARD_STATS.totalInPipelineAndDisbursed, icon: Users },
     { category: 'unfinished', value: AF_DASHBOARD_STATS.pipelineBeingDeveloped, icon: FileText },
@@ -197,9 +178,11 @@ export function AssetFinancierAdminDashboard({
     { category: 'disbursements-to-date', value: AF_DASHBOARD_STATS.disbursementsToDate, icon: Download },
   ];
   const marketingAssetFinancierOptions = [
-    { id: user.assetFinancierId || user.organizationId || user.id, name: 'Bank of Kigali' },
-    { id: 'af-rem', name: 'REM Ltd' },
-    { id: 'af-safi', name: 'Safi Finance' },
+    { id: 'af-bboxx', name: 'Bboxx' },
+    { id: 'af-jali', name: 'Jali' },
+    { id: 'af-watu', name: 'Watu' },
+    { id: 'af-rem', name: 'REM' },
+    { id: 'af-safi', name: 'Safi' },
   ];
 
   return (
@@ -236,59 +219,31 @@ export function AssetFinancierAdminDashboard({
                 <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">
                   {isMarketingAgent ? 'Marketing Dashboard' : 'Asset Financier Dashboard'}
                 </h1>
-                {isMarketingAgent ? (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Review all rebate applications you have submitted and track their status across authorized Asset Financiers.
-                  </p>
-                ) : null}
 
-                {/* Stats Grid */}
+                {/* Stats Grid — same cards for AF and Marketing Agent */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  {isMarketingAgent && stats ? (
-                    <>
-                      {[
-                        { label: 'Your Total Rebates In Pipeline and Approved', value: stats.totalInPipelineAndApproved },
-                        { label: 'Your Pipeline being Developed for Submission to AF(s)', value: stats.pipelineForAf },
-                        { label: 'Submitted but No Decision Yet', value: stats.submittedNoDecision },
-                        { label: 'Total Rebates Approved', value: stats.approved },
-                        { label: 'Total Rebates Rejected', value: stats.rejected },
-                      ].map((card, index) => (
-                        <motion.div
-                          key={card.label}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 * (index + 1) }}
-                          className="bg-gradient-to-br from-[#023F40] to-[#035f60] p-4 rounded-xl shadow-md text-white"
-                        >
-                          <p className="text-3xl font-bold mb-0.5">{card.value}</p>
-                          <p className="text-white/80 text-xs">{card.label}</p>
-                        </motion.div>
-                      ))}
-                    </>
-                  ) : (
-                    afMetricCards.map((card, index) => {
-                      const Icon = card.icon;
-                      return (
-                        <motion.button
-                          key={card.category}
-                          type="button"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 * (index + 1) }}
-                          onClick={() => openMetricReport(card.category)}
-                          className="bg-gradient-to-br from-[#023F40] to-[#035f60] p-4 rounded-xl shadow-md text-white text-left hover:from-[#035f60] hover:to-[#047a7c] transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                              <Icon className="w-5 h-5" />
-                            </div>
+                  {afMetricCards.map((card, index) => {
+                    const Icon = card.icon;
+                    return (
+                      <motion.button
+                        key={card.category}
+                        type="button"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 * (index + 1) }}
+                        onClick={() => openMetricReport(card.category)}
+                        className="bg-gradient-to-br from-[#023F40] to-[#035f60] p-4 rounded-xl shadow-md text-white text-left hover:from-[#035f60] hover:to-[#047a7c] transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                            <Icon className="w-5 h-5" />
                           </div>
-                          <p className="text-3xl font-bold mb-0.5">{card.value}</p>
-                          <p className="text-white/80 text-xs">{AF_METRIC_LABELS[card.category]}</p>
-                        </motion.button>
-                      );
-                    })
-                  )}
+                        </div>
+                        <p className="text-3xl font-bold mb-0.5">{card.value}</p>
+                        <p className="text-white/80 text-xs">{AF_METRIC_LABELS[card.category]}</p>
+                      </motion.button>
+                    );
+                  })}
                 </div>
 
                 {/* Quick Actions */}
@@ -310,19 +265,6 @@ export function AssetFinancierAdminDashboard({
                       <span className="font-medium text-gray-900 text-sm">Submit Rebate</span>
                     </button>
 
-                    {isMarketingAgent && (
-                      <button
-                        onClick={() => {
-                          setActiveTab('rebate-status');
-                          onNavigate('rebate-status');
-                        }}
-                        className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
-                      >
-                        <FileText className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                        <span className="font-medium text-gray-900 text-sm">View Applications</span>
-                      </button>
-                    )}
-
                     {!isMarketingAgent && (
                       <button
                         onClick={() => {
@@ -336,19 +278,17 @@ export function AssetFinancierAdminDashboard({
                       </button>
                     )}
 
-                    {!isMarketingAgent && (
-                      <button
-                        onClick={() => {
-                          setReportCategory('all');
-                          setActiveTab('af-reports');
-                          onNavigate('af-reports');
-                        }}
-                        className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
-                      >
-                        <Printer className="w-4 h-4 text-[#023F40] flex-shrink-0" />
-                        <span className="font-medium text-gray-900 text-sm">Create and Print Reports</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        setReportCategory('all');
+                        setActiveTab('af-reports');
+                        onNavigate('af-reports');
+                      }}
+                      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-[#023F40] hover:bg-gray-50 text-left transition-all group"
+                    >
+                      <Printer className="w-4 h-4 text-[#023F40] flex-shrink-0" />
+                      <span className="font-medium text-gray-900 text-sm">Create and Print Reports</span>
+                    </button>
                   </div>
                 </motion.div>
 
@@ -459,7 +399,6 @@ export function AssetFinancierAdminDashboard({
             isMarketingAgent={isMarketingAgent}
             currentUserName={user.name}
             onDetailOpenChange={setHideHeaderActions}
-            onFinishApplication={openFinishApplication}
             onSubmitApplication={(record) => {
               markSubmitted(record.ticketNumber);
             }}

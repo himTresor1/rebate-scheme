@@ -21,7 +21,6 @@ export function RebateStatusView({
   isMarketingAgent = false,
   currentUserName,
   onDetailOpenChange,
-  onFinishApplication,
   onSubmitApplication,
   onUpdateRecord,
 }: {
@@ -29,7 +28,6 @@ export function RebateStatusView({
   isMarketingAgent?: boolean;
   currentUserName?: string;
   onDetailOpenChange?: (open: boolean) => void;
-  onFinishApplication?: (record: RebateRecord) => void;
   onSubmitApplication?: (record: RebateRecord) => void;
   onUpdateRecord?: (record: RebateRecord) => void;
 } = {}) {
@@ -122,10 +120,6 @@ export function RebateStatusView({
         variant={selected.variant}
         isMarketingAgent={isMarketingAgent}
         onBack={() => setSelected(null)}
-        onFinishApplication={(row) => {
-          onFinishApplication?.(row);
-          setSelected(null);
-        }}
         onSubmitApplication={(row) => {
           onSubmitApplication?.(row);
           setSelected(null);

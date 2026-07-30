@@ -838,14 +838,14 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                       ? formatNumber(parseFloat(String(application.loanAmount)) || 0)
                       : undefined
                   }
-                  required
+                  optional
                 />
                 <DetailField
                   label="Rebate Amount (RWF) — auto-calculated"
                   value={rebateAmountRwf}
                 />
                 <DetailField label="Rebate Percentage (%)" value={rebatePercent} />
-                <DetailField label="Contract Term (months)" value={application.loanTerm} required />
+                <DetailField label="Contract Term (months)" value={application.loanTerm} optional />
                 <DetailField
                   label="Repayment Frequency"
                   value={
@@ -857,7 +857,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                           ? 'Monthly'
                           : application.repaymentFrequency
                   }
-                  required
+                  optional
                 />
                 <DetailField
                   label="Repayment Amount (RWF)"
@@ -866,7 +866,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                       ? formatNumber(parseFloat(String(application.monthlyRepayment)) || 0)
                       : undefined
                   }
-                  required
+                  optional
                 />
               </div>
             </div>

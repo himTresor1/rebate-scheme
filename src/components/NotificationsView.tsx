@@ -246,7 +246,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                               }
                             }}
                           >
-                            {notification.actionLabel || 'Go to application'}
+                            Go to application
                           </Button>
                         )}
                       </div>

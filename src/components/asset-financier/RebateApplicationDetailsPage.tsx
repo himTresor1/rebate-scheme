@@ -14,7 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { ArrowLeft, FileText, Upload, Download, Eye, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileText,
+  Upload,
+  Download,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  Plus,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AfRebateRecord,
@@ -35,7 +45,6 @@ interface RebateApplicationDetailsPageProps {
   data: RebateApplicationDetailsData;
   onBack: () => void;
   variant?: 'af-submitted' | 'proposal-review';
-  onFinishApplication?: (data: RebateApplicationDetailsData) => void;
   onSubmitApplication?: (data: RebateApplicationDetailsData) => void;
   onUpdateRecord?: (data: RebateApplicationDetailsData) => void;
   isMarketingAgent?: boolean;
@@ -259,7 +268,6 @@ export function RebateApplicationDetailsPage({
   data,
   onBack,
   variant = 'af-submitted',
-  onFinishApplication,
   onSubmitApplication,
   onUpdateRecord,
   isMarketingAgent = false,
@@ -519,14 +527,14 @@ export function RebateApplicationDetailsPage({
     {
       key: 'loanAmount',
       label: 'Total Contract Repayment Amount (RWF)',
-      required: true,
+      optional: true,
       kind: 'number',
     },
-    { key: 'loanTerm', label: 'Contract Term (months)', required: true, kind: 'text' },
+    { key: 'loanTerm', label: 'Contract Term (months)', optional: true, kind: 'text' },
     {
       key: 'repaymentFrequency',
       label: 'Repayment Frequency',
-      required: true,
+      optional: true,
       kind: 'select',
       selectOptions: [
         { value: 'daily', label: 'Daily' },
@@ -534,7 +542,7 @@ export function RebateApplicationDetailsPage({
         { value: 'monthly', label: 'Monthly' },
       ],
     },
-    { key: 'monthlyRepayment', label: 'Repayment Amount (RWF)', required: true, kind: 'number' },
+    { key: 'monthlyRepayment', label: 'Repayment Amount (RWF)', optional: true, kind: 'number' },
   ];
 
   const displayValue = (field: FieldDef) => {
@@ -563,28 +571,47 @@ export function RebateApplicationDetailsPage({
     );
   };
 
+  const AddMissingButton = ({
+    onClick,
+    ariaLabel = 'Add missing value',
+  }: {
+    onClick: () => void;
+    ariaLabel?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#023F40] bg-white text-[#023F40] hover:bg-[#023F40] hover:text-white transition-colors"
+    >
+      <Plus className="h-4 w-4" strokeWidth={2.5} />
+    </button>
+  );
+
   const DetailFieldRow = ({ field }: { field: FieldDef }) => {
     const missing = fieldIsMissing(field);
     const value = displayValue(field);
 
     return (
-      <div>
-        <FieldLabel as="span" required={field.required} optional={field.optional} className="mb-0">
+      <div className="min-h-[3.25rem]">
+        <FieldLabel as="span" required={field.required} optional={field.optional} className="mb-1">
           {field.label}
         </FieldLabel>
-        {missing && canFillMissing ? (
-          <button
-            type="button"
-            onClick={() => openFieldModal(field)}
-            className="font-medium text-red-600 hover:text-red-700 underline underline-offset-2 text-left"
-          >
-            Missing [Upload]
-          </button>
-        ) : (
-          <p className={`font-medium ${missing ? 'text-amber-700' : ''}`}>
-            {missing ? 'Missing' : value || '—'}
-          </p>
-        )}
+        <div className="min-h-8 flex items-center">
+          {missing && canFillMissing ? (
+            <AddMissingButton
+              onClick={() => openFieldModal(field)}
+              ariaLabel={`Add ${field.label}`}
+            />
+          ) : missing ? (
+            <span className="inline-flex items-center rounded-md bg-[#023F40]/10 px-2 py-1 text-xs font-medium text-[#023F40] ring-1 ring-inset ring-[#023F40]/20">
+              Missing
+            </span>
+          ) : (
+            <p className="font-medium text-gray-900">{value || '—'}</p>
+          )}
+        </div>
       </div>
     );
   };
@@ -647,15 +674,14 @@ export function RebateApplicationDetailsPage({
               View
             </Button>
           ) : canFillMissing ? (
-            <button
-              type="button"
-              onClick={() => openDocModal(doc)}
-              className="text-sm font-medium text-red-600 hover:text-red-700 underline underline-offset-2"
-            >
-              Missing [Upload]
-            </button>
+            <Button size="sm" variant="outline" onClick={() => openDocModal(doc)}>
+              <Upload className="w-3.5 h-3.5 mr-1" />
+              Add file
+            </Button>
           ) : (
-            <Badge className="bg-amber-100 text-amber-800">Missing</Badge>
+            <span className="inline-flex items-center rounded-md bg-[#023F40]/10 px-2 py-1 text-xs font-medium text-[#023F40] ring-1 ring-inset ring-[#023F40]/20">
+              Missing
+            </span>
           )}
         </div>
       </div>
@@ -754,9 +780,9 @@ export function RebateApplicationDetailsPage({
           {isUnfinished && hasMandatoryGaps && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-900 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                Missing information — click Missing [Upload] on each gap, or use Finish Application to
-                complete via the form
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                Some required information or documents are still missing. Use Add on each gap, then
+                Submit to RGF.
               </p>
             </div>
           )}
@@ -892,33 +918,23 @@ export function RebateApplicationDetailsPage({
             <div className="border-t pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="text-xs text-gray-500">
                 {hasMandatoryGaps
-                  ? 'Fill missing items with Missing [Upload], or open Finish Application to complete via the form.'
-                  : isProposalReview
-                    ? 'All mandatory items are complete. Submit this rebate to RGF.'
-                    : 'All mandatory items are complete. Submit this rebate to RGF.'}
+                  ? 'Complete every required Add item above before submitting to RGF.'
+                  : 'All mandatory items are complete. You can submit this rebate to RGF.'}
               </p>
-              {hasMandatoryGaps ? (
-                <Button
-                  className="bg-[#023F40] hover:bg-[#035f60]"
-                  onClick={() => onFinishApplication?.(record)}
-                >
-                  Finish Application
-                </Button>
-              ) : (
-                <Button
-                  className="bg-[#0a7d4b] hover:bg-[#0c6b42]"
-                  onClick={() => {
-                    onSubmitApplication?.(record);
-                    toast.success(
-                      isProposalReview || isMarketingAgent
-                        ? 'Rebate submitted'
-                        : 'Rebate submitted to RGF'
-                    );
-                  }}
-                >
-                  Submit
-                </Button>
-              )}
+              <Button
+                className="bg-[#0a7d4b] hover:bg-[#0c6b42] disabled:opacity-50"
+                disabled={hasMandatoryGaps}
+                onClick={() => {
+                  if (hasMandatoryGaps) {
+                    toast.error('Complete all required fields and documents before submitting.');
+                    return;
+                  }
+                  onSubmitApplication?.(record);
+                  toast.success('Rebate submitted to RGF');
+                }}
+              >
+                Submit to RGF
+              </Button>
             </div>
           )}
         </CardContent>

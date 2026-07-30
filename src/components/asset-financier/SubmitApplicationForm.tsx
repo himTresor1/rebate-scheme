@@ -886,7 +886,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               />
             </div>
             <div>
-              <FieldLabel required>Total Contract Repayment Amount (RWF)</FieldLabel>
+              <FieldLabel optional>Total Contract Repayment Amount (RWF)</FieldLabel>
               <Input
                 type="number"
                 placeholder="2,550,000"
@@ -928,7 +928,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <FieldLabel required>Contract Term (months)</FieldLabel>
+              <FieldLabel optional>Contract Term (months)</FieldLabel>
               <Input
                 type="number"
                 min="1"
@@ -943,7 +943,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               />
             </div>
             <div>
-              <FieldLabel required>Repayment Frequency</FieldLabel>
+              <FieldLabel optional>Repayment Frequency</FieldLabel>
               <Select 
                 value={formData.repaymentFrequency || 'daily'}
                 onValueChange={(value: string) => setFormData({ ...formData, repaymentFrequency: value })}
@@ -962,7 +962,7 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <FieldLabel required>Repayment Amount (RWF)</FieldLabel>
+              <FieldLabel optional>Repayment Amount (RWF)</FieldLabel>
               <Input
                 type="number"
                 placeholder="4,167"
@@ -1168,7 +1168,7 @@ function MarketingDocumentsSection({
         <div>
           <h3 className="font-semibold text-gray-900 text-base mb-1">Step 2: Upload required documents</h3>
           <p className="text-sm text-gray-600">
-            Documents marked with <span className="text-red-500">*</span> are mandatory.
+            This page is used for submitting the documents required to be eligible for a rebate
           </p>
         </div>
 
@@ -1444,7 +1444,7 @@ function ReviewStep({
               <SummaryRow
                 label="Total Contract Repayment Amount (RWF)"
                 value={formatRwf(formData.loanAmount)}
-                required
+                optional
               />
               <SummaryRow
                 label="Rebate Amount (RWF) — auto-calculated"
@@ -1460,13 +1460,13 @@ function ReviewStep({
               <SummaryRow
                 label="Contract Term (months)"
                 value={display(formData.loanTerm)}
-                required
+                optional
               />
-              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} required />
+              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} optional />
               <SummaryRow
                 label="Repayment Amount (RWF)"
                 value={formatRwf(formData.monthlyRepayment)}
-                required
+                optional
               />
             </div>
           </div>
