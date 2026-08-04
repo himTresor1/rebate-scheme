@@ -4,10 +4,9 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
-import { Filter, Printer } from 'lucide-react';
+import { Printer } from 'lucide-react';
+import { motion } from 'motion/react';
 import { User } from '../../utils/auth';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import {
@@ -32,6 +31,8 @@ import { getRebatePercent } from '../../utils/rebateCalculation';
 import { formatNumber } from '../../utils/numberFormat';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { DOC_NAMES } from '../../utils/documentNames';
+import { matchesGenderFilter, matchesVehicleTypeFilter } from '../../utils/filterLabels';
+import { QA_DEFAULT_FILTER_VALUES, QaStandardFilters } from './QaStandardFilters';
 
 interface Application {
   id: string;
@@ -65,6 +66,7 @@ interface QaDecision {
 interface QADashboardProps {
   user: User;
   currentPage: string;
+  onNavigate?: (page: string) => void;
 }
 
 function enrichQaApplication(app: any, index: number): any {
@@ -186,15 +188,17 @@ function enrichQaApplication(app: any, index: number): any {
   };
 }
 
-export function QADashboard({ user, currentPage }: QADashboardProps) {
+export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-  const [sortBy, setSortBy] = useState<string>('date');
+  const [sortBy, setSortBy] = useState<string>('date-oldest');
   const [query, setQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterDateRange, setFilterDateRange] = useState('all');
-  const [filterWomen, setFilterWomen] = useState('all');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [filterFinancier, setFilterFinancier] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterRetrofitAssembler, setFilterRetrofitAssembler] = useState('all');
@@ -225,37 +229,46 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
     loadApplications();
   };
 
-  const QA_AWAITING_STATUSES = ['manager-review', 'qa-review', 'program-manager-review'];
   const STATUS_GROUPS: Record<string, string[]> = {
-    submitted: ['assigned', 'under-review', 'manager-review', 'qa-review', 'program-manager-review'],
-    approved: ['approved', 'approved-pending-lease', 'disbursed', 'payment-processed', 'lease-review'],
+    submitted: ['assigned', 'submitted', 'submitted-not-approved'],
+    'in-process': [
+      'under-review',
+      'manager-review',
+      'qa-review',
+      'program-manager-review',
+      'awaiting-qa',
+    ],
+    'no-possession': ['approved-pending-lease', 'payment-processed', 'approved'],
+    approved: ['approved', 'approved-pending-lease', 'lease-review'],
     rejected: ['rejected'],
+    disbursed: ['disbursed', 'payment-processed'],
+    'awaiting-qa': ['manager-review', 'qa-review', 'program-manager-review'],
   };
   const NO_POSSESSION_STATUSES = ['approved-pending-lease', 'payment-processed', 'approved'];
+  const QA_AWAITING_STATUSES = ['manager-review', 'qa-review', 'program-manager-review'];
 
   const awaitingQaApps = applications.filter(
     (app) => QA_AWAITING_STATUSES.includes(app.status) && !qaDecisions[app.id]
   );
 
   const matchesOverviewFilters = (app: Application) => {
-    const days = Math.floor(
-      (Date.now() - new Date(app.lastReviewedAt || app.createdAt).getTime()) / (1000 * 60 * 60 * 24)
-    );
     const isWoman = app.eligibilityCheck?.nationalIdCheck?.gender === 'Female';
     const provider = (app.motorcycleBrand || '').toLowerCase();
     const assembler = (app.retrofitAssembler || '').toLowerCase();
     const registration = (app.registrationNumber || app.ticketNumber || '').toLowerCase();
     const name = (app.applicantName || app.companyName || '').toLowerCase();
     const q = query.toLowerCase();
+    const submittedAt = new Date(app.createdAt).getTime();
+    const from = filterDateFrom ? new Date(filterDateFrom).getTime() : 0;
+    const to = filterDateTo ? new Date(filterDateTo).getTime() + 86400000 - 1 : Number.MAX_SAFE_INTEGER;
 
     if (q && !name.includes(q) && !registration.includes(q) && !app.id.toLowerCase().includes(q)) return false;
     if (filterStatus !== 'all' && !STATUS_GROUPS[filterStatus]?.includes(app.status)) return false;
-    if (filterDateRange === 'day' && days > 1) return false;
-    if (filterDateRange === 'week' && days > 7) return false;
-    if (filterDateRange === 'month' && days > 30) return false;
-    if (filterDateRange === 'year' && days > 365) return false;
-    if (filterWomen === 'yes' && !isWoman) return false;
-    if (filterWomen === 'no' && isWoman) return false;
+    if (filterStatus === 'awaiting-qa' && qaDecisions[app.id]) return false;
+    if (filterStatus === 'in-process' && qaDecisions[app.id]) return false;
+    if (submittedAt < from || submittedAt > to) return false;
+    if (!matchesGenderFilter(isWoman, filterGender)) return false;
+    if (!matchesVehicleTypeFilter(Boolean(app.isRetrofit), filterVehicleType)) return false;
     if (filterFinancier !== 'all' && app.companyName !== filterFinancier) return false;
     if (filterProvider !== 'all' && provider !== filterProvider.toLowerCase()) return false;
     if (filterRetrofitAssembler !== 'all' && assembler !== filterRetrofitAssembler.toLowerCase()) return false;
@@ -264,14 +277,11 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
 
   const sortApplications = (apps: Application[]) =>
     [...apps].sort((a, b) => {
-      if (sortBy === 'date') {
-        // Reverse chronological by AF submission date
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === 'amount') {
+      if (sortBy === 'amount-high' || sortBy === 'amount') {
         return parseFloat(b.rebateAmount) - parseFloat(a.rebateAmount);
       }
-      return 0;
+      // date-oldest (default) — AF submission oldest first
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
   const overviewApps = sortApplications(applications.filter(matchesOverviewFilters));
@@ -364,6 +374,70 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   const pendingReview = reviewQueueApps.filter((app) => !qaDecisions[app.id]);
   const pendingDecisionSubmit = Object.values(qaDecisions).filter((d) => !d.submitted).length;
 
+  type QaMetricPreset =
+    | 'awaiting-qa'
+    | 'awaiting-amount'
+    | 'awaiting-women'
+    | 'awaiting-retrofit'
+    | 'awaiting-no-possession';
+
+  const openMetricReport = (preset: QaMetricPreset) => {
+    setQuery('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterFinancier('all');
+    setFilterProvider('all');
+    setFilterRetrofitAssembler('all');
+    setFilterGender('all');
+    setFilterVehicleType('all');
+    setSortBy(QA_DEFAULT_FILTER_VALUES.sortBy);
+    setFilterStatus('in-process');
+
+    if (preset === 'awaiting-women') setFilterGender('woman');
+    if (preset === 'awaiting-retrofit') setFilterVehicleType('retrofit');
+    if (preset === 'awaiting-no-possession') setFilterStatus('no-possession');
+
+    onNavigate?.('dashboard');
+    requestAnimationFrame(() => {
+      document.getElementById('qa-dashboard-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const QA_METRIC_CARDS: { preset: QaMetricPreset; value: string | number; label: string }[] = [
+    {
+      preset: 'awaiting-qa',
+      value: verifiedForQaCount,
+      label: 'Rebates Verified for QA Review',
+    },
+    {
+      preset: 'awaiting-amount',
+      value: Math.round(verifiedForQaAmount).toLocaleString(),
+      label: 'Amount of Rebates Verified for QA Review (RWF)',
+    },
+    {
+      preset: 'awaiting-women',
+      value: awaitingWomenCount,
+      label: 'Of which women',
+    },
+    {
+      preset: 'awaiting-retrofit',
+      value: awaitingRetrofitCount,
+      label: 'Of which retrofits',
+    },
+    {
+      preset: 'awaiting-no-possession',
+      value: noEmotoPossessionCount,
+      label: 'Of which no e-moto yet in possession',
+    },
+  ];
+
+  const activeMetricLabel = (() => {
+    if (filterStatus === 'no-possession') return 'No E-Moto Possession Yet';
+    if (filterGender === 'woman') return 'Women';
+    if (filterVehicleType === 'retrofit') return 'Retrofits';
+    return null;
+  })();
+
   const handleSubmitDecisions = () => {
     if (pendingDecisionSubmit === 0) {
       toast.info('No QA decisions captured yet.');
@@ -451,112 +525,45 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
   }
 
   const isDashboardHome = currentPage === 'dashboard';
-  const tableApps = isDashboardHome ? overviewApps : reviewQueueApps;
+  const isAllRebatesPage = currentPage === 'applications';
+  const tableApps = isAllRebatesPage ? overviewApps : reviewQueueApps;
+  const showQaColumns = !isAllRebatesPage;
 
   const renderOverviewFilters = () => (
-    <Card className="mt-6 mb-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Filter className="w-4 h-4" />
-          Filters
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Input
-            placeholder="Search ticket/applicant..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="submitted">Submitted</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterDateRange} onValueChange={setFilterDateRange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Date range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All dates</SelectItem>
-              <SelectItem value="day">Day</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="year">Year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterWomen} onValueChange={setFilterWomen}>
-            <SelectTrigger>
-              <SelectValue placeholder="Women" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All applicants</SelectItem>
-              <SelectItem value="yes">Women only</SelectItem>
-              <SelectItem value="no">Non-women</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Select value={filterFinancier} onValueChange={setFilterFinancier}>
-            <SelectTrigger>
-              <SelectValue placeholder="Asset Financier" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Asset Financiers</SelectItem>
-              {financiers.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterProvider} onValueChange={setFilterProvider}>
-            <SelectTrigger>
-              <SelectValue placeholder="E-Moto Provider" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All E-Moto Providers</SelectItem>
-              {providers.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterRetrofitAssembler} onValueChange={setFilterRetrofitAssembler}>
-            <SelectTrigger>
-              <SelectValue placeholder="Retrofit Assembler" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Retrofit Assemblers</SelectItem>
-              {retrofitAssemblers.map((name) => (
-                <SelectItem key={name} value={name}>
-                  {name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date">AF submission date (newest first)</SelectItem>
-              <SelectItem value="amount">Rebate amount (high to low)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <p className="text-xs text-gray-500">
-          Showing {tableApps.length} of {applications.length} rebates submitted to RGF
-        </p>
-      </CardContent>
-    </Card>
+    <QaStandardFilters
+      values={{
+        query,
+        status: filterStatus,
+        dateFrom: filterDateFrom,
+        dateTo: filterDateTo,
+        gender: filterGender,
+        vehicleType: filterVehicleType,
+        assetFinancier: filterFinancier,
+        eMotoProvider: filterProvider,
+        retrofitAssembler: filterRetrofitAssembler,
+        sortBy,
+      }}
+      onChange={(patch) => {
+        if (patch.query !== undefined) setQuery(patch.query);
+        if (patch.status !== undefined) setFilterStatus(patch.status);
+        if (patch.dateFrom !== undefined) setFilterDateFrom(patch.dateFrom);
+        if (patch.dateTo !== undefined) setFilterDateTo(patch.dateTo);
+        if (patch.gender !== undefined) setFilterGender(patch.gender);
+        if (patch.vehicleType !== undefined) setFilterVehicleType(patch.vehicleType);
+        if (patch.assetFinancier !== undefined) setFilterFinancier(patch.assetFinancier);
+        if (patch.eMotoProvider !== undefined) setFilterProvider(patch.eMotoProvider);
+        if (patch.retrofitAssembler !== undefined) setFilterRetrofitAssembler(patch.retrofitAssembler);
+        if (patch.sortBy !== undefined) setSortBy(patch.sortBy);
+      }}
+      financiers={financiers}
+      providers={providers}
+      assemblers={retrofitAssemblers}
+      showingCount={tableApps.length}
+      totalCount={isAllRebatesPage ? applications.length : awaitingQaApps.length}
+      showingLabel={
+        isAllRebatesPage ? 'rebates submitted to RGF' : 'rebates awaiting QA Team review'
+      }
+    />
   );
 
   const renderOverviewTable = (rows: Application[], showQaColumns: boolean) => (
@@ -564,7 +571,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
       <CardHeader>
         <CardTitle className="text-base text-[#023F40]">
           {showQaColumns
-            ? 'Default Report: Rebates verified awaiting QA Team approval'
+            ? `Rebates Awaiting QA Team Review${activeMetricLabel ? ` — ${activeMetricLabel}` : ''}`
             : 'Overview Rebates Submitted to RGF to date'}
         </CardTitle>
       </CardHeader>
@@ -707,51 +714,46 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
       <PageHeader />
       <Greeting name={user.name || 'QA Team Member'} />
       <h1 className="text-lg sm:text-xl text-[#023F40] mt-6">
-        {isDashboardHome ? 'Quality Assurance Team Dashboard' : 'Rebate Quality Assurance Team Review'}
+        {isDashboardHome
+          ? 'Quality Assurance Team Dashboard'
+          : isAllRebatesPage
+            ? 'All Rebates Submitted to RGF'
+            : 'Rebate Quality Assurance Team Review'}
       </h1>
       <p className="text-sm text-gray-600 mt-1">
         {isDashboardHome
-          ? 'The QA Team approves rebates verified by the Rebate Team before they are presented to the CFO for disbursement. The top section tracks rebates awaiting QA review; the overview section covers all rebates submitted to RGF to date.'
-          : 'This page is for the QA Team to approve rebates verified by the Rebate Team during scheduled review meetings, before presentation to the CFO for disbursement authorization.'}
+          ? 'The QA Team approves rebates verified by the Rebate Team before they are presented to the CFO for disbursement. The default report below lists rebates awaiting QA Team review.'
+          : isAllRebatesPage
+            ? 'Overview of all rebates submitted to Rwanda Green Fund to date.'
+            : 'This page is for the QA Team to approve rebates verified by the Rebate Team during scheduled review meetings, before presentation to the CFO for disbursement authorization.'}
       </p>
 
-      <h2 className="text-base font-semibold text-[#023F40] mt-8">Rebates awaiting QA Team Review</h2>
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Rebates Verified for QA Review</p>
-            <p className="text-2xl font-bold text-[#023F40]">{verifiedForQaCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Amount of Rebates Verified for QA Review (RWF)</p>
-            <p className="text-2xl font-bold text-[#023F40]">
-              {Math.round(verifiedForQaAmount).toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Of which women</p>
-            <p className="text-2xl font-bold text-[#023F40]">{awaitingWomenCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Of which retrofits</p>
-            <p className="text-2xl font-bold text-[#023F40]">{awaitingRetrofitCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Of which no e-moto yet in possession</p>
-            <p className="text-2xl font-bold text-[#023F40]">{noEmotoPossessionCount}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {isDashboardHome && (
+        <>
+          <h2 className="text-base font-semibold text-[#023F40] mt-8">Rebates awaiting QA Team Review</h2>
+          <p className="text-sm text-gray-700 mt-2 font-medium">
+            To access rebate details, please click on the below status categories.
+          </p>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            {QA_METRIC_CARDS.map((card, index) => (
+              <motion.button
+                key={card.preset}
+                type="button"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * (index + 1) }}
+                onClick={() => openMetricReport(card.preset)}
+                className="bg-gradient-to-br from-[#023F40] to-[#035f60] p-4 rounded-xl shadow-md text-white text-left hover:from-[#035f60] hover:to-[#047a7c] transition-colors min-h-[7.5rem]"
+              >
+                <p className="text-3xl font-bold mb-1 break-words">{card.value}</p>
+                <p className="text-white/85 text-xs leading-snug">{card.label}</p>
+              </motion.button>
+            ))}
+          </div>
+        </>
+      )}
 
-      {isDashboardHome ? (
+      {isAllRebatesPage ? (
         <>
           <h2 className="text-base font-semibold text-[#023F40] mt-8">
             Overview Rebates Submitted to RGF to date
@@ -760,7 +762,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
           {renderOverviewTable(overviewApps, false)}
         </>
       ) : (
-        <>
+        <div id="qa-dashboard-table">
           {renderOverviewFilters()}
           <div className="mb-4 flex w-full flex-wrap justify-end gap-2">
             <Button onClick={handleSubmitDecisions} className="bg-[#023F40] hover:bg-[#035f60]">
@@ -770,7 +772,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
           {renderOverviewTable(reviewQueueApps, true)}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-gray-500">
-              {pendingReview.length} rebate(s) awaiting QA decision. Sorted by AF submission date (newest first).
+              {pendingReview.length} rebate(s) awaiting QA decision. Sorted by AF submission date (oldest first).
             </p>
             <Button
               onClick={handlePrintReport}
@@ -780,7 +782,7 @@ export function QADashboard({ user, currentPage }: QADashboardProps) {
               Print Report
             </Button>
           </div>
-        </>
+        </div>
       )}
 
       <Dialog

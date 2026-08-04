@@ -5,11 +5,32 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowLeft, Filter, Upload, Eye } from 'lucide-react';
+import { ArrowLeft, Filter, Upload, Eye, X } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import { formatNumber } from '../../utils/numberFormat';
 import { getRebatePercent } from '../../utils/rebateCalculation';
 import { DOC_NAMES } from '../../utils/documentNames';
+import {
+  ALL_ASSET_FINANCIERS_LABEL,
+  ALL_STATUSES_LABEL,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 
 type PossessionStatus = 'awaiting-confirmation' | 'confirmation-submitted';
 
@@ -190,8 +211,8 @@ export function PossessionAnalysisView() {
   const [query, setQuery] = useState('');
   const [filterAf, setFilterAf] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterWomen, setFilterWomen] = useState('all');
-  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [selected, setSelected] = useState<PossessionAnalysisRow | null>(null);
   const [uploadFileName, setUploadFileName] = useState('');
 
@@ -199,6 +220,17 @@ export function PossessionAnalysisView() {
     () => Array.from(new Set(rows.map((r) => r.assetFinancier))).sort(),
     [rows]
   );
+
+  const isFiltered =
+    query !== '' || filterAf !== 'all' || filterStatus !== 'all' || filterGender !== 'all' || filterVehicleType !== 'all';
+
+  const clearFilters = () => {
+    setQuery('');
+    setFilterAf('all');
+    setFilterStatus('all');
+    setFilterGender('all');
+    setFilterVehicleType('all');
+  };
 
   const filtered = useMemo(() => {
     return rows.filter((r) => {
@@ -214,16 +246,44 @@ export function PossessionAnalysisView() {
       }
       if (filterAf !== 'all' && r.assetFinancier !== filterAf) return false;
       if (filterStatus !== 'all' && r.possessionStatus !== filterStatus) return false;
-      if (filterWomen === 'yes' && !r.isWoman) return false;
-      if (filterWomen === 'no' && r.isWoman) return false;
-      if (filterRetrofit === 'yes' && !r.isRetrofit) return false;
-      if (filterRetrofit === 'no' && r.isRetrofit) return false;
+      if (!matchesGenderFilter(r.isWoman, filterGender)) return false;
+      if (!matchesVehicleTypeFilter(r.isRetrofit, filterVehicleType)) return false;
       return true;
     });
-  }, [rows, query, filterAf, filterStatus, filterWomen, filterRetrofit]);
+  }, [rows, query, filterAf, filterStatus, filterGender, filterVehicleType]);
 
   const awaitingCount = rows.filter((r) => r.possessionStatus === 'awaiting-confirmation').length;
   const submittedCount = rows.filter((r) => r.possessionStatus === 'confirmation-submitted').length;
+  const totalCount = rows.length;
+  const submittedShare = totalCount === 0 ? 0 : Math.round((submittedCount / totalCount) * 100);
+
+  const applyStatusFilter = (status: string) => {
+    setFilterStatus(status);
+    document.getElementById('possession-analysis-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const possessionOverview = [
+    { name: 'Confirmation submitted', count: submittedCount, fill: '#6DB27F' },
+    { name: 'Awaiting confirmation', count: awaitingCount, fill: '#023F40' },
+  ].filter((d) => d.count > 0);
+
+  const byAfPossession = useMemo(() => {
+    const map = new Map<string, { awaiting: number; submitted: number }>();
+    for (const r of rows) {
+      const entry = map.get(r.assetFinancier) || { awaiting: 0, submitted: 0 };
+      if (r.possessionStatus === 'confirmation-submitted') entry.submitted += 1;
+      else entry.awaiting += 1;
+      map.set(r.assetFinancier, entry);
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, v]) => ({
+        name,
+        awaiting: v.awaiting,
+        submitted: v.submitted,
+        total: v.awaiting + v.submitted,
+      }));
+  }, [rows]);
 
   const openUploadPage = (row: PossessionAnalysisRow) => {
     setSelected(row);
@@ -319,12 +379,9 @@ export function PossessionAnalysisView() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
-              <p className="font-semibold text-[#023F40]">{formatNumber(selected.rebateAmount)}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
               <p className="font-semibold text-[#023F40]">
-                {getRebatePercent({ isWoman: selected.isWoman, isRetrofit: selected.isRetrofit })}
+                {formatNumber(selected.rebateAmount)} (
+                {getRebatePercent({ isWoman: selected.isWoman, isRetrofit: selected.isRetrofit })})
               </p>
             </div>
             <div>
@@ -420,8 +477,66 @@ export function PossessionAnalysisView() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filterStatus === 'all'}
+          onClick={() => applyStatusFilter('all')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyStatusFilter('all');
+            }
+          }}
+          className={`cursor-pointer transition-colors hover:border-[#023F40]/50 hover:shadow-md ${
+            filterStatus === 'all' ? 'ring-2 ring-[#023F40]/40 border-[#023F40]/50' : ''
+          }`}
+        >
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">Total approved rebates tracked</p>
+            <p className="text-2xl font-bold text-[#023F40]">{totalCount}</p>
+          </CardContent>
+        </Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filterStatus === 'confirmation-submitted'}
+          onClick={() => applyStatusFilter('confirmation-submitted')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyStatusFilter('confirmation-submitted');
+            }
+          }}
+          className={`cursor-pointer transition-colors hover:border-[#6DB27F]/60 hover:shadow-md ${
+            filterStatus === 'confirmation-submitted' ? 'ring-2 ring-[#6DB27F]/50 border-[#6DB27F]/60' : ''
+          }`}
+        >
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">Confirmation submitted</p>
+            <p className="text-2xl font-bold text-[#023F40]">
+              {submittedCount}
+              <span className="text-base font-medium text-gray-500"> / {totalCount}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{submittedShare}% of total</p>
+          </CardContent>
+        </Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filterStatus === 'awaiting-confirmation'}
+          onClick={() => applyStatusFilter('awaiting-confirmation')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyStatusFilter('awaiting-confirmation');
+            }
+          }}
+          className={`cursor-pointer transition-colors hover:border-[#023F40]/50 hover:shadow-md ${
+            filterStatus === 'awaiting-confirmation' ? 'ring-2 ring-[#023F40]/40 border-[#023F40]/50' : ''
+          }`}
+        >
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">Awaiting confirmation</p>
             <p className="text-2xl font-bold text-[#023F40]">{awaitingCount}</p>
@@ -429,29 +544,130 @@ export function PossessionAnalysisView() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Confirmation submitted</p>
-            <p className="text-2xl font-bold text-[#023F40]">{submittedCount}</p>
+            <p className="text-sm text-gray-600">Asset Financiers in scope</p>
+            <p className="text-2xl font-bold text-[#023F40]">{byAfPossession.length}</p>
           </CardContent>
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900 mb-1">E-Moto Possession Overview</h3>
+            <p className="text-sm text-gray-500">
+              Possession confirmation relative to total approved rebates
+            </p>
+          </div>
+          {possessionOverview.length === 0 ? (
+            <p className="text-sm text-gray-500 py-10 text-center">No rebates to chart</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart id="possession-overview-pie">
+                <Pie
+                  data={possessionOverview}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, count }: { name: string; count: number }) => `${name}: ${count}`}
+                  outerRadius={100}
+                  dataKey="count"
+                  isAnimationActive={false}
+                >
+                  {possessionOverview.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                  formatter={(value: any) => [`${value} rebate(s)`, 'Count']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900 mb-1">Possession by Asset Financier</h3>
+            <p className="text-sm text-gray-500">Awaiting vs submitted confirmation, by AF</p>
+          </div>
+          {byAfPossession.length === 0 ? (
+            <p className="text-sm text-gray-500 py-10 text-center">No rebates to chart</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={byAfPossession}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                id="possession-af-breakout-bar"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" stroke="#6b7280" />
+                <YAxis allowDecimals={false} stroke="#6b7280" />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                />
+                <Bar
+                  dataKey="submitted"
+                  name="Confirmation submitted"
+                  stackId="possession"
+                  fill="#6DB27F"
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="awaiting"
+                  name="Awaiting confirmation"
+                  stackId="possession"
+                  fill="#023F40"
+                  radius={[8, 8, 0, 0]}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filters
+            </CardTitle>
+            {isFiltered && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Asset Financier</p>
+              <p className="text-xs font-medium text-gray-600">{FILTER_LABELS.assetFinancier}</p>
               <Select value={filterAf} onValueChange={setFilterAf}>
                 <SelectTrigger className="border-[#023F40]/60">
-                  <SelectValue placeholder="Asset Financier" />
+                  <SelectValue placeholder={FILTER_LABELS.assetFinancier} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Asset Financiers</SelectItem>
+                  <SelectItem value="all">{ALL_ASSET_FINANCIERS_LABEL}</SelectItem>
                   {financiers.map((af) => (
                     <SelectItem key={af} value={af}>
                       {af}
@@ -461,13 +677,13 @@ export function PossessionAnalysisView() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Status</p>
+              <p className="text-xs font-medium text-gray-600">{FILTER_LABELS.status}</p>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={FILTER_LABELS.status} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="all">{ALL_STATUSES_LABEL}</SelectItem>
                   <SelectItem value="awaiting-confirmation">Awaiting confirmation</SelectItem>
                   <SelectItem value="confirmation-submitted">Confirmation submitted</SelectItem>
                 </SelectContent>
@@ -482,28 +698,32 @@ export function PossessionAnalysisView() {
               />
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Women</p>
-              <Select value={filterWomen} onValueChange={setFilterWomen}>
+              <p className="text-xs font-medium text-gray-600">{FILTER_LABELS.gender}</p>
+              <Select value={filterGender} onValueChange={setFilterGender}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Women" />
+                  <SelectValue placeholder={FILTER_LABELS.gender} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All applicants</SelectItem>
-                  <SelectItem value="yes">Women only</SelectItem>
-                  <SelectItem value="no">Non-women</SelectItem>
+                  {GENDER_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Retrofit</p>
-              <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
+              <p className="text-xs font-medium text-gray-600">{FILTER_LABELS.vehicleType}</p>
+              <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Retrofit" />
+                  <SelectValue placeholder={FILTER_LABELS.vehicleType} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="yes">Retrofit only</SelectItem>
-                  <SelectItem value="no">New e-moto only</SelectItem>
+                  {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -515,7 +735,7 @@ export function PossessionAnalysisView() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="possession-analysis-table">
         <CardHeader>
           <CardTitle className="text-base text-[#023F40]">Possession Analysis Table</CardTitle>
         </CardHeader>

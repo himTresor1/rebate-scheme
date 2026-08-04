@@ -763,15 +763,8 @@ export function RebateApplicationDetailsPage({
                   Rebate Amount (RWF) — auto-calculated
                 </FieldLabel>
                 <p className="font-medium">
-                  {formatRwf(record.rebateAmount) ?? record.rebateAmount ?? '—'}
-                </p>
-              </div>
-              <div>
-                <FieldLabel as="span" className="mb-0">
-                  Rebate Percentage (%)
-                </FieldLabel>
-                <p className="font-medium">
-                  {getRebatePercent({ isWoman: record.isWoman, isRetrofit: record.isRetrofit })}
+                  {formatRwf(record.rebateAmount) ?? record.rebateAmount ?? '—'} (
+                  {getRebatePercent({ isWoman: record.isWoman, isRetrofit: record.isRetrofit })})
                 </p>
               </div>
             </div>

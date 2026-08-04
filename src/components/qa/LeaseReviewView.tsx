@@ -16,6 +16,7 @@ import {
 } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface LeaseReviewViewProps {
   user: User;
@@ -315,7 +316,7 @@ export function LeaseReviewView({ user }: LeaseReviewViewProps) {
                 <div>
                   <p className="text-gray-500">Rebate Amount</p>
                   <p className="font-medium text-[#023F40]">
-                    RWF {parseInt(selectedApp.rebateAmount).toLocaleString()}
+                    RWF {formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}
                   </p>
                 </div>
               </div>
@@ -682,7 +683,7 @@ export function LeaseReviewView({ user }: LeaseReviewViewProps) {
                     <div>
                       <p className="text-gray-500">Rebate Amount</p>
                       <p className="font-medium text-[#023F40]">
-                        RWF {parseInt(app.rebateAmount).toLocaleString()}
+                        RWF {formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}
                       </p>
                     </div>
                     <div>

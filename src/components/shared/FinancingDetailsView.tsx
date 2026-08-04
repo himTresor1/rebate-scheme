@@ -3,6 +3,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { FileText, X } from 'lucide-react';
 import { DOC_NAMES } from '../../utils/documentNames';
+import { formatRebateAmountWithPercent } from '../../utils/rebateCalculation';
 
 export interface FinancingDetailsData {
   ticketNumber: string;
@@ -17,6 +18,7 @@ export interface FinancingDetailsData {
   nationalId?: string;
   dob?: string;
   rebateAmount?: number;
+  isRetrofit?: boolean;
   documents?: Array<{ label: string; required?: boolean; uploaded?: boolean }>;
 }
 
@@ -47,7 +49,16 @@ export function FinancingDetailsView({ data, onClose, embedded = false }: Financ
         <div><span className="text-gray-600">Financier:</span> <span className="font-medium">{data.financier}</span></div>
         <div><span className="text-gray-600">Submitted:</span> <span className="font-medium">{data.submittedAt}</span></div>
         {data.rebateAmount != null && (
-          <div><span className="text-gray-600">Rebate:</span> <span className="font-medium">RWF {data.rebateAmount.toLocaleString()}</span></div>
+          <div>
+            <span className="text-gray-600">Rebate:</span>{' '}
+            <span className="font-medium">
+              RWF{' '}
+              {formatRebateAmountWithPercent(data.rebateAmount, {
+                isWoman: data.isWoman,
+                isRetrofit: data.isRetrofit === true || data.vehicleType === 'Retrofit',
+              })}
+            </span>
+          </div>
         )}
         {data.phoneNumber && <div><span className="text-gray-600">Phone:</span> <span className="font-medium">{data.phoneNumber}</span></div>}
         {data.email && <div><span className="text-gray-600">Email:</span> <span className="font-medium">{data.email}</span></div>}

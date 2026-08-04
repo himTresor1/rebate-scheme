@@ -842,9 +842,8 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                 />
                 <DetailField
                   label="Rebate Amount (RWF) — auto-calculated"
-                  value={rebateAmountRwf}
+                  value={`${rebateAmountRwf} (${rebatePercent})`}
                 />
-                <DetailField label="Rebate Percentage (%)" value={rebatePercent} />
                 <DetailField label="Contract Term (months)" value={application.loanTerm} optional />
                 <DetailField
                   label="Repayment Frequency"
@@ -1240,7 +1239,14 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Rebate Amount</p>
-                  <p className="text-lg font-semibold text-[#6DB27F]">{formatCurrency(application.rebateAmount)}</p>
+                  <p className="text-lg font-semibold text-[#6DB27F]">
+                    {formatCurrency(application.rebateAmount)} (
+                    {getRebatePercent({
+                      isWoman: application.eligibilityCheck?.nationalIdCheck?.gender === 'Female',
+                      isRetrofit: Boolean(application.isRetrofit),
+                    })}
+                    )
+                  </p>
                 </div>
                 {application.downPayment && (
                   <div>
@@ -1833,7 +1839,14 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
             <div className="p-4 bg-[#6DB27F]/10 rounded-lg">
               <p className="text-sm font-medium">Application Summary</p>
               <p className="text-sm text-gray-600 mt-1">Applicant: {application.applicantName}</p>
-              <p className="text-sm text-gray-600">Rebate Amount: {formatCurrency(application.rebateAmount)}</p>
+              <p className="text-sm text-gray-600">
+                Rebate Amount: {formatCurrency(application.rebateAmount)} (
+                {getRebatePercent({
+                  isWoman: application.eligibilityCheck?.nationalIdCheck?.gender === 'Female',
+                  isRetrofit: Boolean(application.isRetrofit),
+                })}
+                )
+              </p>
               <p className="text-sm text-gray-600">Eligibility Score: {score}%</p>
             </div>
             <div className="flex gap-2 justify-end">

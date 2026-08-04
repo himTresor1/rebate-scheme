@@ -903,7 +903,14 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                 type="text"
                 readOnly
                 className="bg-gray-50 font-semibold text-[#023F40]"
-                value={formatNumber(formData.rebateAmount)}
+                value={
+                  formData.rebateAmount
+                    ? `${formatNumber(formData.rebateAmount)} (${getRebatePercent({
+                        isWoman: formData.isWoman === 'yes',
+                        isRetrofit: formData.isRetrofit,
+                      })})`
+                    : '—'
+                }
               />
               <p className="text-xs text-[#023F40] mt-1">
                 {getRebateEligibilityLabel({
@@ -911,18 +918,6 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
                   isRetrofit: formData.isRetrofit,
                 })}
               </p>
-            </div>
-            <div>
-              <FieldLabel>Rebate Percentage (%)</FieldLabel>
-              <Input
-                type="text"
-                readOnly
-                className="bg-gray-50 font-semibold text-[#023F40]"
-                value={getRebatePercent({
-                  isWoman: formData.isWoman === 'yes',
-                  isRetrofit: formData.isRetrofit,
-                })}
-              />
             </div>
           </div>
 
@@ -1448,14 +1443,14 @@ function ReviewStep({
               />
               <SummaryRow
                 label="Rebate Amount (RWF) — auto-calculated"
-                value={rebatePreview > 0 ? formatNumber(rebatePreview) : '—'}
-              />
-              <SummaryRow
-                label="Rebate Percentage (%)"
-                value={getRebatePercent({
-                  isWoman: formData.isWoman === 'yes',
-                  isRetrofit: formData.isRetrofit,
-                })}
+                value={
+                  rebatePreview > 0
+                    ? `${formatNumber(rebatePreview)} (${getRebatePercent({
+                        isWoman: formData.isWoman === 'yes',
+                        isRetrofit: formData.isRetrofit,
+                      })})`
+                    : '—'
+                }
               />
               <SummaryRow
                 label="Contract Term (months)"

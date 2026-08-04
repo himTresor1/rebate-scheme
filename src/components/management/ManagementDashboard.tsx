@@ -13,7 +13,8 @@ import {
   Users,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  X
 } from 'lucide-react';
 import { User } from '../../utils/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -22,6 +23,7 @@ import { Greeting } from '../ui/Greeting';
 import { PageHeader } from '../PageHeader';
 import { NotificationsView } from '../NotificationsView';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, getRebatePercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
@@ -244,7 +246,7 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
                   <tr key={app.id} className="border-b last:border-0">
                     <td className="py-3 pr-3 font-medium">{app.companyName}</td>
                     <td className="py-3 pr-3">{app.registrationNumber}</td>
-                    <td className="py-3 pr-3">{Number(app.rebateAmount || 0).toLocaleString()} RWF</td>
+                    <td className="py-3 pr-3">{formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))} RWF</td>
                     <td className="py-3 pr-3">
                       <Badge variant="outline">{app.status}</Badge>
                     </td>
@@ -354,7 +356,21 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
                 </div>
 
                 <div className="flex-1">
-                  <label className="text-xs sm:text-sm font-medium mb-2 block">Score Range</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs sm:text-sm font-medium block">Score Range</label>
+                    {scoreFilter !== 'all' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-gray-600 hover:text-gray-900"
+                        onClick={() => setScoreFilter('all')}
+                      >
+                        <X className="w-3.5 h-3.5 mr-1" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                   <Select value={scoreFilter} onValueChange={setScoreFilter}>
                     <SelectTrigger>
                       <SelectValue />
@@ -413,7 +429,7 @@ export function ManagementDashboard({ user, currentPage }: ManagementDashboardPr
 
                         <div className="text-left sm:text-right">
                           <p className="text-sm text-gray-600">Amount</p>
-                          <p className="font-medium">${(parseFloat(app.rebateAmount) / 1000).toFixed(0)}K</p>
+                          <p className="font-medium">${(parseFloat(app.rebateAmount) / 1000).toFixed(0)}K ({getRebatePercent(rebateOptionsFromRecord(app))})</p>
                         </div>
 
                         <div className={`px-4 py-2 rounded-lg border ${getScoreColor(score)}`}>

@@ -10,6 +10,7 @@ import { User } from '../../utils/auth';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { formatDisplayDateTime } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -255,7 +256,7 @@ export function ApplicationReview({ application, user, onBack }: ApplicationRevi
                     <div>
                       <label className="text-sm font-medium text-gray-600">Rebate Amount Requested</label>
                       <p className="mt-1 text-lg font-semibold text-blue-600">
-                        ${parseFloat(application.rebateAmount).toLocaleString()}
+                        {formatRebateAmountWithPercent(application.rebateAmount, rebateOptionsFromRecord(application))}
                       </p>
                     </div>
                   </div>

@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { DateInput } from '../ui/date-input';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +13,7 @@ import {
 } from '../ui/dialog';
 import { Checkbox } from '../ui/checkbox';
 import { Textarea } from '../ui/textarea';
-import { Filter, Printer, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Printer, ThumbsDown, ThumbsUp } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -38,6 +35,8 @@ import { formatNumber } from '../../utils/numberFormat';
 import { QAReview } from './QAReview';
 import { PageHeader } from '../PageHeader';
 import { Greeting } from '../ui/Greeting';
+import { matchesGenderFilter, matchesVehicleTypeFilter } from '../../utils/filterLabels';
+import { QA_DEFAULT_FILTER_VALUES, QaStandardFilters } from './QaStandardFilters';
 
 type DecisionValue = 'yes' | 'no' | '';
 
@@ -100,19 +99,16 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [decisions, setDecisions] = useState<Record<string, RowDecision>>({});
-  const [batchApproval, setBatchApproval] = useState<DecisionValue>('');
   const [query, setQuery] = useState('');
-  const [filterWomen, setFilterWomen] = useState('all');
-  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterAssembler, setFilterAssembler] = useState('all');
   const [filterAf, setFilterAf] = useState('all');
-  const [filterPossession, setFilterPossession] = useState('all');
-  const [dateFrom, setDateFrom] = useState('2026-05-01');
-  const [dateTo, setDateTo] = useState('2026-06-30');
-  const [printOpen, setPrintOpen] = useState(false);
-  const [printWithSignature, setPrintWithSignature] = useState(false);
-  const [printFormat, setPrintFormat] = useState<'pdf' | 'excel'>('pdf');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState(QA_DEFAULT_FILTER_VALUES.sortBy);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchAction, setBatchAction] = useState<'yes' | 'no' | null>(null);
   const [batchReason, setBatchReason] = useState('');
@@ -150,74 +146,88 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
   const filtered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom).getTime() : 0;
     const to = dateTo ? new Date(dateTo).getTime() + 86400000 - 1 : Number.MAX_SAFE_INTEGER;
-    return rows.filter((r) => {
-      const verified = new Date(r.verifiedAt).getTime();
-      if (verified < from || verified > to) return false;
+    const list = rows.filter((r) => {
+      const submitted = new Date(r.afSubmittedAt).getTime();
+      if (submitted < from || submitted > to) return false;
       const q = query.toLowerCase();
       if (q && !r.ticket.toLowerCase().includes(q) && !r.applicant.toLowerCase().includes(q)) return false;
       if (filterAf !== 'all' && r.af !== filterAf) return false;
-      if (filterWomen === 'yes' && !r.woman) return false;
-      if (filterWomen === 'no' && r.woman) return false;
-      if (filterRetrofit === 'yes' && !r.retrofit) return false;
-      if (filterRetrofit === 'no' && r.retrofit) return false;
+      if (!matchesGenderFilter(r.woman, filterGender)) return false;
+      if (!matchesVehicleTypeFilter(r.retrofit, filterVehicleType)) return false;
       if (filterProvider !== 'all' && r.provider !== filterProvider) return false;
       if (filterAssembler !== 'all' && r.assembler !== filterAssembler) return false;
-      if (filterPossession === 'without' && r.hasPossession) return false;
-      if (filterPossession === 'with' && !r.hasPossession) return false;
+
+      const decision = decisions[r.id]?.decision;
+      if (filterStatus === 'no-possession' && r.hasPossession) return false;
+      if (filterStatus === 'in-process' && decision) return false;
+      if (filterStatus === 'approved' && decision !== 'yes') return false;
+      if (filterStatus === 'rejected' && decision !== 'no') return false;
+      if (filterStatus === 'submitted') return false;
+      if (filterStatus === 'disbursed') return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      if (sortBy === 'amount-high') return b.rebateAmount - a.rebateAmount;
+      return new Date(a.afSubmittedAt).getTime() - new Date(b.afSubmittedAt).getTime();
     });
   }, [
     rows,
     query,
     filterAf,
-    filterWomen,
-    filterRetrofit,
+    filterGender,
+    filterVehicleType,
     filterProvider,
     filterAssembler,
-    filterPossession,
+    filterStatus,
     dateFrom,
     dateTo,
+    sortBy,
+    decisions,
   ]);
 
   const totalAmount = filtered.reduce((s, r) => s + r.rebateAmount, 0);
+  const withPossessionCount = filtered.filter((r) => r.hasPossession).length;
+  const withoutPossessionCount = filtered.length - withPossessionCount;
+  const possessionShare =
+    filtered.length === 0 ? 0 : Math.round((withPossessionCount / filtered.length) * 100);
+
+  const possessionOverview = [
+    { name: 'With possession', count: withPossessionCount, fill: '#6DB27F' },
+    { name: 'No possession yet', count: withoutPossessionCount, fill: '#023F40' },
+  ].filter((d) => d.count > 0);
+
   const byAf = useMemo(() => {
-    const map = new Map<string, { count: number; amount: number }>();
+    const map = new Map<string, { count: number; amount: number; withPossession: number; withoutPossession: number }>();
     for (const r of filtered) {
-      const entry = map.get(r.af) || { count: 0, amount: 0 };
+      const entry = map.get(r.af) || { count: 0, amount: 0, withPossession: 0, withoutPossession: 0 };
       entry.count += 1;
       entry.amount += r.rebateAmount;
+      if (r.hasPossession) entry.withPossession += 1;
+      else entry.withoutPossession += 1;
       map.set(r.af, entry);
     }
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([af, v]) => ({ name: af, count: v.count, amount: Math.round(v.amount) }));
+      .map(([af, v]) => ({
+        name: af,
+        count: v.count,
+        amount: Math.round(v.amount),
+        withPossession: v.withPossession,
+        withoutPossession: v.withoutPossession,
+      }));
   }, [filtered]);
 
-  const AF_CHART_COLORS = ['#023F40', '#6DB27F', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
+  const AF_CHART_COLORS = ['#023F40', '#6DB27F', '#047a7c', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
 
   const dateRangeLabel =
     dateFrom && dateTo
       ? `${formatDisplayDate(dateFrom)} – ${formatDisplayDate(dateTo)}`
-      : 'Selected period';
-
-  const setRowDecision = (id: string, decision: DecisionValue) => {
-    setDecisions((prev) => ({
-      ...prev,
-      [id]: { decision, comment: prev[id]?.comment || '' },
-    }));
-  };
-
-  const handleRowYes = (row: DecisionRow) => {
-    setRowDecision(row.id, 'yes');
-    toast.success(`Decision recorded: YES for ${row.ticket}`);
-  };
-
-  const handleRowNo = (row: DecisionRow) => {
-    setRowDecision(row.id, 'no');
-    toast.warning(`Decision recorded: NO for ${row.ticket}`, {
-      description: 'Open the ticket to add the mandatory rejection comment.',
-    });
-  };
+      : dateFrom
+        ? `From ${formatDisplayDate(dateFrom)}`
+        : dateTo
+          ? `Until ${formatDisplayDate(dateTo)}`
+          : 'All dates';
 
   const toggleRowSelection = (id: string, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -268,90 +278,8 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
     }
   };
 
-  const approvedRows = filtered.filter((r) => decisions[r.id]?.decision === 'yes');
-
-  const exportExcel = (withSignature: boolean) => {
-    const headers = [
-      'Ticket No.',
-      'Date of AF Submission',
-      'Date of Rebate Team Verification',
-      'Applicant Name',
-      'Woman',
-      'Retrofit',
-      'Asset Financier',
-      'E-Moto Provider',
-      'Retrofit Assembler',
-      'E-Moto Retail Cost (RWF)',
-      'Rebate Amount (RWF)',
-      'Rebate Percentage (%)',
-      'QA Team Decision',
-      'Comment',
-    ];
-    const dataRows = approvedRows.map((r) => [
-      r.ticket,
-      formatDisplayDate(r.afSubmittedAt),
-      formatDisplayDate(r.verifiedAt),
-      r.applicant,
-      r.woman ? 'Yes' : 'No',
-      r.retrofit ? 'Yes' : 'No',
-      r.af,
-      r.provider,
-      r.assembler,
-      formatNumber(r.retailCost),
-      formatNumber(r.rebateAmount),
-      r.rebatePercent,
-      'YES',
-      decisions[r.id]?.comment || '',
-    ]);
-    const csv = [headers, ...dataRows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `qa_approved_rebate_report_${dateFrom}_${dateTo}${withSignature ? '_signature' : ''}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success('Excel report downloaded', {
-      description: withSignature
-        ? 'Include signature page when circulating to QA members.'
-        : 'Rebates Approved by RGF Rebate Quality Assurance Team',
-    });
-  };
-
   const handlePrintReport = () => {
-    if (batchApproval !== 'yes') {
-      toast.error('Set batch Approval to YES before printing the approved report.');
-      return;
-    }
-    const rejectedWithoutComment = filtered.filter((r) => {
-      const d = decisions[r.id];
-      return d?.decision === 'no' && !d.comment.trim();
-    });
-    if (rejectedWithoutComment.length > 0) {
-      toast.error('Comment is mandatory for every rejected rebate.');
-      return;
-    }
-    if (approvedRows.length === 0) {
-      toast.error('No YES decisions to include in the approved report.');
-      return;
-    }
-    setPrintOpen(true);
-  };
-
-  const confirmPrint = () => {
-    setPrintOpen(false);
-    if (printFormat === 'excel') {
-      exportExcel(printWithSignature);
-      return;
-    }
-    toast.info(
-      printWithSignature
-        ? 'Opening PDF print view with signature page…'
-        : 'Opening PDF print view…'
-    );
-    setTimeout(() => window.print(), 150);
+    window.print();
   };
 
   if (selectedApp) {
@@ -388,7 +316,7 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
 
       <div className="print:text-center">
         <h1 className="text-lg sm:text-xl font-semibold text-[#023F40]">
-          Rebate QA Team Decision Page
+          Rebate QA Team Review
         </h1>
         <p className="text-sm text-gray-600 mt-1 max-w-4xl print:max-w-none">
           Use this page in QA meetings to decide on rebates verified by the Rebate Team. Click a Ticket No. for
@@ -399,29 +327,11 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 print:hidden">
-        <div className="space-y-1">
-          <Label className="text-xs text-gray-600">Verified rebates from</Label>
-          <DateInput
-            className="w-[170px]"
-            value={dateFrom}
-            onChange={setDateFrom}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-gray-600">Verified rebates to</Label>
-          <DateInput
-            className="w-[170px]"
-            value={dateTo}
-            onChange={setDateTo}
-          />
-        </div>
-        <p className="text-sm text-gray-600 pb-2">
-          Showing verified rebates for <span className="font-medium text-[#023F40]">{dateRangeLabel}</span>
-        </p>
-      </div>
+      <p className="text-sm text-gray-600 print:hidden">
+        Showing verified rebates for <span className="font-medium text-[#023F40]">{dateRangeLabel}</span>
+      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:grid-cols-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-2">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">Verified rebates requesting approval</p>
@@ -434,13 +344,30 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
             <p className="text-2xl font-bold text-[#023F40]">{Math.round(totalAmount).toLocaleString()}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">With e-moto possession</p>
+            <p className="text-2xl font-bold text-[#023F40]">
+              {withPossessionCount}
+              <span className="text-base font-medium text-gray-500"> / {filtered.length}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{possessionShare}% of verified rebates</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">No e-moto possession yet</p>
+            <p className="text-2xl font-bold text-[#023F40]">{withoutPossessionCount}</p>
+            <p className="text-xs text-gray-500 mt-1">Excluded from CFO disbursement until confirmed</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="mb-4">
             <h3 className="font-semibold text-gray-900 mb-1">Rebates per Asset Financier</h3>
-            <p className="text-sm text-gray-500">Number of verified rebates in the selected period</p>
+            <p className="text-sm text-gray-500">Number of Approved Rebates Awaiting Disbursement Authorization</p>
           </div>
           {byAf.length === 0 ? (
             <p className="text-sm text-gray-500 py-10 text-center">No rebates in range</p>
@@ -480,7 +407,7 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
 
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="mb-4">
-            <h3 className="font-semibold text-gray-900 mb-1">Value per Asset Financier</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">Rebate Amount per Asset Financier</h3>
             <p className="text-sm text-gray-500">Total rebate value requesting approval (RWF)</p>
           </div>
           {byAf.length === 0 ? (
@@ -521,91 +448,126 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
         </div>
       </div>
 
-      <Card className="print:hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Input placeholder="Search ticket/applicant..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            <Select value={filterAf} onValueChange={setFilterAf}>
-              <SelectTrigger>
-                <SelectValue placeholder="Asset Financier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Asset Financiers</SelectItem>
-                {financiers.map((af) => (
-                  <SelectItem key={af} value={af}>
-                    {af}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterWomen} onValueChange={setFilterWomen}>
-              <SelectTrigger>
-                <SelectValue placeholder="Women" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All applicants</SelectItem>
-                <SelectItem value="yes">Women only</SelectItem>
-                <SelectItem value="no">Non-women</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
-              <SelectTrigger>
-                <SelectValue placeholder="Retrofit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="yes">Retrofit only</SelectItem>
-                <SelectItem value="no">New e-moto only</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterProvider} onValueChange={setFilterProvider}>
-              <SelectTrigger>
-                <SelectValue placeholder="E-Moto Provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All E-Moto Providers</SelectItem>
-                {providers.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterAssembler} onValueChange={setFilterAssembler}>
-              <SelectTrigger>
-                <SelectValue placeholder="Retrofit Assembler" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Retrofit Assemblers</SelectItem>
-                {assemblers.map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {a}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterPossession} onValueChange={setFilterPossession}>
-              <SelectTrigger>
-                <SelectValue placeholder="Possession" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All possession statuses</SelectItem>
-                <SelectItem value="without">Verified without e-moto possession</SelectItem>
-                <SelectItem value="with">With possession confirmation</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900 mb-1">E-Moto Possession Overview</h3>
+            <p className="text-sm text-gray-500">
+              Possession status relative to verified rebates ({withPossessionCount} of {filtered.length} confirmed)
+            </p>
           </div>
-          <p className="text-xs text-gray-500">
-            Showing {filtered.length} of {rows.length} verified rebates for {dateRangeLabel}.
-          </p>
-        </CardContent>
-      </Card>
+          {possessionOverview.length === 0 ? (
+            <p className="text-sm text-gray-500 py-10 text-center">No rebates in range</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart id="qa-decision-possession-pie">
+                <Pie
+                  data={possessionOverview}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, count }: { name: string; count: number }) => `${name}: ${count}`}
+                  outerRadius={100}
+                  dataKey="count"
+                  isAnimationActive={false}
+                >
+                  {possessionOverview.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                  formatter={(value: any) => [`${value} rebate(s)`, 'Count']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4">
+            <h3 className="font-semibold text-gray-900 mb-1">Possession by Asset Financier</h3>
+            <p className="text-sm text-gray-500">With vs without e-moto possession confirmation</p>
+          </div>
+          {byAf.length === 0 ? (
+            <p className="text-sm text-gray-500 py-10 text-center">No rebates in range</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={byAf}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                id="qa-decision-possession-af-bar"
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" stroke="#6b7280" />
+                <YAxis allowDecimals={false} stroke="#6b7280" />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                />
+                <Bar
+                  dataKey="withPossession"
+                  name="With possession"
+                  stackId="possession"
+                  fill="#6DB27F"
+                  radius={[0, 0, 0, 0]}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="withoutPossession"
+                  name="No possession yet"
+                  stackId="possession"
+                  fill="#023F40"
+                  radius={[8, 8, 0, 0]}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <QaStandardFilters
+        values={{
+          query,
+          status: filterStatus,
+          dateFrom,
+          dateTo,
+          gender: filterGender,
+          vehicleType: filterVehicleType,
+          assetFinancier: filterAf,
+          eMotoProvider: filterProvider,
+          retrofitAssembler: filterAssembler,
+          sortBy,
+        }}
+        onChange={(patch) => {
+          if (patch.query !== undefined) setQuery(patch.query);
+          if (patch.status !== undefined) setFilterStatus(patch.status);
+          if (patch.dateFrom !== undefined) setDateFrom(patch.dateFrom);
+          if (patch.dateTo !== undefined) setDateTo(patch.dateTo);
+          if (patch.gender !== undefined) setFilterGender(patch.gender);
+          if (patch.vehicleType !== undefined) setFilterVehicleType(patch.vehicleType);
+          if (patch.assetFinancier !== undefined) setFilterAf(patch.assetFinancier);
+          if (patch.eMotoProvider !== undefined) setFilterProvider(patch.eMotoProvider);
+          if (patch.retrofitAssembler !== undefined) setFilterAssembler(patch.retrofitAssembler);
+          if (patch.sortBy !== undefined) setSortBy(patch.sortBy);
+        }}
+        financiers={financiers}
+        providers={providers}
+        assemblers={assemblers}
+        showingCount={filtered.length}
+        totalCount={rows.length}
+        showingLabel="verified rebates for QA decision"
+      />
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader>
@@ -694,36 +656,8 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                       <td className="py-2 pr-3">{formatNumber(r.retailCost)}</td>
                       <td className="py-2 pr-3">{formatNumber(r.rebateAmount)}</td>
                       <td className="py-2 pr-3">{r.rebatePercent}</td>
-                      <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1 print:hidden">
-                          <Button
-                            size="sm"
-                            className={
-                              d.decision === 'yes'
-                                ? 'h-8 bg-[#6DB27F] hover:bg-[#5da170] text-white'
-                                : 'h-8 bg-white border border-gray-300 text-gray-700 hover:bg-emerald-50 hover:border-[#6DB27F]'
-                            }
-                            onClick={() => handleRowYes(r)}
-                          >
-                            <ThumbsUp className="w-3.5 h-3.5 mr-1" />
-                            YES
-                          </Button>
-                          <Button
-                            size="sm"
-                            className={
-                              d.decision === 'no'
-                                ? 'h-8 bg-red-600 hover:bg-red-700 text-white'
-                                : 'h-8 bg-white border border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400'
-                            }
-                            onClick={() => handleRowNo(r)}
-                          >
-                            <ThumbsDown className="w-3.5 h-3.5 mr-1" />
-                            NO
-                          </Button>
-                        </div>
-                        <span className="hidden print:inline">
-                          {d.decision === 'yes' ? 'YES' : d.decision === 'no' ? 'NO' : '—'}
-                        </span>
+                      <td className="py-2 pr-3">
+                        {d.decision === 'yes' ? 'YES' : d.decision === 'no' ? 'NO' : '—'}
                       </td>
                       <td className="py-2 max-w-[220px]">
                         <span className={d.comment ? 'text-gray-800' : 'text-gray-400'}>
@@ -747,111 +681,12 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-end justify-between gap-4 print:hidden">
-        <div className="space-y-2">
-          <Label>Approval for total [YES/NO]</Label>
-          <div className="flex gap-2">
-            <Button
-              className={
-                batchApproval === 'yes'
-                  ? 'bg-[#6DB27F] hover:bg-[#5da170] text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-emerald-50 hover:border-[#6DB27F]'
-              }
-              onClick={() => setBatchApproval('yes')}
-            >
-              <ThumbsUp className="w-4 h-4 mr-1" />
-              YES
-            </Button>
-            <Button
-              className={
-                batchApproval === 'no'
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-400'
-              }
-              onClick={() => setBatchApproval('no')}
-            >
-              <ThumbsDown className="w-4 h-4 mr-1" />
-              NO
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500">Approval applies to the total at the bottom of this page.</p>
-        </div>
+      <div className="flex flex-wrap items-end justify-end gap-4 print:hidden">
         <Button className="bg-[#6DB27F] hover:bg-[#5da170]" onClick={handlePrintReport}>
           <Printer className="w-4 h-4 mr-2" />
           Print Approved Rebate Report
         </Button>
       </div>
-
-      {printWithSignature && (
-        <div className="hidden print:block mt-10 space-y-6 text-sm">
-          <p className="font-semibold text-[#023F40]">QA Team Signature Page</p>
-          {['QA Member 1', 'QA Member 2', 'QA Member 3'].map((name) => (
-            <div key={name} className="grid grid-cols-3 gap-8 pt-6">
-              <div>
-                <p className="mb-8">{name}</p>
-                <div className="border-b border-gray-800" />
-                <p className="mt-1 text-xs">Signature</p>
-              </div>
-              <div>
-                <div className="border-b border-gray-800 mt-14" />
-                <p className="mt-1 text-xs">Date</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Print Approved Rebate Report</DialogTitle>
-            <DialogDescription>
-              Report title: Rebates Approved by RGF Rebate Quality Assurance Team. Date range will appear at the top.
-              Each AF can receive their approved list separately after export.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Format</Label>
-              <Select value={printFormat} onValueChange={(v) => setPrintFormat(v as 'pdf' | 'excel')}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF (print)</SelectItem>
-                  <SelectItem value="excel">Excel (CSV)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Version</Label>
-              <Select
-                value={printWithSignature ? 'signature' : 'document'}
-                onValueChange={(v) => setPrintWithSignature(v === 'signature')}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="document">1) Document only</SelectItem>
-                  <SelectItem value="signature">2) Document with signature page</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <p className="text-xs text-gray-500">
-              Includes {approvedRows.length} YES decision(s). Rejected rows need comments before batch approval.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPrintOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-[#6DB27F] hover:bg-[#5da170]" onClick={confirmPrint}>
-              Continue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={batchAction !== null}

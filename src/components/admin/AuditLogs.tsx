@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Download, Clock, User as UserIcon, Shield, FileText } from 'lucide-react';
+import { Search, Filter, Download, Clock, User as UserIcon, Shield, FileText, X } from 'lucide-react';
 import { projectId } from '../../utils/supabase/info';
 import { authService } from '../../utils/auth';
 import { Pagination, usePagination } from '../ui/pagination';
@@ -187,6 +187,21 @@ export function AuditLogs() {
           <Download className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Export</span>
         </button>
+
+        {(searchQuery || filterAction || filterEntityType) && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setFilterAction('');
+              setFilterEntityType('');
+            }}
+            className="w-full px-3 sm:px-4 py-2 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 flex items-center justify-center gap-2"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>Clear filters</span>
+          </button>
+        )}
       </div>
 
       {/* Logs List */}

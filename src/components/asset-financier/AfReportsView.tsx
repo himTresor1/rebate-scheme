@@ -4,18 +4,26 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer } from 'lucide-react';
+import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AF_METRIC_LABELS,
   AF_METRIC_REPORT_TITLES,
   AF_MOCK_REBATE_RECORDS,
-  AF_STATUS_DISPLAY,
   AfMetricCategory,
   AfRebateRecord,
-  AfRebateStatus,
   recordMatchesMetric,
 } from '../../utils/afRebateData';
+import {
+  ALL_EMOTO_PROVIDERS_LABEL,
+  ALL_RETROFIT_ASSEMBLERS_LABEL,
+  ALL_STATUSES_LABEL,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 import { RebateApplicationDetailsPage } from './RebateApplicationDetailsPage';
 import { AfRebateReportTable } from './AfRebateReportTable';
 
@@ -33,12 +41,11 @@ export function AfReportsView({
   const [internalRecords] = useState(AF_MOCK_REBATE_RECORDS);
   const records = externalRecords ?? internalRecords;
   const [query, setQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<AfMetricCategory>(initialCategory);
-  const [statusFilter, setStatusFilter] = useState<AfRebateStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<AfMetricCategory>(initialCategory);
   const [providerFilter, setProviderFilter] = useState('all');
   const [assemblerFilter, setAssemblerFilter] = useState('all');
-  const [womanFilter, setWomanFilter] = useState('all');
-  const [retrofitFilter, setRetrofitFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selected, setSelected] = useState<AfRebateRecord | null>(null);
@@ -48,7 +55,7 @@ export function AfReportsView({
   }, [selected, onDetailOpenChange]);
 
   useEffect(() => {
-    setCategoryFilter(initialCategory);
+    setStatusFilter(initialCategory);
   }, [initialCategory]);
 
   const providers = useMemo(
@@ -68,14 +75,11 @@ export function AfReportsView({
 
     return records
       .filter((r) => {
-        if (!recordMatchesMetric(r, categoryFilter)) return false;
-        if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+        if (!recordMatchesMetric(r, statusFilter)) return false;
         if (providerFilter !== 'all' && r.supplier !== providerFilter) return false;
         if (assemblerFilter !== 'all' && (r.retrofitAssembler || 'N/A') !== assemblerFilter) return false;
-        if (womanFilter === 'yes' && !r.isWoman) return false;
-        if (womanFilter === 'no' && r.isWoman) return false;
-        if (retrofitFilter === 'yes' && !r.isRetrofit) return false;
-        if (retrofitFilter === 'no' && r.isRetrofit) return false;
+        if (!matchesGenderFilter(r.isWoman, genderFilter)) return false;
+        if (!matchesVehicleTypeFilter(r.isRetrofit, vehicleTypeFilter)) return false;
         const submitted = new Date(r.submittedAt).getTime();
         if (submitted < from || submitted > to) return false;
         if (
@@ -92,12 +96,11 @@ export function AfReportsView({
       .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
   }, [
     records,
-    categoryFilter,
     statusFilter,
     providerFilter,
     assemblerFilter,
-    womanFilter,
-    retrofitFilter,
+    genderFilter,
+    vehicleTypeFilter,
     dateFrom,
     dateTo,
     query,
@@ -112,6 +115,27 @@ export function AfReportsView({
       />
     );
   }
+
+  const isFiltered =
+    query !== '' ||
+    statusFilter !== 'all' ||
+    providerFilter !== 'all' ||
+    assemblerFilter !== 'all' ||
+    genderFilter !== 'all' ||
+    vehicleTypeFilter !== 'all' ||
+    dateFrom !== '' ||
+    dateTo !== '';
+
+  const clearFilters = () => {
+    setQuery('');
+    setStatusFilter('all');
+    setProviderFilter('all');
+    setAssemblerFilter('all');
+    setGenderFilter('all');
+    setVehicleTypeFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
 
   const handlePrint = () => {
     if (filtered.length === 0) {
@@ -134,10 +158,24 @@ export function AfReportsView({
 
       <Card className="max-w-full print:hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters &amp; Sort
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filters &amp; Sort
+            </CardTitle>
+            {isFiltered && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -150,37 +188,24 @@ export function AfReportsView({
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as AfRebateStatus | 'all')}>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as AfMetricCategory)}>
               <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {(Object.keys(AF_STATUS_DISPLAY) as AfRebateStatus[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {AF_STATUS_DISPLAY[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as AfMetricCategory)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Report category" />
+                <SelectValue placeholder={FILTER_LABELS.status} />
               </SelectTrigger>
               <SelectContent>
                 {(Object.keys(AF_METRIC_LABELS) as AfMetricCategory[]).map((key) => (
                   <SelectItem key={key} value={key}>
-                    {AF_METRIC_LABELS[key]}
+                    {key === 'all' ? ALL_STATUSES_LABEL : AF_METRIC_LABELS[key]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={providerFilter} onValueChange={setProviderFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="E-Moto Provider" />
+                <SelectValue placeholder={FILTER_LABELS.eMotoProvider} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All E-Moto Providers</SelectItem>
+                <SelectItem value="all">{ALL_EMOTO_PROVIDERS_LABEL}</SelectItem>
                 {providers.map((p) => (
                   <SelectItem key={p} value={p}>
                     {p}
@@ -192,10 +217,10 @@ export function AfReportsView({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select value={assemblerFilter} onValueChange={setAssemblerFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Retrofit Assembler" />
+                <SelectValue placeholder={FILTER_LABELS.retrofitAssembler} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Retrofit Assemblers</SelectItem>
+                <SelectItem value="all">{ALL_RETROFIT_ASSEMBLERS_LABEL}</SelectItem>
                 {assemblers.map((a) => (
                   <SelectItem key={a} value={a}>
                     {a}
@@ -203,24 +228,28 @@ export function AfReportsView({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={womanFilter} onValueChange={setWomanFilter}>
+            <Select value={genderFilter} onValueChange={setGenderFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Women" />
+                <SelectValue placeholder={FILTER_LABELS.gender} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All applicants</SelectItem>
-                <SelectItem value="yes">Women only</SelectItem>
-                <SelectItem value="no">Non-women</SelectItem>
+                {GENDER_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={retrofitFilter} onValueChange={setRetrofitFilter}>
+            <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Retrofit" />
+                <SelectValue placeholder={FILTER_LABELS.vehicleType} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="yes">Retrofit only</SelectItem>
-                <SelectItem value="no">New e-moto only</SelectItem>
+                {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -231,7 +260,7 @@ export function AfReportsView({
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <ArrowUpDown className="w-4 h-4" />
-            Report: {AF_METRIC_REPORT_TITLES[categoryFilter]} ({filtered.length})
+            Report: {AF_METRIC_REPORT_TITLES[statusFilter]} ({filtered.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="w-full max-w-full overflow-x-auto px-4 sm:px-6 pb-6">

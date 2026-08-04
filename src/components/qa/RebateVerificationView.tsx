@@ -16,6 +16,7 @@ import { ArrowLeft, CheckCircle, FileCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { User } from '../../utils/auth';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
@@ -57,7 +58,7 @@ export function RebateVerificationView({ application, onBack }: RebateVerificati
   const applicantName = application.applicantName || application.companyName || 'Applicant';
   const nationalId = application.nationalId || '—';
   const rebateAmount = application.rebateAmount
-    ? `RWF ${parseFloat(application.rebateAmount).toLocaleString()}`
+    ? `RWF ${formatRebateAmountWithPercent(application.rebateAmount, rebateOptionsFromRecord(application))}`
     : '—';
 
   const requiredDocs = DOCUMENTS.filter((d) => d.required);

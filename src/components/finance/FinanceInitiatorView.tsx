@@ -16,10 +16,12 @@ import {
   AlertCircle,
   FileCheck,
   ArrowRight,
-  User
+  User,
+  X
 } from 'lucide-react';
 import { User as UserType } from '../../utils/auth';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { getRebatePercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 import {
   Dialog,
   DialogContent,
@@ -297,6 +299,18 @@ export function FinanceInitiatorView({ user }: FinanceInitiatorViewProps) {
                   <SelectItem value="financier">Asset Financier</SelectItem>
                 </SelectContent>
               </Select>
+              {searchTerm !== '' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 hover:text-gray-900"
+                  onClick={() => setSearchTerm('')}
+                >
+                  <X className="w-3.5 h-3.5 mr-1" />
+                  Clear filters
+                </Button>
+              )}
             </div>
           </div>
 
@@ -394,7 +408,7 @@ export function FinanceInitiatorView({ user }: FinanceInitiatorViewProps) {
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-[#023F40]">
-                            {formatCurrency(app.rebateAmount)}
+                            {formatCurrency(app.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(app))})
                           </span>
                         </td>
                         <td className="py-3 px-4">{getStatusBadge(app.status)}</td>
@@ -618,7 +632,7 @@ export function FinanceInitiatorView({ user }: FinanceInitiatorViewProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Rebate Amount</p>
-                    <p className="text-2xl font-bold">{formatCurrency(selectedApp.rebateAmount)}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(selectedApp.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(selectedApp))})</p>
                   </div>
                   <DollarSign className="w-8 h-8 opacity-75" />
                 </div>

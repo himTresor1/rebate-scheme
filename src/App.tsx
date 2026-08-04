@@ -150,7 +150,7 @@ export default function App() {
         {user?.role === 'ASSET_FINANCIER_OFFICER' && <AssetFinancierAdminDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'analyst' && <AnalystDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'REBATE_ANALYST' && <AnalystDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
-        {user?.role === 'REBATE_MANAGER' && <RebateManagerDashboard user={user} currentPage={currentPage} />}
+        {user?.role === 'REBATE_MANAGER' && <RebateManagerDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'E_MOTO_PROGRAM_MANAGER' && <ProgramManagerDashboard user={user} currentPage={currentPage} onNavigate={setCurrentPage} />}
         {user?.role === 'DESIGNATED_FINANCE_OFFICER' && <FinanceDashboard user={user} currentPage={currentPage} />}
         {user?.role === 'ME_TEAM' && <ExternalReviewerDashboard user={user} currentPage={currentPage} />}

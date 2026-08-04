@@ -16,6 +16,7 @@ import {
 } from '../ui/dialog';
 import { Pagination, usePagination } from '../ui/pagination';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
@@ -195,7 +196,7 @@ export function ApplicationHistory({ user }: ApplicationHistoryProps) {
                           </div>
                           <div>
                             <h4 className="font-medium mb-1">Rebate Amount</h4>
-                            <p className="text-gray-700">${selectedApp.rebateAmount}</p>
+                            <p className="text-gray-700">{formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}</p>
                           </div>
                           <div>
                             <h4 className="font-medium mb-1">Submitted</h4>
@@ -271,7 +272,7 @@ export function ApplicationHistory({ user }: ApplicationHistoryProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div className="flex items-center gap-2 text-gray-600">
                   <DollarSign className="w-4 h-4" />
-                  <span>${app.rebateAmount}</span>
+                  <span>{formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Calendar className="w-4 h-4" />

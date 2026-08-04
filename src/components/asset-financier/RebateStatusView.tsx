@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer } from 'lucide-react';
+import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { RebateApplicationDetailsPage } from './RebateApplicationDetailsPage';
 import { AfRebateReportTable } from './AfRebateReportTable';
@@ -13,6 +13,15 @@ import {
   AfRebateRecord,
   getPipelineRecords,
 } from '../../utils/afRebateData';
+import {
+  ALL_EMOTO_PROVIDERS_LABEL,
+  ALL_RETROFIT_ASSEMBLERS_LABEL,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 
 type RebateRecord = AfRebateRecord;
 
@@ -36,8 +45,8 @@ export function RebateStatusView({
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
   const [assemblerFilter, setAssemblerFilter] = useState('all');
-  const [womanFilter, setWomanFilter] = useState('all');
-  const [retrofitFilter, setRetrofitFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selected, setSelected] = useState<{ record: RebateRecord; variant: 'af-submitted' | 'proposal-review' } | null>(
@@ -85,10 +94,8 @@ export function RebateStatusView({
       .filter((r) => {
         if (providerFilter !== 'all' && r.supplier !== providerFilter) return false;
         if (assemblerFilter !== 'all' && (r.retrofitAssembler || '') !== assemblerFilter) return false;
-        if (womanFilter === 'yes' && !r.isWoman) return false;
-        if (womanFilter === 'no' && r.isWoman) return false;
-        if (retrofitFilter === 'yes' && !r.isRetrofit) return false;
-        if (retrofitFilter === 'no' && r.isRetrofit) return false;
+        if (!matchesGenderFilter(r.isWoman, genderFilter)) return false;
+        if (!matchesVehicleTypeFilter(r.isRetrofit, vehicleTypeFilter)) return false;
         const submitted = new Date(r.submittedAt).getTime();
         if (submitted < from || submitted > to) return false;
         if (
@@ -103,7 +110,26 @@ export function RebateStatusView({
         return true;
       })
       .sort((a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
-  }, [pipelineRecords, providerFilter, assemblerFilter, womanFilter, retrofitFilter, dateFrom, dateTo, query]);
+  }, [pipelineRecords, providerFilter, assemblerFilter, genderFilter, vehicleTypeFilter, dateFrom, dateTo, query]);
+
+  const isFiltered =
+    query !== '' ||
+    providerFilter !== 'all' ||
+    assemblerFilter !== 'all' ||
+    genderFilter !== 'all' ||
+    vehicleTypeFilter !== 'all' ||
+    dateFrom !== '' ||
+    dateTo !== '';
+
+  const clearFilters = () => {
+    setQuery('');
+    setProviderFilter('all');
+    setAssemblerFilter('all');
+    setGenderFilter('all');
+    setVehicleTypeFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
 
   const openRecord = (record: RebateRecord) => {
     // AF decision-makers review marketing proposals; marketing agents viewing their own use the standard details view.
@@ -212,10 +238,24 @@ export function RebateStatusView({
 
       <Card className="max-w-full print:hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filters
+            </CardTitle>
+            {isFiltered && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
@@ -233,10 +273,10 @@ export function RebateStatusView({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <Select value={providerFilter} onValueChange={setProviderFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="E-Moto Provider" />
+                <SelectValue placeholder={FILTER_LABELS.eMotoProvider} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All E-Moto Providers</SelectItem>
+                <SelectItem value="all">{ALL_EMOTO_PROVIDERS_LABEL}</SelectItem>
                 {providers.map((p) => (
                   <SelectItem key={p} value={p}>
                     {p}
@@ -246,10 +286,10 @@ export function RebateStatusView({
             </Select>
             <Select value={assemblerFilter} onValueChange={setAssemblerFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Retrofit Assembler" />
+                <SelectValue placeholder={FILTER_LABELS.retrofitAssembler} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Retrofit Assemblers</SelectItem>
+                <SelectItem value="all">{ALL_RETROFIT_ASSEMBLERS_LABEL}</SelectItem>
                 {assemblers.map((a) => (
                   <SelectItem key={a} value={a}>
                     {a}
@@ -257,24 +297,28 @@ export function RebateStatusView({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={womanFilter} onValueChange={setWomanFilter}>
+            <Select value={genderFilter} onValueChange={setGenderFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Women" />
+                <SelectValue placeholder={FILTER_LABELS.gender} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All applicants</SelectItem>
-                <SelectItem value="yes">Women only</SelectItem>
-                <SelectItem value="no">Non-women</SelectItem>
+                {GENDER_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={retrofitFilter} onValueChange={setRetrofitFilter}>
+            <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Retrofit" />
+                <SelectValue placeholder={FILTER_LABELS.vehicleType} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="yes">Retrofit only</SelectItem>
-                <SelectItem value="no">New e-moto only</SelectItem>
+                {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

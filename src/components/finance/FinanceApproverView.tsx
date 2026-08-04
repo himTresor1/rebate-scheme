@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { User as UserType } from '../../utils/auth';
 import { formatDisplayDateTime } from '../../utils/dateFormat';
+import { getRebatePercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 import {
   Dialog,
   DialogContent,
@@ -274,7 +275,7 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
                             <div className="text-right">
                               <p className="text-sm text-gray-600">Rebate Amount</p>
                               <p className="text-2xl font-bold text-[#023F40]">
-                                {formatCurrency(app.rebateAmount)}
+                                {formatCurrency(app.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(app))})
                               </p>
                             </div>
                           </div>
@@ -440,7 +441,7 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
                   <div>
                     <p className="text-gray-600">Amount</p>
                     <p className="font-semibold text-[#023F40]">
-                      {formatCurrency(selectedApp.rebateAmount)}
+                      {formatCurrency(selectedApp.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(selectedApp))})
                     </p>
                   </div>
                   <div>
@@ -520,7 +521,7 @@ export function FinanceApproverView({ user }: FinanceApproverViewProps) {
                 <p className="font-semibold">{selectedApp.registrationNumber || selectedApp.id.slice(-8)}</p>
                 <p className="text-sm text-gray-600 mt-2">Amount</p>
                 <p className="font-semibold text-[#023F40]">
-                  {formatCurrency(selectedApp.rebateAmount)}
+                  {formatCurrency(selectedApp.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(selectedApp))})
                 </p>
               </div>
 

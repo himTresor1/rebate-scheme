@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { RebateReassignmentReview } from './RebateReassignmentReview';
 import { getSlaBadge } from '../../utils/slaBadges';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface ReassignmentRecord {
   ticketNumber: string;
@@ -60,7 +61,7 @@ export function RebateReassignmentPipeline() {
                   <td className="py-3 pr-3">{r.priorClient}</td>
                   <td className="py-3 pr-3">{r.newClient}</td>
                   <td className="py-3 pr-3">{r.financier}</td>
-                  <td className="py-3 pr-3">RWF {r.rebateAmount.toLocaleString()}</td>
+                  <td className="py-3 pr-3">RWF {formatRebateAmountWithPercent(r.rebateAmount, rebateOptionsFromRecord(r))}</td>
                   <td className="py-3 pr-3">{getSlaBadge(r.daysWaiting, r.opened)}</td>
                   <td className="py-3">
                     <Button size="sm" variant="outline" onClick={() => setSelected(r)}>Review</Button>

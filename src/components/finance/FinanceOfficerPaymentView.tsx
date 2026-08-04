@@ -18,6 +18,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface FinanceOfficerPaymentViewProps {
   user: User;
@@ -178,7 +179,7 @@ export function FinanceOfficerPaymentView({ user }: FinanceOfficerPaymentViewPro
                 <div>
                   <p className="text-gray-500">Rebate Amount</p>
                   <p className="font-semibold text-[#023F40] text-lg">
-                    RWF {parseInt(selectedApp.rebateAmount).toLocaleString()}
+                    RWF {formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}
                   </p>
                 </div>
               </div>
@@ -415,7 +416,7 @@ export function FinanceOfficerPaymentView({ user }: FinanceOfficerPaymentViewPro
                     <div>
                       <p className="text-gray-500">Rebate Amount</p>
                       <p className="font-semibold text-[#023F40] text-lg">
-                        RWF {parseInt(app.rebateAmount).toLocaleString()}
+                        RWF {formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}
                       </p>
                     </div>
                     <div>
@@ -466,7 +467,7 @@ export function FinanceOfficerPaymentView({ user }: FinanceOfficerPaymentViewPro
                   <div>
                     <p className="text-gray-500">Amount</p>
                     <p className="font-semibold text-[#023F40] text-lg">
-                      RWF {parseInt(selectedApp.rebateAmount).toLocaleString()}
+                      RWF {formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}
                     </p>
                   </div>
                   <div>

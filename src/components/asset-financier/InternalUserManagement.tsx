@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { TableSkeleton } from '../ui/skeletons';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface InternalUser {
   id: string;
@@ -416,7 +417,7 @@ export function InternalUserManagement({ organizationId }: InternalUserManagemen
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-semibold text-[#023F40]">
-                                RWF {app.rebateAmount?.toLocaleString()}
+                                RWF {formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}
                               </p>
                             </div>
                           </div>

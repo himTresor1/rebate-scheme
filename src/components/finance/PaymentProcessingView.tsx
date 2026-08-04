@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import { getRebatePercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
 import {
@@ -336,7 +337,7 @@ export function PaymentProcessingView({ user }: PaymentProcessingViewProps) {
                         </td>
                         <td className="py-3 px-4">
                           <span className="font-semibold text-[#023F40]">
-                            {formatCurrency(app.rebateAmount)}
+                            {formatCurrency(app.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(app))})
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -431,7 +432,7 @@ export function PaymentProcessingView({ user }: PaymentProcessingViewProps) {
                   <div>
                     <p className="text-gray-600">Amount</p>
                     <p className="font-semibold text-[#023F40]">
-                      {formatCurrency(selectedApp.rebateAmount)}
+                      {formatCurrency(selectedApp.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(selectedApp))})
                     </p>
                   </div>
                   <div>
@@ -546,7 +547,7 @@ export function PaymentProcessingView({ user }: PaymentProcessingViewProps) {
                   <div>
                     <p className="text-gray-600">Amount</p>
                     <p className="font-semibold text-[#023F40]">
-                      {formatCurrency(selectedApp.rebateAmount)}
+                      {formatCurrency(selectedApp.rebateAmount)} ({getRebatePercent(rebateOptionsFromRecord(selectedApp))})
                     </p>
                   </div>
                 </div>

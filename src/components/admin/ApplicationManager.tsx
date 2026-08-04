@@ -24,6 +24,7 @@ import {
 } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
@@ -233,7 +234,7 @@ export function ApplicationManager({ user }: ApplicationManagerProps) {
               <div>
                 <p className="font-medium">{selectedApp.companyName}</p>
                 <p className="text-sm text-gray-600">
-                  Rebate Amount: ${selectedApp.rebateAmount}
+                  Rebate Amount: {formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}
                 </p>
               </div>
 
@@ -298,7 +299,7 @@ function ApplicationCard({ app, analysts, onAssign, formatDisplayDate, getAnalys
       <div className="space-y-2 text-sm text-gray-600 mb-4">
         <div className="flex justify-between">
           <span className="font-medium">Amount:</span>
-          <span className="text-[#023F40] font-semibold">${app.rebateAmount}</span>
+          <span className="text-[#023F40] font-semibold">{formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}</span>
         </div>
         <div className="flex justify-between">
           <span className="font-medium">Submitted:</span>
@@ -339,7 +340,7 @@ function ApplicationCard({ app, analysts, onAssign, formatDisplayDate, getAnalys
                 </div>
                 <div>
                   <p className="font-medium text-sm">Rebate Amount</p>
-                  <p className="text-gray-700">${app.rebateAmount}</p>
+                  <p className="text-gray-700">{formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}</p>
                 </div>
                 <div>
                   <p className="font-medium text-sm">Status</p>

@@ -7,8 +7,17 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { ArrowLeft, Filter } from 'lucide-react';
+import { ArrowLeft, Filter, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatRebateAmountWithPercent } from '../../utils/rebateCalculation';
+import {
+  DATE_RANGE_FILTER_OPTIONS,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 
 export interface AfSummaryRow {
   afName: string;
@@ -60,8 +69,8 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 
 export function FinanceOfficerAfTrackingPage({ afSummary, leases, onBack }: FinanceOfficerAfTrackingPageProps) {
   const [filterDateRange, setFilterDateRange] = useState('all');
-  const [filterWomen, setFilterWomen] = useState('all');
-  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [trackLease, setTrackLease] = useState<LeaseDetailRow | null>(null);
   const [trackForm, setTrackForm] = useState<TrackRecord>({
     disbursementAmount: '',
@@ -73,13 +82,11 @@ export function FinanceOfficerAfTrackingPage({ afSummary, leases, onBack }: Fina
 
   const filteredLeases = useMemo(() => {
     return leases.filter((lease) => {
-      if (filterWomen === 'yes' && !lease.woman) return false;
-      if (filterWomen === 'no' && lease.woman) return false;
-      if (filterRetrofit === 'yes' && !lease.retrofit) return false;
-      if (filterRetrofit === 'no' && lease.retrofit) return false;
+      if (!matchesGenderFilter(lease.woman, filterGender)) return false;
+      if (!matchesVehicleTypeFilter(lease.retrofit, filterVehicleType)) return false;
       return true;
     });
-  }, [leases, filterWomen, filterRetrofit, filterDateRange]);
+  }, [leases, filterGender, filterVehicleType, filterDateRange]);
 
   const availableBalance = afSummary.advanceDeposits - afSummary.disbursed;
 
@@ -138,36 +145,58 @@ export function FinanceOfficerAfTrackingPage({ afSummary, leases, onBack }: Fina
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Multiple Filters
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Multiple Filters
+            </CardTitle>
+            {(filterDateRange !== 'all' || filterGender !== 'all' || filterVehicleType !== 'all') && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  setFilterDateRange('all');
+                  setFilterGender('all');
+                  setFilterVehicleType('all');
+                }}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Select value={filterDateRange} onValueChange={setFilterDateRange}>
-            <SelectTrigger><SelectValue placeholder="Date range" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.dateRange} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All dates</SelectItem>
-              <SelectItem value="day">Today</SelectItem>
-              <SelectItem value="week">Last 7 days</SelectItem>
-              <SelectItem value="month">Last 30 days</SelectItem>
-              <SelectItem value="year">Last 12 months</SelectItem>
+              {DATE_RANGE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={filterWomen} onValueChange={setFilterWomen}>
-            <SelectTrigger><SelectValue placeholder="Women" /></SelectTrigger>
+          <Select value={filterGender} onValueChange={setFilterGender}>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.gender} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="yes">Women only</SelectItem>
-              <SelectItem value="no">Non-women</SelectItem>
+              {GENDER_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
-            <SelectTrigger><SelectValue placeholder="Retrofit" /></SelectTrigger>
+          <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.vehicleType} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="yes">Retrofit only</SelectItem>
-              <SelectItem value="no">Non-retrofit</SelectItem>
+              {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </CardContent>
@@ -195,7 +224,7 @@ export function FinanceOfficerAfTrackingPage({ afSummary, leases, onBack }: Fina
                   <tr key={lease.ticketNo} className="border-b last:border-0 hover:bg-gray-50">
                     <td className="py-3 pr-3 font-semibold text-[#023F40]">{lease.ticketNo}</td>
                     <td className="py-3 pr-3">{lease.applicantName}</td>
-                    <td className="py-3 pr-3">{money(lease.rebateAmount)}</td>
+                    <td className="py-3 pr-3">{formatRebateAmountWithPercent(lease.rebateAmount, { isWoman: lease.woman, isRetrofit: lease.retrofit })}</td>
                     <td className="py-3 pr-3">
                       <div className="flex justify-end">
                         <Button

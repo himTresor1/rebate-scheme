@@ -197,7 +197,7 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {!notification.read && (
                           <div
-                            className="w-2 h-2 rounded-full bg-[#023F40]"
+                            className="w-2 h-2 rounded-full bg-red-600"
                             title="Unread"
                           />
                         )}

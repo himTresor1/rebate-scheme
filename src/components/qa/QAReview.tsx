@@ -18,6 +18,7 @@ import { getRebatePercent } from '../../utils/rebateCalculation';
 import { formatNumber } from '../../utils/numberFormat';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { DOC_KEYWORDS, DOC_NAMES } from '../../utils/documentNames';
+import { FieldLabel } from '../asset-financier/FieldLabel';
 
 interface Application {
   id: string;
@@ -32,11 +33,16 @@ interface Application {
   nationalId?: string;
   phoneNumber?: string;
   email?: string;
+  tin?: string;
+  motoLicense?: string;
+  driversLicense?: string;
   motorcycleBrand?: string;
   motorcycleModel?: string;
+  retrofitAssembler?: string;
   loanAmount?: string;
   interestRate?: string;
   loanTerm?: string;
+  repaymentFrequency?: string;
   monthlyRepayment?: string;
   purchasePrice?: string;
   isRetrofit?: boolean;
@@ -92,8 +98,39 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
   const genderLabel = isWoman ? 'Woman' : 'Man';
   const isRetrofit = Boolean(application.isRetrofit);
   const rebateAmountRwf = formatNumber(parseFloat(application.rebateAmount || '0') || 0);
-  const retailCost = formatNumber(parseFloat(application.purchasePrice || '0') || 0);
   const rebatePercent = getRebatePercent({ isWoman, isRetrofit });
+  const nameParts = (application.applicantName || application.contactPerson || '').trim().split(/\s+/);
+  const firstName = nameParts[0] || '—';
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '—';
+
+  const DetailField = ({
+    label,
+    value,
+    required = false,
+    optional = false,
+    isDate = false,
+  }: {
+    label: string;
+    value?: string | number | null;
+    required?: boolean;
+    optional?: boolean;
+    isDate?: boolean;
+  }) => {
+    const missing = required && (value === undefined || value === null || value === '' || value === '—');
+    const display = missing
+      ? 'Missing'
+      : isDate
+        ? formatDisplayDate(typeof value === 'string' ? value : undefined)
+        : value || '—';
+    return (
+      <div>
+        <FieldLabel as="span" required={required} optional={optional} className="mb-0">
+          {label}
+        </FieldLabel>
+        <p className={`font-medium ${missing ? 'text-amber-700' : 'text-gray-900'}`}>{display}</p>
+      </div>
+    );
+  };
 
   const getDocumentByKeyword = (keywords: string[]) => {
     if (!application.documents || application.documents.length === 0) return undefined;
@@ -182,138 +219,135 @@ export function QAReview({ application, onBack, onDecisionCaptured }: QAReviewPr
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Ticket ID</p>
-                <p className="text-base font-semibold text-[#023F40]">{ticketId}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Applicant Name</p>
-                <p className="text-base font-medium text-gray-900">
-                  {application.applicantName || application.contactPerson || 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Date of AF Submission</p>
-                <p className="text-base font-medium text-gray-900">
-                  {formatDisplayDate(application.createdAt)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Date of Rebate Team Verification</p>
-                <p className="text-base font-medium text-gray-900">
-                  {formatDisplayDate(
-                    application.verifiedAt || application.lastReviewedAt || application.createdAt
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Asset Financier</p>
-                <p className="text-base font-medium text-gray-900">{application.companyName}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">National ID</p>
-                <p className="text-base font-medium text-gray-900">{application.nationalId || 'Not provided'}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">DOB</p>
-                <p className="text-base font-medium text-gray-900">
-                  {application.eligibilityCheck?.nationalIdCheck?.dateOfBirth || 'Not provided'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Phone Number</p>
-                <p className="text-base font-medium text-gray-900">
-                  {application.phoneNumber || application.contactPhone || 'Not provided'}
-                </p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Gender</p>
-                <p className="text-base font-medium text-gray-900">{genderLabel}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Vehicle Type</p>
-                <p className="text-base font-medium text-gray-900">{isRetrofit ? 'Retrofit' : 'New E-Moto'}</p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Provider</p>
-                <p className="text-base font-medium text-gray-900">
-                  {application.motorcycleBrand || 'Not provided'}
-                </p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Model</p>
-                <p className="text-base font-medium text-gray-900">
-                  {application.motorcycleModel || 'Not provided'}
-                </p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">E-Moto Retail Cost (RWF)</p>
-                <p className="text-base font-medium text-gray-900">{retailCost}</p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Amount (RWF)</p>
-                <p className="text-base font-semibold text-[#023F40]">{rebateAmountRwf}</p>
-              </div>
-              <div className="bg-gray-50 border rounded-md p-3">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Rebate Percentage (%)</p>
-                <p className="text-base font-semibold text-[#023F40]">{rebatePercent}</p>
-              </div>
+        <CardHeader>
+          <CardTitle className="text-[#023F40]">Rebate Application Details — {ticketId}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Submitted by</span>
+              <p className="font-medium">{application.submittedBy || application.contactPerson || 'Not provided'}</p>
             </div>
+            <div>
+              <span className="text-gray-500">Email</span>
+              <p className="font-medium">
+                {application.submittedByEmail || application.contactEmail || 'Not provided'}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">Phone</span>
+              <p className="font-medium">
+                {application.submittedByPhone || application.contactPhone || 'Not provided'}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">Date Received</span>
+              <p className="font-medium">{formatDisplayDate(application.createdAt)}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">Ticket No.</span>
+              <p className="font-medium text-[#023F40]">{ticketId}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">Asset Financier</span>
+              <p className="font-medium">{application.companyName || '—'}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">Date of Rebate Team Verification</span>
+              <p className="font-medium">
+                {formatDisplayDate(
+                  application.verifiedAt || application.lastReviewedAt || application.createdAt
+                )}
+              </p>
+            </div>
+          </div>
 
-            <div className="border rounded-lg p-4 bg-slate-50 h-fit space-y-4">
-              <div>
-                <p className="text-sm font-semibold text-[#023F40] mb-3">Submitted By</p>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">Name</p>
-                    <p className="font-medium text-gray-900">
-                      {application.submittedBy || application.contactPerson || 'Not provided'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-medium text-gray-900">
-                      {application.submittedByEmail || application.email || application.contactEmail || 'Not provided'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Phone</p>
-                    <p className="font-medium text-gray-900">
-                      {application.submittedByPhone || application.phoneNumber || application.contactPhone || 'Not provided'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="border-t pt-3 space-y-2 text-sm">
-                <p className="text-sm font-semibold text-[#023F40]">Contract / Financing</p>
-                <div>
-                  <p className="text-xs text-gray-500">Loan Amount (RWF)</p>
-                  <p className="font-medium">
-                    {application.loanAmount
-                      ? Math.round(parseFloat(application.loanAmount)).toLocaleString()
-                      : 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Interest Rate</p>
-                  <p className="font-medium">{application.interestRate || 'Not provided'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Loan Term</p>
-                  <p className="font-medium">{application.loanTerm || 'Not provided'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Monthly Repayment (RWF)</p>
-                  <p className="font-medium">
-                    {application.monthlyRepayment
-                      ? Math.round(parseFloat(application.monthlyRepayment)).toLocaleString()
-                      : 'Not provided'}
-                  </p>
-                </div>
-              </div>
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Individual Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <DetailField label="Individual first name(s)" value={firstName} required />
+              <DetailField label="Individual last name(s)" value={lastName} required />
+              <DetailField
+                label="Date of Birth"
+                value={application.eligibilityCheck?.nationalIdCheck?.dateOfBirth}
+                isDate
+                required
+              />
+              <DetailField label="Gender?" value={genderLabel} required />
+              <DetailField label="Vehicle Type?" value={isRetrofit ? 'Retrofit' : 'New E-Moto'} required />
+              <DetailField
+                label="Phone Number"
+                value={application.phoneNumber || application.contactPhone}
+                required
+              />
+              <DetailField label="Email" value={application.email || application.contactEmail} optional />
+              <DetailField label="TIN (Tax Identification Number)" value={application.tin} optional />
+              <DetailField label="National ID" value={application.nationalId} required />
+              <DetailField
+                label="Motorcycle Driver's License"
+                value={application.motoLicense || application.driversLicense}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Vehicle and Financing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <DetailField
+                label="E-Moto Provider"
+                value={isRetrofit ? undefined : application.motorcycleBrand}
+                required={!isRetrofit}
+              />
+              <DetailField label="E-Moto Model" value={application.motorcycleModel} required />
+              {isRetrofit && (
+                <DetailField label="Retrofit Assembler" value={application.retrofitAssembler} required />
+              )}
+              <DetailField
+                label={isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)'}
+                value={
+                  application.purchasePrice
+                    ? formatNumber(parseFloat(String(application.purchasePrice)) || 0)
+                    : undefined
+                }
+                required
+              />
+              <DetailField
+                label="Total Contract Repayment Amount (RWF)"
+                value={
+                  application.loanAmount
+                    ? formatNumber(parseFloat(String(application.loanAmount)) || 0)
+                    : undefined
+                }
+                optional
+              />
+              <DetailField
+                label="Rebate Amount (RWF) — auto-calculated"
+                value={`${rebateAmountRwf} (${rebatePercent})`}
+              />
+              <DetailField label="Contract Term (months)" value={application.loanTerm} optional />
+              <DetailField
+                label="Repayment Frequency"
+                value={
+                  application.repaymentFrequency === 'weekly'
+                    ? 'Weekly'
+                    : application.repaymentFrequency === 'daily'
+                      ? 'Daily'
+                      : application.repaymentFrequency === 'monthly'
+                        ? 'Monthly'
+                        : application.repaymentFrequency
+                }
+                optional
+              />
+              <DetailField
+                label="Repayment Amount (RWF)"
+                value={
+                  application.monthlyRepayment
+                    ? formatNumber(parseFloat(String(application.monthlyRepayment)) || 0)
+                    : undefined
+                }
+                optional
+              />
             </div>
           </div>
         </CardContent>

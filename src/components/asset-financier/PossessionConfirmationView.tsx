@@ -3,14 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload } from 'lucide-react';
+import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber } from '../../utils/numberFormat';
-import { getRebatePercent } from '../../utils/rebateCalculation';
+import { formatRebateAmountWithPercent, getRebatePercent } from '../../utils/rebateCalculation';
 import { DOC_NAMES, DOC_TEMPLATE_FILES } from '../../utils/documentNames';
+import {
+  DATE_RANGE_FILTER_OPTIONS,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 import {
   Dialog,
   DialogContent,
@@ -45,8 +53,8 @@ export function PossessionConfirmationView() {
   const [records, setRecords] = useState(MOCK_RECORDS);
   const [filter, setFilter] = useState('pending');
   const [sortBy, setSortBy] = useState<SortOption>('date-oldest');
-  const [filterWoman, setFilterWoman] = useState('all');
-  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [filterDateRange, setFilterDateRange] = useState('all');
   const [search, setSearch] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<PossessionRecord | null>(null);
@@ -57,6 +65,23 @@ export function PossessionConfirmationView() {
   const pending = records.filter((r) => !r.hasPossession);
   const provided = records.filter((r) => r.hasPossession);
 
+  const isFiltered =
+    search !== '' ||
+    sortBy !== 'date-oldest' ||
+    filter !== 'pending' ||
+    filterDateRange !== 'all' ||
+    filterGender !== 'all' ||
+    filterVehicleType !== 'all';
+
+  const clearFilters = () => {
+    setSearch('');
+    setSortBy('date-oldest');
+    setFilter('pending');
+    setFilterDateRange('all');
+    setFilterGender('all');
+    setFilterVehicleType('all');
+  };
+
   const reportTitle =
     filter === 'provided'
       ? `Possession confirmed (${provided.length})`
@@ -66,10 +91,8 @@ export function PossessionConfirmationView() {
 
   const baseFiltered = (filter === 'pending' ? pending : filter === 'provided' ? provided : records)
     .filter((r) => {
-      if (filterWoman === 'yes' && !r.isWoman) return false;
-      if (filterWoman === 'no' && r.isWoman) return false;
-      if (filterRetrofit === 'yes' && r.vehicleType !== 'Retrofit') return false;
-      if (filterRetrofit === 'no' && r.vehicleType === 'Retrofit') return false;
+      if (!matchesGenderFilter(r.isWoman, filterGender)) return false;
+      if (!matchesVehicleTypeFilter(r.vehicleType === 'Retrofit', filterVehicleType)) return false;
       if (filterDateRange === 'day' && r.daysSinceSubmission > 1) return false;
       if (filterDateRange === 'week' && r.daysSinceSubmission > 7) return false;
       if (filterDateRange === 'month' && r.daysSinceSubmission > 30) return false;
@@ -143,10 +166,24 @@ export function PossessionConfirmationView() {
 
       <Card className="max-w-full">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters &amp; Sort
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filters &amp; Sort
+            </CardTitle>
+            {isFiltered && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -164,7 +201,7 @@ export function PossessionConfirmationView() {
               </SelectContent>
             </Select>
             <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger><SelectValue placeholder="Possession" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={FILTER_LABELS.status} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pending">Not yet in possession</SelectItem>
                 <SelectItem value="provided">E-moto provided</SelectItem>
@@ -172,31 +209,35 @@ export function PossessionConfirmationView() {
               </SelectContent>
             </Select>
             <Select value={filterDateRange} onValueChange={setFilterDateRange}>
-              <SelectTrigger><SelectValue placeholder="Date range" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={FILTER_LABELS.dateRange} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All dates</SelectItem>
-                <SelectItem value="day">Today</SelectItem>
-                <SelectItem value="week">Last 7 days</SelectItem>
-                <SelectItem value="month">Last 30 days</SelectItem>
-                <SelectItem value="year">Last 12 months</SelectItem>
+                {DATE_RANGE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select value={filterWoman} onValueChange={setFilterWoman}>
-              <SelectTrigger><SelectValue placeholder="Women" /></SelectTrigger>
+            <Select value={filterGender} onValueChange={setFilterGender}>
+              <SelectTrigger><SelectValue placeholder={FILTER_LABELS.gender} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All applicants</SelectItem>
-                <SelectItem value="yes">Women only</SelectItem>
-                <SelectItem value="no">Non-women</SelectItem>
+                {GENDER_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
-              <SelectTrigger><SelectValue placeholder="Retrofit" /></SelectTrigger>
+            <Select value={filterVehicleType} onValueChange={setFilterVehicleType}>
+              <SelectTrigger><SelectValue placeholder={FILTER_LABELS.vehicleType} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="yes">Retrofit only</SelectItem>
-                <SelectItem value="no">New e-moto only</SelectItem>
+                {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -286,7 +327,13 @@ export function PossessionConfirmationView() {
           <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg text-sm">
             <Bike className="w-8 h-8 text-[#023F40]" />
             <div>
-              <p className="font-medium">Rebate amount: RWF {formatNumber(confirmTarget?.rebateAmount)}</p>
+              <p className="font-medium">
+                Rebate amount: RWF{' '}
+                {formatRebateAmountWithPercent(confirmTarget?.rebateAmount, {
+                  isWoman: !!confirmTarget?.isWoman,
+                  isRetrofit: confirmTarget?.vehicleType === 'Retrofit',
+                })}
+              </p>
               <p className="text-gray-600">Funds will be released from escrow after RGF records this confirmation.</p>
             </div>
           </div>

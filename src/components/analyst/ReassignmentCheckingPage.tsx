@@ -5,6 +5,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Filter } from 'lucide-react';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
+import {
+  ALL_ASSET_FINANCIERS_LABEL,
+  ALL_EMOTO_PROVIDERS_LABEL,
+  DATE_RANGE_FILTER_OPTIONS,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 
 interface Application {
   id: string;
@@ -33,8 +44,8 @@ interface ReassignmentCheckingPageProps {
 export function ReassignmentCheckingPage({ applications, onOpenApplication }: ReassignmentCheckingPageProps) {
   const [query, setQuery] = useState('');
   const [dateRange, setDateRange] = useState('all');
-  const [womenOnly, setWomenOnly] = useState('all');
-  const [retrofitOnly, setRetrofitOnly] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
   const [financier, setFinancier] = useState('all');
   const [provider, setProvider] = useState('all');
 
@@ -58,10 +69,8 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
         const q = query.toLowerCase();
 
         if (q && !ticket.includes(q) && !applicant.includes(q)) return false;
-        if (womenOnly === 'yes' && !isWoman) return false;
-        if (womenOnly === 'no' && isWoman) return false;
-        if (retrofitOnly === 'yes' && !app.isRetrofit) return false;
-        if (retrofitOnly === 'no' && app.isRetrofit) return false;
+        if (!matchesGenderFilter(isWoman, genderFilter)) return false;
+        if (!matchesVehicleTypeFilter(Boolean(app.isRetrofit), vehicleTypeFilter)) return false;
         if (financier !== 'all' && app.companyName !== financier) return false;
         if (provider !== 'all' && (app.motorcycleBrand || '') !== provider) return false;
         if (dateRange === 'day' && days > 1) return false;
@@ -80,9 +89,9 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
         provider: app.motorcycleBrand || 'N/A',
         vin: app.chassisNumber || 'N/A',
         woman: app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'YES' : 'NO',
-        rebateAmount: Number(app.rebateAmount || 0).toLocaleString(),
+        rebateAmount: formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app)),
       }));
-  }, [applications, query, dateRange, womenOnly, retrofitOnly, financier, provider]);
+  }, [applications, query, dateRange, genderFilter, vehicleTypeFilter, financier, provider]);
 
   const notOpened = rows.length;
   const waitingQa = rows.filter((row) => row.app.status === 'manager-review').length;
@@ -132,44 +141,48 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
             onChange={(e) => setQuery(e.target.value)}
           />
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger><SelectValue placeholder="Date range" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.dateRange} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All dates</SelectItem>
-              <SelectItem value="day">Today</SelectItem>
-              <SelectItem value="week">Last 7 days</SelectItem>
-              <SelectItem value="month">Last 30 days</SelectItem>
-              <SelectItem value="year">Last 12 months</SelectItem>
+              {DATE_RANGE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={womenOnly} onValueChange={setWomenOnly}>
-            <SelectTrigger><SelectValue placeholder="Women" /></SelectTrigger>
+          <Select value={genderFilter} onValueChange={setGenderFilter}>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.gender} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="yes">Women only</SelectItem>
-              <SelectItem value="no">Non-women</SelectItem>
+              {GENDER_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={retrofitOnly} onValueChange={setRetrofitOnly}>
-            <SelectTrigger><SelectValue placeholder="Vehicle type" /></SelectTrigger>
+          <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.vehicleType} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="yes">Retrofit only</SelectItem>
-              <SelectItem value="no">New e-moto only</SelectItem>
+              {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={financier} onValueChange={setFinancier}>
-            <SelectTrigger><SelectValue placeholder="Asset financier" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.assetFinancier} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All financiers</SelectItem>
+              <SelectItem value="all">{ALL_ASSET_FINANCIERS_LABEL}</SelectItem>
               {financiers.map((name) => (
                 <SelectItem key={name} value={name}>{name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={provider} onValueChange={setProvider}>
-            <SelectTrigger><SelectValue placeholder="E-moto provider" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={FILTER_LABELS.eMotoProvider} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All providers</SelectItem>
+              <SelectItem value="all">{ALL_EMOTO_PROVIDERS_LABEL}</SelectItem>
               {providers.map((name) => (
                 <SelectItem key={name} value={name}>{name}</SelectItem>
               ))}

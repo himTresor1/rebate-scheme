@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { api } from '../../utils/api';
 import { Alert, AlertDescription } from '../ui/alert';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface LeaseUploadViewProps {
   user: User;
@@ -164,7 +165,7 @@ export function LeaseUploadView({ user }: LeaseUploadViewProps) {
                     <div>
                       <p className="text-gray-500">Rebate Amount</p>
                       <p className="font-medium text-[#023F40]">
-                        RWF {parseInt(app.rebateAmount).toLocaleString()}
+                        RWF {formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}
                       </p>
                     </div>
                   </div>

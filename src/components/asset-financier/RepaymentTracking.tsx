@@ -12,7 +12,8 @@ import {
   Download,
   Plus,
   ChevronRight,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -308,6 +309,23 @@ export function RepaymentTracking({ organizationId }: RepaymentTrackingProps) {
       {/* Filters and Actions */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex flex-col gap-3">
+          {(searchQuery || filterStatus !== 'all') && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  setSearchQuery('');
+                  setFilterStatus('all');
+                }}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            </div>
+          )}
           {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />

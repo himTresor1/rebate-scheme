@@ -10,6 +10,7 @@ import { Pagination, usePagination } from '../ui/pagination';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
+import { formatRebateAmountWithPercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 import { Alert, AlertDescription } from '../ui/alert';
 
 interface Application {
@@ -348,6 +349,24 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoO
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col gap-3">
+          {(searchTerm || statusFilter !== 'ALL' || dateRange.start || dateRange.end) && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('ALL');
+                  setDateRange({ start: '', end: '' });
+                }}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            </div>
+          )}
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
@@ -458,7 +477,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoO
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="font-medium text-gray-900">
-                      {Number(application.rebateAmount || 0).toLocaleString()} RWF
+                      {formatRebateAmountWithPercent(application.rebateAmount, rebateOptionsFromRecord(application))} RWF
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -596,7 +615,7 @@ export function ApplicationsOverview({ organizationId, onNavigateToSubmit, autoO
                   <div>
                     <p className="text-gray-500">Rebate Amount</p>
                     <p className="font-semibold text-[#023F40] text-lg">
-                      RWF {parseInt(selectedApp.rebateAmount || 0).toLocaleString()}
+                      RWF {formatRebateAmountWithPercent(selectedApp.rebateAmount, rebateOptionsFromRecord(selectedApp))}
                     </p>
                   </div>
                 </div>

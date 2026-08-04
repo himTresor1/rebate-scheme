@@ -4,6 +4,7 @@ import {
 } from '../../utils/analystRebateData';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber } from '../../utils/numberFormat';
+import { formatRebateAmountWithPercent } from '../../utils/rebateCalculation';
 
 export function AnalystRebateReportTable({
   rows,
@@ -37,7 +38,7 @@ export function AnalystRebateReportTable({
           <th className="pb-3 pr-2 font-medium whitespace-nowrap">E-Moto Provider</th>
           <th className="pb-3 pr-2 font-medium whitespace-nowrap">Assembler</th>
           <th className="pb-3 pr-2 font-medium whitespace-nowrap text-right">Retail (RWF)</th>
-          <th className="pb-3 pr-2 font-medium whitespace-nowrap text-right">Rebate (RWF)</th>
+          <th className="pb-3 pr-2 font-medium whitespace-nowrap text-right">Rebate (RWF) / %</th>
           <th className="pb-3 pr-1 font-medium whitespace-nowrap">Status</th>
         </tr>
       </thead>
@@ -64,7 +65,12 @@ export function AnalystRebateReportTable({
             <td className="py-2.5 pr-2">{r.isRetrofit ? '—' : r.eMotoProvider || '—'}</td>
             <td className="py-2.5 pr-2">{r.isRetrofit ? r.retrofitAssembler || '—' : '—'}</td>
             <td className="py-2.5 pr-2 text-right whitespace-nowrap">{formatNumber(r.retailCost)}</td>
-            <td className="py-2.5 pr-2 text-right whitespace-nowrap font-medium">{formatNumber(r.rebateAmount)}</td>
+            <td className="py-2.5 pr-2 text-right whitespace-nowrap font-medium">
+              {formatRebateAmountWithPercent(r.rebateAmount, {
+                isWoman: r.isWoman,
+                isRetrofit: r.isRetrofit,
+              })}
+            </td>
             <td className="py-2.5 pr-1 text-xs whitespace-nowrap">
               {ANALYST_STATUS_DISPLAY[r.verificationStatus]}
             </td>
@@ -76,7 +82,6 @@ export function AnalystRebateReportTable({
           </td>
           <td className="py-2.5 pr-2 text-right whitespace-nowrap">{formatNumber(totalRetail)}</td>
           <td className="py-2.5 pr-2 text-right whitespace-nowrap">{formatNumber(totalRebate)}</td>
-          <td className="py-2.5 pr-1" />
         </tr>
       </tbody>
     </table>

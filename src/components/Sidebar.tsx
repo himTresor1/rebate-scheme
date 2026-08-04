@@ -160,9 +160,9 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: ClipboardList, label: 'Rebate Review Pipeline', page: 'queue' },
-          { icon: GitBranch, label: 'Reassignment Checking', page: 'reassignment-checking' },
-          { icon: FileText, label: 'Assigned Rebates', page: 'assigned' },
+          { icon: ClipboardList, label: 'Review Pipeline', page: 'queue' },
+          // { icon: GitBranch, label: 'Reassignment Checking', page: 'reassignment-checking' },
+          // { icon: FileText, label: 'Assigned Rebates', page: 'assigned' }, // same as pipeline
           { icon: Printer, label: 'All Rebates', page: 'analyst-reports' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -171,10 +171,10 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
         return [
           { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard' },
           { icon: Bell, label: 'Notifications', page: 'notifications' },
-          { icon: ClipboardList, label: 'QA Decisions', page: 'review-queue' },
+          { icon: ClipboardList, label: 'QA Team Review', page: 'review-queue' },
           { icon: ScrollText, label: 'CFO Disbursement Req.', page: 'qa-cfo-request' },
           { icon: Bike, label: 'Possession Analysis', page: 'possession-analysis' },
-          { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
+          // { icon: GitBranch, label: 'Rebate Reassignment', page: 'reassignment' },
           { icon: FileText, label: 'All Rebates', page: 'applications' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
@@ -233,7 +233,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
       case 'ASSET_FINANCIER_STAFF': return `${user.organization || 'Asset Financier'} E-Moto Marketing Person`;
       case 'analyst': return 'Rebate Analyst';
       case 'REBATE_ANALYST': return 'Rebate Analyst';
-      case 'REBATE_MANAGER': return 'Rebate Team (Manager)';
+      case 'REBATE_MANAGER': return 'Quality Assurance Team';
       case 'E_MOTO_PROGRAM_MANAGER': return 'QA Team (Program Manager)';
       case 'DESIGNATED_FINANCE_OFFICER': return 'Designated Finance Officer';
       case 'ME_TEAM': return 'M&E Team';

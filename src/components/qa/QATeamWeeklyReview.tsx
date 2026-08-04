@@ -7,7 +7,7 @@ import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
-import { FileDown, Send } from 'lucide-react';
+import { FileDown, Send, X } from 'lucide-react';
 
 interface ReviewRow {
   id: string;
@@ -169,7 +169,24 @@ export function QATeamWeeklyReview() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Filters</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Filters</CardTitle>
+            {(search !== '' || filterAf !== 'all') && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  setSearch('');
+                  setFilterAf('all');
+                }}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="Search applicant..." value={search} onChange={(e) => setSearch(e.target.value)} />

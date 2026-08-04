@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer } from 'lucide-react';
+import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   ANALYST_METRIC_LABELS,
@@ -16,6 +16,16 @@ import {
   AnalystVerificationStatus,
   recordMatchesMetric,
 } from '../../utils/analystRebateData';
+import {
+  ALL_EMOTO_PROVIDERS_LABEL,
+  ALL_RETROFIT_ASSEMBLERS_LABEL,
+  ALL_STATUSES_LABEL,
+  FILTER_LABELS,
+  GENDER_FILTER_OPTIONS,
+  matchesGenderFilter,
+  matchesVehicleTypeFilter,
+  VEHICLE_TYPE_FILTER_OPTIONS,
+} from '../../utils/filterLabels';
 import { AnalystRebateReportTable } from './AnalystRebateReportTable';
 import { ApplicationReviewEnhanced } from './ApplicationReviewEnhanced';
 import { User } from '../../utils/auth';
@@ -28,25 +38,30 @@ interface AnalystReportsViewProps {
 
 export function AnalystReportsView({
   user,
-  initialCategory = 'all',
+  initialCategory = 'not-yet-verified',
   records: externalRecords,
 }: AnalystReportsViewProps) {
   const [internalRecords] = useState(ANALYST_MOCK_REBATE_RECORDS);
   const records = externalRecords ?? internalRecords;
+  type StatusFilter = AnalystMetricCategory | `vs:${AnalystVerificationStatus}`;
+
   const [query, setQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<AnalystMetricCategory>(initialCategory);
-  const [statusFilter, setStatusFilter] = useState<AnalystVerificationStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialCategory);
   const [providerFilter, setProviderFilter] = useState('all');
   const [assemblerFilter, setAssemblerFilter] = useState('all');
-  const [womanFilter, setWomanFilter] = useState('all');
-  const [retrofitFilter, setRetrofitFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selected, setSelected] = useState<AnalystRebateRecord | null>(null);
 
   useEffect(() => {
-    setCategoryFilter(initialCategory);
+    setStatusFilter(initialCategory);
   }, [initialCategory]);
+
+  const reportCategory = statusFilter.startsWith('vs:')
+    ? 'all'
+    : (statusFilter as AnalystMetricCategory);
 
   const providers = useMemo(
     () =>
@@ -70,14 +85,16 @@ export function AnalystReportsView({
 
     return records
       .filter((r) => {
-        if (!recordMatchesMetric(r, categoryFilter)) return false;
-        if (statusFilter !== 'all' && r.verificationStatus !== statusFilter) return false;
+        if (statusFilter.startsWith('vs:')) {
+          const vs = statusFilter.slice(3) as AnalystVerificationStatus;
+          if (r.verificationStatus !== vs) return false;
+        } else if (!recordMatchesMetric(r, statusFilter as AnalystMetricCategory)) {
+          return false;
+        }
         if (providerFilter !== 'all' && r.eMotoProvider !== providerFilter) return false;
         if (assemblerFilter !== 'all' && (r.retrofitAssembler || 'N/A') !== assemblerFilter) return false;
-        if (womanFilter === 'yes' && !r.isWoman) return false;
-        if (womanFilter === 'no' && r.isWoman) return false;
-        if (retrofitFilter === 'yes' && !r.isRetrofit) return false;
-        if (retrofitFilter === 'no' && r.isRetrofit) return false;
+        if (!matchesGenderFilter(r.isWoman, genderFilter)) return false;
+        if (!matchesVehicleTypeFilter(r.isRetrofit, vehicleTypeFilter)) return false;
         const originated = new Date(r.originatedAt).getTime();
         if (originated < from || originated > to) return false;
         if (
@@ -94,12 +111,11 @@ export function AnalystReportsView({
       .sort((a, b) => new Date(a.originatedAt).getTime() - new Date(b.originatedAt).getTime());
   }, [
     records,
-    categoryFilter,
     statusFilter,
     providerFilter,
     assemblerFilter,
-    womanFilter,
-    retrofitFilter,
+    genderFilter,
+    vehicleTypeFilter,
     dateFrom,
     dateTo,
     query,
@@ -140,6 +156,27 @@ export function AnalystReportsView({
     );
   }
 
+  const isFiltered =
+    query !== '' ||
+    statusFilter !== 'all' ||
+    providerFilter !== 'all' ||
+    assemblerFilter !== 'all' ||
+    genderFilter !== 'all' ||
+    vehicleTypeFilter !== 'all' ||
+    dateFrom !== '' ||
+    dateTo !== '';
+
+  const clearFilters = () => {
+    setQuery('');
+    setStatusFilter('all');
+    setProviderFilter('all');
+    setAssemblerFilter('all');
+    setGenderFilter('all');
+    setVehicleTypeFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const handlePrint = () => {
     if (filtered.length === 0) {
       toast.error('No rebates to include in the report.');
@@ -162,10 +199,24 @@ export function AnalystReportsView({
 
       <Card className="w-full min-w-0 max-w-full overflow-hidden print:hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4 shrink-0" />
-            Filters &amp; Sort
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4 shrink-0" />
+              Filters &amp; Sort
+            </CardTitle>
+            {isFiltered && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-gray-600 hover:text-gray-900"
+                onClick={clearFilters}
+              >
+                <X className="w-3.5 h-3.5 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
@@ -181,41 +232,33 @@ export function AnalystReportsView({
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
             <Select
               value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as AnalystVerificationStatus | 'all')}
+              onValueChange={(v) => setStatusFilter(v as StatusFilter)}
             >
               <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Verification Status" />
+                <SelectValue placeholder={FILTER_LABELS.status} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="all">{ALL_STATUSES_LABEL}</SelectItem>
+                {(Object.keys(ANALYST_METRIC_LABELS) as AnalystMetricCategory[])
+                  .filter((key) => key !== 'all')
+                  .map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {ANALYST_METRIC_LABELS[key]}
+                    </SelectItem>
+                  ))}
                 {(Object.keys(ANALYST_STATUS_DISPLAY) as AnalystVerificationStatus[]).map((key) => (
-                  <SelectItem key={key} value={key}>
+                  <SelectItem key={`vs:${key}`} value={`vs:${key}`}>
                     {ANALYST_STATUS_DISPLAY[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={categoryFilter}
-              onValueChange={(v) => setCategoryFilter(v as AnalystMetricCategory)}
-            >
-              <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Report category" />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(ANALYST_METRIC_LABELS) as AnalystMetricCategory[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {ANALYST_METRIC_LABELS[key]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={providerFilter} onValueChange={setProviderFilter}>
               <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="E-Moto Provider" />
+                <SelectValue placeholder={FILTER_LABELS.eMotoProvider} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All E-Moto Providers</SelectItem>
+                <SelectItem value="all">{ALL_EMOTO_PROVIDERS_LABEL}</SelectItem>
                 {providers.map((p) => (
                   <SelectItem key={p} value={p}>
                     {p}
@@ -227,10 +270,10 @@ export function AnalystReportsView({
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
             <Select value={assemblerFilter} onValueChange={setAssemblerFilter}>
               <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Retrofit Assembler" />
+                <SelectValue placeholder={FILTER_LABELS.retrofitAssembler} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Retrofit Assemblers</SelectItem>
+                <SelectItem value="all">{ALL_RETROFIT_ASSEMBLERS_LABEL}</SelectItem>
                 {assemblers.map((a) => (
                   <SelectItem key={a} value={a}>
                     {a}
@@ -238,24 +281,28 @@ export function AnalystReportsView({
                 ))}
               </SelectContent>
             </Select>
-            <Select value={womanFilter} onValueChange={setWomanFilter}>
+            <Select value={genderFilter} onValueChange={setGenderFilter}>
               <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Women" />
+                <SelectValue placeholder={FILTER_LABELS.gender} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All applicants</SelectItem>
-                <SelectItem value="yes">Women only</SelectItem>
-                <SelectItem value="no">Non-women</SelectItem>
+                {GENDER_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select value={retrofitFilter} onValueChange={setRetrofitFilter}>
+            <Select value={vehicleTypeFilter} onValueChange={setVehicleTypeFilter}>
               <SelectTrigger className="w-full min-w-0">
-                <SelectValue placeholder="Retrofit" />
+                <SelectValue placeholder={FILTER_LABELS.vehicleType} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="yes">Retrofit only</SelectItem>
-                <SelectItem value="no">New e-moto only</SelectItem>
+                {VEHICLE_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -267,7 +314,7 @@ export function AnalystReportsView({
           <CardTitle className="text-base flex items-center gap-2 min-w-0">
             <ArrowUpDown className="w-4 h-4 shrink-0" />
             <span className="truncate">
-              Report: {ANALYST_METRIC_REPORT_TITLES[categoryFilter]} ({filtered.length})
+              Report: {ANALYST_METRIC_REPORT_TITLES[reportCategory]} ({filtered.length})
             </span>
           </CardTitle>
         </CardHeader>

@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { DateInput } from '../ui/date-input';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import { formatNumber, formatRwfAmount } from '../../utils/numberFormat';
 import { Label } from '../ui/label';
@@ -15,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { Filter, Printer, Send } from 'lucide-react';
+import { Printer, Send } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -30,8 +28,10 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 import { Textarea } from '../ui/textarea';
+import { matchesGenderFilter, matchesVehicleTypeFilter } from '../../utils/filterLabels';
+import { QA_DEFAULT_FILTER_VALUES, QaStandardFilters } from './QaStandardFilters';
 
-const AF_CHART_COLORS = ['#023F40', '#6DB27F', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
+const AF_CHART_COLORS = ['#023F40', '#6DB27F', '#047a7c', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
 
 type CfoRequestRow = {
   af: string;
@@ -156,15 +156,14 @@ interface WeeklyDisbursementReportProps {
 export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyDisbursementReportProps) {
   const [query, setQuery] = useState('');
   const [filterAf, setFilterAf] = useState('all');
-  const [filterWomen, setFilterWomen] = useState('all');
-  const [filterRetrofit, setFilterRetrofit] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterAssembler, setFilterAssembler] = useState('all');
-  const [dateFrom, setDateFrom] = useState('2026-05-01');
-  const [dateTo, setDateTo] = useState('2026-06-30');
-  const [filterAfSubmitFrom, setFilterAfSubmitFrom] = useState('');
-  const [filterVerifiedFrom, setFilterVerifiedFrom] = useState('');
-  const [filterQaFrom, setFilterQaFrom] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState(QA_DEFAULT_FILTER_VALUES.sortBy);
   const [noteToCfo, setNoteToCfo] = useState('');
   const [submitOpen, setSubmitOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -186,38 +185,42 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
   const filteredRows = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom).getTime() : 0;
     const to = dateTo ? new Date(dateTo).getTime() + 86400000 - 1 : Number.MAX_SAFE_INTEGER;
-    return eligibleRows
-      .filter((r) => {
-        const qaDate = new Date(r.qaApprovedAt).getTime();
-        if (qaDate < from || qaDate > to) return false;
-        const q = query.toLowerCase();
-        if (q && !r.ticket.toLowerCase().includes(q) && !r.applicant.toLowerCase().includes(q)) return false;
-        if (filterAf !== 'all' && r.af !== filterAf) return false;
-        if (filterWomen === 'yes' && !r.woman) return false;
-        if (filterWomen === 'no' && r.woman) return false;
-        if (filterRetrofit === 'yes' && !r.retrofit) return false;
-        if (filterRetrofit === 'no' && r.retrofit) return false;
-        if (filterProvider !== 'all' && r.provider !== filterProvider) return false;
-        if (filterAssembler !== 'all' && r.assembler !== filterAssembler) return false;
-        if (filterAfSubmitFrom && new Date(r.afSubmittedAt) < new Date(filterAfSubmitFrom)) return false;
-        if (filterVerifiedFrom && new Date(r.rebateVerifiedAt) < new Date(filterVerifiedFrom)) return false;
-        if (filterQaFrom && new Date(r.qaApprovedAt) < new Date(filterQaFrom)) return false;
-        return true;
-      })
-      .sort((a, b) => new Date(b.qaApprovedAt).getTime() - new Date(a.qaApprovedAt).getTime());
+    const list = eligibleRows.filter((r) => {
+      const submittedAt = new Date(r.afSubmittedAt).getTime();
+      if (submittedAt < from || submittedAt > to) return false;
+      const q = query.toLowerCase();
+      if (q && !r.ticket.toLowerCase().includes(q) && !r.applicant.toLowerCase().includes(q)) return false;
+      if (filterAf !== 'all' && r.af !== filterAf) return false;
+      if (!matchesGenderFilter(r.woman, filterGender)) return false;
+      if (!matchesVehicleTypeFilter(r.retrofit, filterVehicleType)) return false;
+      if (filterProvider !== 'all' && r.provider !== filterProvider) return false;
+      if (filterAssembler !== 'all' && r.assembler !== filterAssembler) return false;
+      if (filterStatus === 'no-possession' && r.hasPossession) return false;
+      if (filterStatus === 'approved' || filterStatus === 'disbursed') {
+        // CFO request rows are QA-approved with possession; treat as approved.
+        if (filterStatus === 'disbursed') return false;
+      } else if (filterStatus === 'submitted' || filterStatus === 'in-process' || filterStatus === 'rejected') {
+        return false;
+      }
+      return true;
+    });
+
+    return [...list].sort((a, b) => {
+      if (sortBy === 'amount-high') return b.amount - a.amount;
+      return new Date(a.afSubmittedAt).getTime() - new Date(b.afSubmittedAt).getTime();
+    });
   }, [
     eligibleRows,
     query,
     filterAf,
-    filterWomen,
-    filterRetrofit,
+    filterGender,
+    filterVehicleType,
     filterProvider,
     filterAssembler,
+    filterStatus,
     dateFrom,
     dateTo,
-    filterAfSubmitFrom,
-    filterVerifiedFrom,
-    filterQaFrom,
+    sortBy,
   ]);
 
   const total = filteredRows.reduce((s, r) => s + r.amount, 0);
@@ -237,7 +240,11 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
   const dateRangeLabel =
     dateFrom && dateTo
       ? `${formatDisplayDate(dateFrom)} – ${formatDisplayDate(dateTo)}`
-      : 'Selected period';
+      : dateFrom
+        ? `From ${formatDisplayDate(dateFrom)}`
+        : dateTo
+          ? `Until ${formatDisplayDate(dateTo)}`
+          : 'All dates';
 
   const exportExcel = (withSignature: boolean) => {
     const headers = [
@@ -351,27 +358,9 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 print:hidden">
-        <div className="space-y-1">
-          <Label className="text-xs text-gray-600">Approved rebates from</Label>
-          <DateInput
-            className="w-[170px]"
-            value={dateFrom}
-            onChange={setDateFrom}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs text-gray-600">Approved rebates to</Label>
-          <DateInput
-            className="w-[170px]"
-            value={dateTo}
-            onChange={setDateTo}
-          />
-        </div>
-        <p className="text-sm text-gray-600 pb-2">
-          Showing approved rebates for <span className="font-medium text-[#023F40]">{dateRangeLabel}</span>
-        </p>
-      </div>
+      <p className="text-sm text-gray-600 print:hidden">
+        Showing approved rebates for <span className="font-medium text-[#023F40]">{dateRangeLabel}</span>
+      </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
@@ -394,7 +383,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="mb-4">
             <h3 className="font-semibold text-gray-900 mb-1">Rebates per Asset Financier</h3>
-            <p className="text-sm text-gray-500">Number of approved rebates in the selected period</p>
+            <p className="text-sm text-gray-500">Number of Approved Rebates Awaiting Disbursement Authorization</p>
           </div>
           {byAf.length === 0 ? (
             <p className="text-sm text-gray-500 py-10 text-center">No rebates in range</p>
@@ -434,7 +423,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
 
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="mb-4">
-            <h3 className="font-semibold text-gray-900 mb-1">Value per Asset Financier</h3>
+            <h3 className="font-semibold text-gray-900 mb-1">Rebate Amount per Asset Financier</h3>
             <p className="text-sm text-gray-500">Total rebate value requesting disbursement (RWF)</p>
           </div>
           {byAf.length === 0 ? (
@@ -475,122 +464,38 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
         </div>
       </div>
 
-      <Card className="print:hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Asset Financier</p>
-              <Select value={filterAf} onValueChange={setFilterAf}>
-                <SelectTrigger className="border-[#023F40]/60">
-                  <SelectValue placeholder="Asset Financier" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Asset Financiers</SelectItem>
-                  {afs.map((af) => (
-                    <SelectItem key={af} value={af}>
-                      {af}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Search</p>
-              <Input
-                placeholder="Search ticket/applicant..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Women</p>
-              <Select value={filterWomen} onValueChange={setFilterWomen}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All applicants</SelectItem>
-                  <SelectItem value="yes">Women only</SelectItem>
-                  <SelectItem value="no">Non-women</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Retrofit</p>
-              <Select value={filterRetrofit} onValueChange={setFilterRetrofit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="yes">Retrofit only</SelectItem>
-                  <SelectItem value="no">New e-moto only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">E-Moto Provider</p>
-              <Select value={filterProvider} onValueChange={setFilterProvider}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All E-Moto Providers</SelectItem>
-                  {providers.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Retrofit Assembler</p>
-              <Select value={filterAssembler} onValueChange={setFilterAssembler}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Retrofit Assemblers</SelectItem>
-                  {assemblers.map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {a}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">AF submission from</p>
-              <DateInput
-                value={filterAfSubmitFrom}
-                onChange={setFilterAfSubmitFrom}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">Rebate Team verification from</p>
-              <DateInput
-                value={filterVerifiedFrom}
-                onChange={setFilterVerifiedFrom}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-gray-600">QA approval from</p>
-              <DateInput value={filterQaFrom} onChange={setFilterQaFrom} />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            Showing {filteredRows.length} of {eligibleRows.length} possession-confirmed rebates
-            {filterAf !== 'all' ? ` for ${filterAf}` : ''}.
-          </p>
-        </CardContent>
-      </Card>
+      <QaStandardFilters
+        values={{
+          query,
+          status: filterStatus,
+          dateFrom,
+          dateTo,
+          gender: filterGender,
+          vehicleType: filterVehicleType,
+          assetFinancier: filterAf,
+          eMotoProvider: filterProvider,
+          retrofitAssembler: filterAssembler,
+          sortBy,
+        }}
+        onChange={(patch) => {
+          if (patch.query !== undefined) setQuery(patch.query);
+          if (patch.status !== undefined) setFilterStatus(patch.status);
+          if (patch.dateFrom !== undefined) setDateFrom(patch.dateFrom);
+          if (patch.dateTo !== undefined) setDateTo(patch.dateTo);
+          if (patch.gender !== undefined) setFilterGender(patch.gender);
+          if (patch.vehicleType !== undefined) setFilterVehicleType(patch.vehicleType);
+          if (patch.assetFinancier !== undefined) setFilterAf(patch.assetFinancier);
+          if (patch.eMotoProvider !== undefined) setFilterProvider(patch.eMotoProvider);
+          if (patch.retrofitAssembler !== undefined) setFilterAssembler(patch.retrofitAssembler);
+          if (patch.sortBy !== undefined) setSortBy(patch.sortBy);
+        }}
+        financiers={afs}
+        providers={providers}
+        assemblers={assemblers}
+        showingCount={filteredRows.length}
+        totalCount={eligibleRows.length}
+        showingLabel="possession-confirmed rebates for CFO disbursement"
+      />
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader>
@@ -661,7 +566,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
               This sends the filtered list below — {filteredRows.length} possession-confirmed rebate(s)
               totaling <span className="font-medium text-[#023F40]">RWF {Math.round(total).toLocaleString()}</span>
               {' '}— to the CFO for disbursement authorization. Individual rebates were already approved on
-              QA Decisions; this step only packages the total for CFO action.
+              Decisions are captured on QA Team Review; this step only packages the total for CFO action.
             </p>
           </div>
           <div className="space-y-1.5">

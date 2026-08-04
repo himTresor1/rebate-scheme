@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatRebateAmountWithPercent, getRebatePercent, rebateOptionsFromRecord } from '../../utils/rebateCalculation';
 
 interface Application {
   id: string;
@@ -509,7 +510,7 @@ function CFOApplicationCard({
                 <div>
                   <span className="text-gray-600">Amount:</span>
                   <p className="font-medium text-green-600">
-                    ${parseFloat(app.rebateAmount).toLocaleString()}
+                    ${formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app))}
                   </p>
                 </div>
                 <div>
