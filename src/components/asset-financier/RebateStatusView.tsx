@@ -4,13 +4,14 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
+import { ArrowUpDown, Filter, FileSpreadsheet, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { RebateApplicationDetailsPage } from './RebateApplicationDetailsPage';
 import { AfRebateReportTable } from './AfRebateReportTable';
 import {
   AF_MOCK_REBATE_RECORDS,
   AfRebateRecord,
+  afRebateRowsForExport,
   getPipelineRecords,
 } from '../../utils/afRebateData';
 import {
@@ -22,6 +23,7 @@ import {
   matchesVehicleTypeFilter,
   VEHICLE_TYPE_FILTER_OPTIONS,
 } from '../../utils/filterLabels';
+import { exportReportToExcel, exportReportToPdf } from '../../utils/reportExport';
 
 type RebateRecord = AfRebateRecord;
 
@@ -60,10 +62,8 @@ export function RebateStatusView({
   const pipelineRecords = useMemo(() => {
     const unfinished = getPipelineRecords(records);
     if (!isMarketingAgent || !currentUserName) return unfinished;
-    const own = unfinished.filter(
-      (r) => r.submittedBy.toLowerCase() === currentUserName.toLowerCase()
-    );
-    return own.length > 0 ? own : unfinished;
+    // External Marketing users must only ever see rebates they personally originated.
+    return unfinished.filter((r) => r.submittedBy.toLowerCase() === currentUserName.toLowerCase());
   }, [records, isMarketingAgent, currentUserName]);
 
   const summary = useMemo(() => {
@@ -158,13 +158,34 @@ export function RebateStatusView({
     );
   }
 
-  const handlePrint = () => {
+  const handleDownloadExcel = () => {
     if (filteredRecords.length === 0) {
       toast.error('No pipeline rebates to include in the report.');
       return;
     }
-    toast.info('Opening print view…');
-    setTimeout(() => window.print(), 150);
+    const { columns, rows } = afRebateRowsForExport(filteredRecords);
+    exportReportToExcel({
+      filename: 'af-rebate-pipeline-report',
+      title: 'Pipeline Report: rebates applications in development',
+      columns,
+      rows,
+    });
+    toast.success('Excel report downloaded');
+  };
+
+  const handleDownloadPdf = () => {
+    if (filteredRecords.length === 0) {
+      toast.error('No pipeline rebates to include in the report.');
+      return;
+    }
+    const { columns, rows } = afRebateRowsForExport(filteredRecords);
+    exportReportToPdf({
+      filename: 'af-rebate-pipeline-report',
+      title: 'Pipeline Report: rebates applications in development',
+      columns,
+      rows,
+    });
+    toast.success('PDF report downloaded');
   };
 
   return (
@@ -341,10 +362,14 @@ export function RebateStatusView({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end print:hidden">
-        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handlePrint}>
-          <Printer className="w-4 h-4 mr-2" />
-          Print Report
+      <div className="flex justify-end gap-2 print:hidden">
+        <Button variant="outline" onClick={handleDownloadPdf}>
+          <FileText className="w-4 h-4 mr-2" />
+          Download PDF
+        </Button>
+        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handleDownloadExcel}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Excel
         </Button>
       </div>
     </div>

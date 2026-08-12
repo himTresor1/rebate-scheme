@@ -11,9 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { Checkbox } from '../ui/checkbox';
 import { Textarea } from '../ui/textarea';
-import { Printer, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -37,6 +36,7 @@ import { PageHeader } from '../PageHeader';
 import { Greeting } from '../ui/Greeting';
 import { matchesGenderFilter, matchesVehicleTypeFilter } from '../../utils/filterLabels';
 import { QA_DEFAULT_FILTER_VALUES, QaStandardFilters } from './QaStandardFilters';
+import { exportReportToExcel, exportReportToPdf, ReportColumn } from '../../utils/reportExport';
 
 type DecisionValue = 'yes' | 'no' | '';
 
@@ -109,9 +109,8 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [sortBy, setSortBy] = useState(QA_DEFAULT_FILTER_VALUES.sortBy);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchAction, setBatchAction] = useState<'yes' | 'no' | null>(null);
-  const [batchReason, setBatchReason] = useState('');
+  const [rejectRowTarget, setRejectRowTarget] = useState<string | null>(null);
+  const [rejectRowReason, setRejectRowReason] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -229,57 +228,96 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
           ? `Until ${formatDisplayDate(dateTo)}`
           : 'All dates';
 
-  const toggleRowSelection = (id: string, checked: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
+  const handleApproveRow = (id: string, ticket: string) => {
+    setDecisions((prev) => ({ ...prev, [id]: { decision: 'yes', comment: '' } }));
+    toast.success(`Decision recorded: YES for ${ticket}`);
   };
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((r) => selectedIds.has(r.id));
-
-  const toggleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? new Set(filtered.map((r) => r.id)) : new Set());
+  const openRejectRow = (id: string) => {
+    setRejectRowTarget(id);
+    setRejectRowReason('');
   };
 
-  const selectedCount = filtered.filter((r) => selectedIds.has(r.id)).length;
-
-  const openBatchAction = (action: 'yes' | 'no') => {
-    if (selectedCount === 0) return;
-    setBatchAction(action);
-    setBatchReason('');
-  };
-
-  const handleConfirmBatchAction = () => {
-    if (!batchAction) return;
-    if (!batchReason.trim()) {
-      toast.error('A reason is required for bulk decisions.');
+  const handleConfirmRejectRow = () => {
+    if (!rejectRowTarget) return;
+    if (!rejectRowReason.trim()) {
+      toast.error('A comment is required to reject this rebate.');
       return;
     }
-    const ids = filtered.filter((r) => selectedIds.has(r.id)).map((r) => r.id);
-    if (ids.length === 0) return;
-    const reason = batchReason.trim();
-    setDecisions((prev) => {
-      const next = { ...prev };
-      for (const id of ids) {
-        next[id] = { decision: batchAction, comment: reason };
-      }
-      return next;
-    });
-    setSelectedIds(new Set());
-    setBatchAction(null);
-    setBatchReason('');
-    if (batchAction === 'yes') {
-      toast.success(`Decision recorded: YES for ${ids.length} rebate(s)`);
-    } else {
-      toast.warning(`Decision recorded: NO for ${ids.length} rebate(s)`);
-    }
+    const ticket = filtered.find((r) => r.id === rejectRowTarget)?.ticket || rejectRowTarget;
+    setDecisions((prev) => ({
+      ...prev,
+      [rejectRowTarget]: { decision: 'no', comment: rejectRowReason.trim() },
+    }));
+    setRejectRowTarget(null);
+    setRejectRowReason('');
+    toast.warning(`Decision recorded: NO for ${ticket}`);
   };
 
-  const handlePrintReport = () => {
-    window.print();
+  const decisionReportColumns: ReportColumn[] = [
+    { header: 'Ticket No.', key: 'ticket' },
+    { header: 'Date of AF Submission', key: 'afSubmittedAt' },
+    { header: 'Date of Rebate Team Verification', key: 'verifiedAt' },
+    { header: 'Applicant Name', key: 'applicant' },
+    { header: 'Gender', key: 'gender' },
+    { header: 'Retrofit', key: 'retrofit' },
+    { header: 'Asset Financier', key: 'af' },
+    { header: 'E-Moto Provider', key: 'provider' },
+    { header: 'Retrofit Assembler', key: 'assembler' },
+    { header: 'E-Moto Retail Cost (RWF)', key: 'retailCost' },
+    { header: 'Rebate Amount (RWF)', key: 'rebateAmount' },
+    { header: 'Rebate Percentage (%)', key: 'rebatePercent' },
+    { header: 'QA Team Decision [YES/NO]', key: 'decision' },
+    { header: 'Comment (from ticket review)', key: 'comment' },
+  ];
+
+  const buildDecisionReportRows = () =>
+    filtered.map((r) => {
+      const d = decisions[r.id] || { decision: '', comment: '' };
+      return {
+        ticket: r.ticket,
+        afSubmittedAt: formatDisplayDate(r.afSubmittedAt),
+        verifiedAt: formatDisplayDate(r.verifiedAt),
+        applicant: r.applicant,
+        gender: r.woman ? 'Woman' : 'Man',
+        retrofit: r.retrofit ? 'Yes' : 'No',
+        af: r.af,
+        provider: r.provider,
+        assembler: r.assembler,
+        retailCost: r.retailCost,
+        rebateAmount: r.rebateAmount,
+        rebatePercent: r.rebatePercent,
+        decision: d.decision === 'yes' ? 'YES' : d.decision === 'no' ? 'NO' : '',
+        comment: d.comment || '',
+      };
+    });
+
+  const handleDownloadExcel = () => {
+    if (filtered.length === 0) {
+      toast.error('No rebates to include in the report.');
+      return;
+    }
+    exportReportToExcel({
+      filename: 'qa-approved-rebate-report',
+      title: `Rebates Approved by RGF Rebate Quality Assurance Team — Date range: ${dateRangeLabel}`,
+      columns: decisionReportColumns,
+      rows: buildDecisionReportRows(),
+    });
+    toast.success('Excel report downloaded');
+  };
+
+  const handleDownloadPdf = () => {
+    if (filtered.length === 0) {
+      toast.error('No rebates to include in the report.');
+      return;
+    }
+    exportReportToPdf({
+      filename: 'qa-approved-rebate-report',
+      title: `Rebates Approved by RGF Rebate Quality Assurance Team — Date range: ${dateRangeLabel}`,
+      columns: decisionReportColumns,
+      rows: buildDecisionReportRows(),
+    });
+    toast.success('PDF report downloaded');
   };
 
   if (selectedApp) {
@@ -347,10 +385,7 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">With e-moto possession</p>
-            <p className="text-2xl font-bold text-[#023F40]">
-              {withPossessionCount}
-              <span className="text-base font-medium text-gray-500"> / {filtered.length}</span>
-            </p>
+            <p className="text-2xl font-bold text-[#023F40]">{withPossessionCount}</p>
             <p className="text-xs text-gray-500 mt-1">{possessionShare}% of verified rebates</p>
           </CardContent>
         </Card>
@@ -571,48 +606,22 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
 
       <Card className="print:shadow-none print:border-0">
         <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle className="text-base text-[#023F40]">
-              Verified rebates for {dateRangeLabel}
-            </CardTitle>
-            {selectedCount > 0 && (
-              <div className="flex items-center gap-2 print:hidden">
-                <span className="text-sm text-gray-600">{selectedCount} selected</span>
-                <Button
-                  size="sm"
-                  className="bg-[#6DB27F] hover:bg-[#5da170]"
-                  onClick={() => openBatchAction('yes')}
-                >
-                  <ThumbsUp className="w-4 h-4 mr-1" />
-                  Approve selected (YES)
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => openBatchAction('no')}>
-                  <ThumbsDown className="w-4 h-4 mr-1" />
-                  Reject selected (NO)
-                </Button>
-              </div>
-            )}
-          </div>
+          <CardTitle className="text-base text-[#023F40]">
+            Verified rebates for {dateRangeLabel}
+          </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-gray-600">No verified rebates match the filters.</div>
           ) : (
-            <table className="w-full min-w-[1500px] text-sm">
+            <table className="w-full min-w-[1600px] text-sm">
               <thead>
                 <tr className="border-b text-left text-gray-600">
-                  <th className="pb-2 pr-3 font-medium print:hidden">
-                    <Checkbox
-                      checked={allFilteredSelected}
-                      onCheckedChange={(checked) => toggleSelectAll(checked === true)}
-                      aria-label="Select all rebates"
-                    />
-                  </th>
                   <th className="pb-2 pr-3 font-medium">Ticket No.</th>
                   <th className="pb-2 pr-3 font-medium">Date of AF Submission</th>
                   <th className="pb-2 pr-3 font-medium">Date of Rebate Team Verification</th>
                   <th className="pb-2 pr-3 font-medium">Applicant Name</th>
-                  <th className="pb-2 pr-3 font-medium">Woman</th>
+                  <th className="pb-2 pr-3 font-medium">Gender</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit</th>
                   <th className="pb-2 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Provider</th>
@@ -621,7 +630,8 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                   <th className="pb-2 pr-3 font-medium">Rebate Amount (RWF)</th>
                   <th className="pb-2 pr-3 font-medium">Rebate Percentage (%)</th>
                   <th className="pb-2 pr-3 font-medium">QA Team Decision [YES/NO]</th>
-                  <th className="pb-2 font-medium">Comment (from ticket review)</th>
+                  <th className="pb-2 pr-3 font-medium">Comment (from ticket review)</th>
+                  <th className="pb-2 font-medium print:hidden">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -629,13 +639,6 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                   const d = decisions[r.id] || { decision: '', comment: '' };
                   return (
                     <tr key={r.id} className="border-b align-top">
-                      <td className="py-2 pr-3 print:hidden">
-                        <Checkbox
-                          checked={selectedIds.has(r.id)}
-                          onCheckedChange={(checked) => toggleRowSelection(r.id, checked === true)}
-                          aria-label={`Select ${r.ticket}`}
-                        />
-                      </td>
                       <td className="py-2 pr-3">
                         <button
                           type="button"
@@ -648,7 +651,7 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                       <td className="py-2 pr-3">{formatDisplayDate(r.afSubmittedAt)}</td>
                       <td className="py-2 pr-3">{formatDisplayDate(r.verifiedAt)}</td>
                       <td className="py-2 pr-3">{r.applicant}</td>
-                      <td className="py-2 pr-3">{r.woman ? 'Yes' : 'No'}</td>
+                      <td className="py-2 pr-3">{r.woman ? 'Woman' : 'Man'}</td>
                       <td className="py-2 pr-3">{r.retrofit ? 'Yes' : 'No'}</td>
                       <td className="py-2 pr-3">{r.af}</td>
                       <td className="py-2 pr-3">{r.provider}</td>
@@ -659,10 +662,33 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
                       <td className="py-2 pr-3">
                         {d.decision === 'yes' ? 'YES' : d.decision === 'no' ? 'NO' : '—'}
                       </td>
-                      <td className="py-2 max-w-[220px]">
+                      <td className="py-2 pr-3 max-w-[220px]">
                         <span className={d.comment ? 'text-gray-800' : 'text-gray-400'}>
                           {d.comment || '—'}
                         </span>
+                      </td>
+                      <td className="py-2 print:hidden">
+                        {d.decision ? (
+                          <span className="text-xs text-gray-400">Done</span>
+                        ) : (
+                          <div className="flex gap-2 whitespace-nowrap">
+                            <Button
+                              size="sm"
+                              className="h-7 bg-[#6DB27F] hover:bg-[#5da170]"
+                              onClick={() => handleApproveRow(r.id, r.ticket)}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7"
+                              onClick={() => openRejectRow(r.id)}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -681,69 +707,55 @@ export function QATeamDecisionPage({ user }: QATeamDecisionPageProps) {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-end justify-end gap-4 print:hidden">
-        <Button className="bg-[#6DB27F] hover:bg-[#5da170]" onClick={handlePrintReport}>
-          <Printer className="w-4 h-4 mr-2" />
-          Print Approved Rebate Report
+      <div className="flex flex-wrap items-end justify-end gap-2 print:hidden">
+        <Button variant="outline" onClick={handleDownloadPdf}>
+          <FileText className="w-4 h-4 mr-2" />
+          Download PDF
+        </Button>
+        <Button className="bg-[#6DB27F] hover:bg-[#5da170]" onClick={handleDownloadExcel}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Excel
         </Button>
       </div>
 
       <Dialog
-        open={batchAction !== null}
+        open={!!rejectRowTarget}
         onOpenChange={(open) => {
           if (!open) {
-            setBatchAction(null);
-            setBatchReason('');
+            setRejectRowTarget(null);
+            setRejectRowReason('');
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {batchAction === 'yes'
-                ? `Approve selected rebates (YES)`
-                : `Reject selected rebates (NO)`}
-            </DialogTitle>
+            <DialogTitle>Reject rebate (NO)</DialogTitle>
             <DialogDescription>
-              You are recording a {batchAction === 'yes' ? 'YES' : 'NO'} decision for {selectedCount}{' '}
-              rebate(s). A reason is required and will appear in the Comment column.
+              A comment is required and will appear in the Comment column.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="batch-decision-reason">Reason</Label>
+            <Label htmlFor="reject-row-reason">Comment</Label>
             <Textarea
-              id="batch-decision-reason"
-              placeholder={
-                batchAction === 'yes'
-                  ? 'Brief reason for approving these rebates…'
-                  : 'Explain why these rebates are rejected…'
-              }
-              value={batchReason}
-              onChange={(e) => setBatchReason(e.target.value)}
+              id="reject-row-reason"
+              placeholder="Explain why this rebate is rejected…"
+              value={rejectRowReason}
+              onChange={(e) => setRejectRowReason(e.target.value)}
               rows={4}
             />
-            <p className="text-xs text-gray-500">Required for both bulk approve and bulk reject.</p>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
-                setBatchAction(null);
-                setBatchReason('');
+                setRejectRowTarget(null);
+                setRejectRowReason('');
               }}
             >
               Cancel
             </Button>
-            <Button
-              className={
-                batchAction === 'yes'
-                  ? 'bg-[#6DB27F] hover:bg-[#5da170]'
-                  : undefined
-              }
-              variant={batchAction === 'no' ? 'destructive' : 'default'}
-              onClick={handleConfirmBatchAction}
-            >
-              {batchAction === 'yes' ? 'Approve selected' : 'Reject selected'}
+            <Button variant="destructive" onClick={handleConfirmRejectRow}>
+              Reject
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -4,19 +4,10 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
-import { Printer } from 'lucide-react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
+import { exportReportToExcel, exportReportToPdf, ReportColumn } from '../../utils/reportExport';
 import { motion } from 'motion/react';
 import { User } from '../../utils/auth';
-import { Textarea } from '../ui/textarea';
-import { Label } from '../ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../ui/dialog';
 import { QAReview } from './QAReview';
 import { Greeting } from '../ui/Greeting';
 import { LeaseReviewView } from './LeaseReviewView';
@@ -203,8 +194,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
   const [filterProvider, setFilterProvider] = useState('all');
   const [filterRetrofitAssembler, setFilterRetrofitAssembler] = useState('all');
   const [qaDecisions, setQaDecisions] = useState<Record<string, QaDecision>>({});
-  const [rejectDialogApp, setRejectDialogApp] = useState<Application | null>(null);
-  const [rejectComment, setRejectComment] = useState('');
+  const [autoOpenPossessionTicket, setAutoOpenPossessionTicket] = useState<string | null>(null);
 
   useEffect(() => {
     loadApplications();
@@ -311,51 +301,69 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
     return getRebatePercent({ isWoman, isRetrofit });
   };
 
-  const captureDecision = (
-    app: Application,
-    decision: 'approve' | 'reject',
-    reason: string
-  ) => {
-    setQaDecisions((prev) => ({
-      ...prev,
-      [app.id]: {
-        decision,
-        reason,
-        timestamp: new Date().toISOString(),
-        submitted: false,
-      },
-    }));
-    toast.success(
-      decision === 'approve'
-        ? `Approved ${app.ticketNumber || app.registrationNumber}`
-        : `Rejected ${app.ticketNumber || app.registrationNumber}`
-    );
-  };
+  const qaReviewReportColumns: ReportColumn[] = [
+    { header: 'Ticket No.', key: 'ticket' },
+    { header: 'Date of AF Submission', key: 'afSubmittedAt' },
+    { header: 'Date of Rebate Team Verification', key: 'verifiedAt' },
+    { header: 'Name', key: 'name' },
+    { header: 'Gender', key: 'gender' },
+    { header: 'Retrofit', key: 'retrofit' },
+    { header: 'Asset Financier', key: 'af' },
+    { header: 'E-Moto Provider', key: 'provider' },
+    { header: 'E-Moto Retail Cost (RWF)', key: 'retailCost' },
+    { header: 'Rebate Amount (RWF)', key: 'rebateAmount' },
+    { header: 'Rebate Percentage (%)', key: 'rebatePercent' },
+    { header: 'QA Team Approval', key: 'qaApproval' },
+    { header: 'Issues for follow-up', key: 'issues' },
+  ];
 
-  const handleApproveRow = (app: Application, e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    captureDecision(app, 'approve', '');
-  };
+  const buildQaReviewReportRows = () =>
+    reviewQueueApps.map((app) => {
+      const decision = qaDecisions[app.id];
+      return {
+        ticket:
+          app.ticketNumber || app.registrationNumber || app.id.replace('application:', '').toUpperCase(),
+        afSubmittedAt: formatShortDate(app.createdAt),
+        verifiedAt: formatShortDate(app.verifiedAt || app.lastReviewedAt),
+        name: app.applicantName || app.companyName || '',
+        gender: app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Woman' : 'Man',
+        retrofit: app.isRetrofit ? 'Yes' : 'No',
+        af: app.companyName || '',
+        provider: app.motorcycleBrand || '',
+        retailCost: parseFloat(app.purchasePrice || '0') || 0,
+        rebateAmount: parseFloat(app.rebateAmount || '0') || 0,
+        rebatePercent: getRebatePercentForApp(app),
+        qaApproval: decision ? (decision.decision === 'approve' ? 'Approved' : 'Rejected') : 'Pending Review',
+        issues: decision?.reason || '',
+      };
+    });
 
-  const handleOpenReject = (app: Application, e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    setRejectDialogApp(app);
-    setRejectComment('');
-  };
-
-  const handleConfirmReject = () => {
-    if (!rejectDialogApp) return;
-    if (!rejectComment.trim()) {
-      toast.error('Comment is mandatory when rejecting a rebate.');
+  const handleDownloadExcel = () => {
+    if (reviewQueueApps.length === 0) {
+      toast.error('No rebates to include in the report.');
       return;
     }
-    captureDecision(rejectDialogApp, 'reject', rejectComment.trim());
-    setRejectDialogApp(null);
-    setRejectComment('');
+    exportReportToExcel({
+      filename: 'qa-review-queue-report',
+      title: `Rebates Awaiting QA Team Review${activeMetricLabel ? ` — ${activeMetricLabel}` : ''}`,
+      columns: qaReviewReportColumns,
+      rows: buildQaReviewReportRows(),
+    });
+    toast.success('Excel report downloaded');
   };
 
-  const handlePrintReport = () => {
-    window.print();
+  const handleDownloadPdf = () => {
+    if (reviewQueueApps.length === 0) {
+      toast.error('No rebates to include in the report.');
+      return;
+    }
+    exportReportToPdf({
+      filename: 'qa-review-queue-report',
+      title: `Rebates Awaiting QA Team Review${activeMetricLabel ? ` — ${activeMetricLabel}` : ''}`,
+      columns: qaReviewReportColumns,
+      rows: buildQaReviewReportRows(),
+    });
+    toast.success('PDF report downloaded');
   };
 
   const verifiedForQaCount = awaitingQaApps.length;
@@ -433,7 +441,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
 
   const activeMetricLabel = (() => {
     if (filterStatus === 'no-possession') return 'No E-Moto Possession Yet';
-    if (filterGender === 'woman') return 'Women';
+    if (filterGender === 'woman') return 'Woman';
     if (filterVehicleType === 'retrofit') return 'Retrofits';
     return null;
   })();
@@ -481,7 +489,11 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <PageHeader />
-        <PossessionAnalysisView />
+        <PossessionAnalysisView
+          currentUserName={user.name}
+          autoOpenTicket={autoOpenPossessionTicket}
+          onAutoOpenHandled={() => setAutoOpenPossessionTicket(null)}
+        />
       </div>
     );
   }
@@ -495,7 +507,15 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <PageHeader />
-        <NotificationsView user={user} />
+        <NotificationsView
+          user={user}
+          onAction={(data: any) => {
+            if (data?.type === 'open-possession-review') {
+              setAutoOpenPossessionTicket(data.ticketNumber);
+              onNavigate?.('possession-analysis');
+            }
+          }}
+        />
       </div>
     );
   }
@@ -591,7 +611,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
                     </>
                   )}
                   <th className="pb-3 pr-3 font-medium">Name</th>
-                  <th className="pb-3 pr-3 font-medium">Woman</th>
+                  <th className="pb-3 pr-3 font-medium">Gender</th>
                   <th className="pb-3 pr-3 font-medium">Retrofit</th>
                   <th className="pb-3 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-3 pr-3 font-medium">E-Moto Provider</th>
@@ -601,8 +621,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
                   {showQaColumns && (
                     <>
                       <th className="pb-3 pr-3 font-medium">QA Team Approval</th>
-                      <th className="pb-3 pr-3 font-medium">Issues for follow-up</th>
-                      <th className="pb-3 font-medium">Actions</th>
+                      <th className="pb-3 font-medium">Issues for follow-up</th>
                     </>
                   )}
                   {!showQaColumns && <th className="pb-3 font-medium">Status</th>}
@@ -632,7 +651,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
                       )}
                       <td className="py-3 pr-3">{app.applicantName || app.companyName}</td>
                       <td className="py-3 pr-3">
-                        {app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Yes' : 'No'}
+                        {app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Woman' : 'Man'}
                       </td>
                       <td className="py-3 pr-3">{app.isRetrofit ? 'Yes' : 'No'}</td>
                       <td className="py-3 pr-3">{app.companyName}</td>
@@ -662,30 +681,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
                               <Badge variant="outline">Pending Review</Badge>
                             )}
                           </td>
-                          <td className="py-3 pr-3 text-sm text-gray-600">{decision?.reason || '—'}</td>
-                          <td className="py-3" onClick={(e) => e.stopPropagation()}>
-                            {decision ? (
-                              <span className="text-xs text-gray-400">Done</span>
-                            ) : (
-                              <div className="flex gap-2 whitespace-nowrap">
-                                <Button
-                                  size="sm"
-                                  className="h-7 bg-[#6DB27F] hover:bg-[#5da170]"
-                                  onClick={(e) => handleApproveRow(app, e)}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-7"
-                                  onClick={(e) => handleOpenReject(app, e)}
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
-                          </td>
+                          <td className="py-3 text-sm text-gray-600">{decision?.reason || '—'}</td>
                         </>
                       )}
                       {!showQaColumns && (
@@ -702,7 +698,7 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
         )}
         {showQaColumns && (
           <p className="text-xs text-gray-500 mt-3">
-            Click a row to open the detail page. Use Actions to approve or reject; rejection comments appear under Issues for follow-up.
+            Click a row to open the detail page. Approve or reject from the QA Team Review page.
           </p>
         )}
       </CardContent>
@@ -774,59 +770,21 @@ export function QADashboard({ user, currentPage, onNavigate }: QADashboardProps)
             <p className="text-xs text-gray-500">
               {pendingReview.length} rebate(s) awaiting QA decision. Sorted by AF submission date (oldest first).
             </p>
+            <Button variant="outline" onClick={handleDownloadPdf}>
+              <FileText className="w-4 h-4 mr-2" />
+              Download PDF
+            </Button>
             <Button
-              onClick={handlePrintReport}
+              onClick={handleDownloadExcel}
               className="bg-[#6DB27F] hover:bg-[#5da170] text-white"
             >
-              <Printer className="w-4 h-4 mr-2" />
-              Print Report
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Download Excel
             </Button>
           </div>
         </div>
       )}
 
-      <Dialog
-        open={!!rejectDialogApp}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRejectDialogApp(null);
-            setRejectComment('');
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject rebate</DialogTitle>
-            <DialogDescription>
-              A comment is mandatory when rejecting. This will appear under Issues for follow-up.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="qa-reject-comment">Comment *</Label>
-            <Textarea
-              id="qa-reject-comment"
-              value={rejectComment}
-              onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="Explain why this rebate is rejected..."
-              rows={4}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRejectDialogApp(null);
-                setRejectComment('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmReject}>
-              Confirm Reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

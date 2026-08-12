@@ -43,6 +43,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
@@ -239,6 +240,11 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
   const [evaluations, setEvaluations] = useState<CriteriaEvaluation>({});
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [docRejectComments, setDocRejectComments] = useState<Record<string, string>>({});
+  const [rejectDocTarget, setRejectDocTarget] = useState<{ key: string; label: string } | null>(null);
+  const [rejectDocDraft, setRejectDocDraft] = useState('');
+  const [showAnalystRejectDialog, setShowAnalystRejectDialog] = useState(false);
+  const [analystRejectReason, setAnalystRejectReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -486,6 +492,29 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
     }
   };
 
+  const handleAnalystRejected = async () => {
+    if (!analystRejectReason.trim()) {
+      toast.error('Please provide a reason for rejecting this rebate.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await new Promise((r) => setTimeout(r, 300));
+      onRecommendationSaved?.({
+        applicationId: application.id,
+        decision: 'reject',
+        notes: analystRejectReason.trim(),
+        rejectionReason: analystRejectReason.trim(),
+        timestamp: new Date().toISOString(),
+      });
+      toast.success('Rebate rejected and sent back to the Asset Financier for correction.');
+      setShowAnalystRejectDialog(false);
+      onBack();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('en-RW', {
@@ -614,24 +643,39 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
       return isDemoApp;
     };
 
-    const renderVerificationActions = (key: string) => (
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <Button
-          size="sm"
-          className="w-24"
-          variant={evaluations[key] === true ? 'default' : 'outline'}
-          onClick={() => setEvaluations((prev) => ({ ...prev, [key]: true }))}
-        >
-          Verified
-        </Button>
-        <Button
-          size="sm"
-          className="w-24"
-          variant={evaluations[key] === false ? 'destructive' : 'outline'}
-          onClick={() => setEvaluations((prev) => ({ ...prev, [key]: false }))}
-        >
-          Rejected
-        </Button>
+    const renderVerificationActions = (key: string, label: string) => (
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="w-24"
+            variant={evaluations[key] === true ? 'default' : 'outline'}
+            onClick={() => {
+              setEvaluations((prev) => ({ ...prev, [key]: true }));
+              setDocRejectComments((prev) => {
+                const next = { ...prev };
+                delete next[key];
+                return next;
+              });
+            }}
+          >
+            Verified
+          </Button>
+          <Button
+            size="sm"
+            className="w-24"
+            variant={evaluations[key] === false ? 'destructive' : 'outline'}
+            onClick={() => {
+              setRejectDocTarget({ key, label });
+              setRejectDocDraft(docRejectComments[key] || '');
+            }}
+          >
+            Rejected
+          </Button>
+        </div>
+        {evaluations[key] === false && docRejectComments[key] && (
+          <p className="text-xs text-red-600 text-right max-w-[220px]">"{docRejectComments[key]}"</p>
+        )}
       </div>
     );
 
@@ -717,7 +761,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
             ) : (
               <Badge className="bg-amber-100 text-amber-800">Missing</Badge>
             )}
-            {renderVerificationActions(key)}
+            {renderVerificationActions(key, doc.label)}
           </div>
         </div>
       );
@@ -930,7 +974,7 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
                             </a>
                           </Button>
                         ) : null}
-                        {renderVerificationActions(docActionKey(doc.name))}
+                        {renderVerificationActions(docActionKey(doc.name), doc.name)}
                       </div>
                     </div>
                   ))}
@@ -938,7 +982,18 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
               </div>
             )}
 
-            <div className="border-t pt-4 flex justify-end">
+            <div className="border-t pt-4 flex justify-end gap-2">
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setAnalystRejectReason('');
+                  setShowAnalystRejectDialog(true);
+                }}
+                disabled={saving}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Reject
+              </Button>
               <Button
                 onClick={handleAnalystVerified}
                 disabled={saving}
@@ -950,6 +1005,81 @@ export function ApplicationReviewEnhanced({ application, user, onBack, onRecomme
             </div>
           </CardContent>
         </Card>
+
+        {/* Document Rejection Reason Dialog */}
+        <Dialog open={!!rejectDocTarget} onOpenChange={(open) => !open && setRejectDocTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject document</DialogTitle>
+              <DialogDescription>
+                Explain why {rejectDocTarget?.label} is being rejected. The Asset Financier will see this
+                reason so they know what to correct.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="doc-reject-comment">Reason (required)</Label>
+              <Textarea
+                id="doc-reject-comment"
+                value={rejectDocDraft}
+                onChange={(e) => setRejectDocDraft(e.target.value)}
+                placeholder="e.g. The document is illegible, or the name does not match the applicant..."
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectDocTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (!rejectDocDraft.trim()) {
+                    toast.error('A reason is required to reject this document.');
+                    return;
+                  }
+                  if (!rejectDocTarget) return;
+                  setEvaluations((prev) => ({ ...prev, [rejectDocTarget.key]: false }));
+                  setDocRejectComments((prev) => ({ ...prev, [rejectDocTarget.key]: rejectDocDraft.trim() }));
+                  setRejectDocTarget(null);
+                  setRejectDocDraft('');
+                }}
+              >
+                Confirm rejection
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Overall Rebate Rejection Dialog */}
+        <Dialog open={showAnalystRejectDialog} onOpenChange={setShowAnalystRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject rebate</DialogTitle>
+              <DialogDescription>
+                This rebate will be sent back to the Asset Financier for correction. Explain what needs to
+                be fixed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="analyst-reject-reason">Reason (required)</Label>
+              <Textarea
+                id="analyst-reject-reason"
+                value={analystRejectReason}
+                onChange={(e) => setAnalystRejectReason(e.target.value)}
+                placeholder="Explain why this rebate is being rejected..."
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAnalystRejectDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleAnalystRejected} disabled={saving}>
+                {saving ? 'Submitting...' : 'Confirm rejection'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

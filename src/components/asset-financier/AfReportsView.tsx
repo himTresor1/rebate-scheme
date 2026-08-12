@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
+import { ArrowUpDown, Filter, FileSpreadsheet, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AF_METRIC_LABELS,
@@ -12,8 +12,10 @@ import {
   AF_MOCK_REBATE_RECORDS,
   AfMetricCategory,
   AfRebateRecord,
+  afRebateRowsForExport,
   recordMatchesMetric,
 } from '../../utils/afRebateData';
+import { exportReportToExcel, exportReportToPdf } from '../../utils/reportExport';
 import {
   ALL_EMOTO_PROVIDERS_LABEL,
   ALL_RETROFIT_ASSEMBLERS_LABEL,
@@ -31,15 +33,24 @@ interface AfReportsViewProps {
   initialCategory?: AfMetricCategory;
   records?: AfRebateRecord[];
   onDetailOpenChange?: (open: boolean) => void;
+  isMarketingAgent?: boolean;
+  currentUserName?: string;
 }
 
 export function AfReportsView({
   initialCategory = 'all',
   records: externalRecords,
   onDetailOpenChange,
+  isMarketingAgent = false,
+  currentUserName,
 }: AfReportsViewProps) {
   const [internalRecords] = useState(AF_MOCK_REBATE_RECORDS);
-  const records = externalRecords ?? internalRecords;
+  const allRecords = externalRecords ?? internalRecords;
+  // External Marketing users must only ever see rebates they personally originated.
+  const records = useMemo(() => {
+    if (!isMarketingAgent || !currentUserName) return allRecords;
+    return allRecords.filter((r) => r.submittedBy.toLowerCase() === currentUserName.toLowerCase());
+  }, [allRecords, isMarketingAgent, currentUserName]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AfMetricCategory>(initialCategory);
   const [providerFilter, setProviderFilter] = useState('all');
@@ -137,13 +148,26 @@ export function AfReportsView({
     setDateTo('');
   };
 
-  const handlePrint = () => {
+  const reportTitle = `Report: ${AF_METRIC_REPORT_TITLES[statusFilter]} (${filtered.length})`;
+
+  const handleDownloadExcel = () => {
     if (filtered.length === 0) {
       toast.error('No rebates to include in the report.');
       return;
     }
-    toast.info('Opening print view…');
-    setTimeout(() => window.print(), 150);
+    const { columns, rows } = afRebateRowsForExport(filtered, true);
+    exportReportToExcel({ filename: 'af-all-rebates-report', title: reportTitle, columns, rows });
+    toast.success('Excel report downloaded');
+  };
+
+  const handleDownloadPdf = () => {
+    if (filtered.length === 0) {
+      toast.error('No rebates to include in the report.');
+      return;
+    }
+    const { columns, rows } = afRebateRowsForExport(filtered, true);
+    exportReportToPdf({ filename: 'af-all-rebates-report', title: reportTitle, columns, rows });
+    toast.success('PDF report downloaded');
   };
 
   return (
@@ -268,10 +292,14 @@ export function AfReportsView({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end print:hidden">
-        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handlePrint}>
-          <Printer className="w-4 h-4 mr-2" />
-          Print Report
+      <div className="flex justify-end gap-2 print:hidden">
+        <Button variant="outline" onClick={handleDownloadPdf}>
+          <FileText className="w-4 h-4 mr-2" />
+          Download PDF
+        </Button>
+        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handleDownloadExcel}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Excel
         </Button>
       </div>
     </div>

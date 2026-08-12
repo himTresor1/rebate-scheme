@@ -88,7 +88,7 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
         vehicleType: app.isRetrofit ? 'Retrofit' : 'New E-Moto',
         provider: app.motorcycleBrand || 'N/A',
         vin: app.chassisNumber || 'N/A',
-        woman: app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'YES' : 'NO',
+        gender: app.eligibilityCheck?.nationalIdCheck?.gender === 'Female' ? 'Woman' : 'Man',
         rebateAmount: formatRebateAmountWithPercent(app.rebateAmount, rebateOptionsFromRecord(app)),
       }));
   }, [applications, query, dateRange, genderFilter, vehicleTypeFilter, financier, provider]);
@@ -208,7 +208,7 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
                   <th className="pb-3 pr-3">Vehicle Type</th>
                   <th className="pb-3 pr-3">E-Moto Provider</th>
                   <th className="pb-3 pr-3">E-Moto VIN</th>
-                  <th className="pb-3 pr-3">Woman</th>
+                  <th className="pb-3 pr-3">Gender</th>
                   <th className="pb-3 pr-3">Rebate Amount</th>
                 </tr>
               </thead>
@@ -224,7 +224,7 @@ export function ReassignmentCheckingPage({ applications, onOpenApplication }: Re
                     <td className="py-3 pr-3">{row.provider}</td>
                     <td className="py-3 pr-3">{row.vin}</td>
                     <td className="py-3 pr-3">
-                      <Badge variant="outline">{row.woman}</Badge>
+                      <Badge variant="outline">{row.gender}</Badge>
                     </td>
                     <td className="py-3 pr-3">{row.rebateAmount}</td>
                   </tr>

@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowUpDown, Filter, Printer, X } from 'lucide-react';
+import { ArrowUpDown, Filter, FileSpreadsheet, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   ANALYST_METRIC_LABELS,
@@ -14,8 +14,10 @@ import {
   AnalystMetricCategory,
   AnalystRebateRecord,
   AnalystVerificationStatus,
+  analystRebateRowsForExport,
   recordMatchesMetric,
 } from '../../utils/analystRebateData';
+import { exportReportToExcel, exportReportToPdf } from '../../utils/reportExport';
 import {
   ALL_EMOTO_PROVIDERS_LABEL,
   ALL_RETROFIT_ASSEMBLERS_LABEL,
@@ -177,13 +179,26 @@ export function AnalystReportsView({
     setDateTo('');
   };
 
-  const handlePrint = () => {
+  const reportTitle = `Report: ${ANALYST_METRIC_REPORT_TITLES[reportCategory]} (${filtered.length})`;
+
+  const handleDownloadExcel = () => {
     if (filtered.length === 0) {
       toast.error('No rebates to include in the report.');
       return;
     }
-    toast.info('Opening print view…');
-    setTimeout(() => window.print(), 150);
+    const { columns, rows } = analystRebateRowsForExport(filtered);
+    exportReportToExcel({ filename: 'analyst-all-rebates-report', title: reportTitle, columns, rows });
+    toast.success('Excel report downloaded');
+  };
+
+  const handleDownloadPdf = () => {
+    if (filtered.length === 0) {
+      toast.error('No rebates to include in the report.');
+      return;
+    }
+    const { columns, rows } = analystRebateRowsForExport(filtered);
+    exportReportToPdf({ filename: 'analyst-all-rebates-report', title: reportTitle, columns, rows });
+    toast.success('PDF report downloaded');
   };
 
   return (
@@ -325,10 +340,14 @@ export function AnalystReportsView({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end print:hidden">
-        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handlePrint}>
-          <Printer className="w-4 h-4 mr-2" />
-          Print Report
+      <div className="flex justify-end gap-2 print:hidden">
+        <Button variant="outline" onClick={handleDownloadPdf}>
+          <FileText className="w-4 h-4 mr-2" />
+          Download PDF
+        </Button>
+        <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handleDownloadExcel}>
+          <FileSpreadsheet className="w-4 h-4 mr-2" />
+          Download Excel
         </Button>
       </div>
     </div>

@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Plus,
   X,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -53,6 +54,7 @@ interface RebateApplicationDetailsPageProps {
 const statusBadgeClass: Record<AfRebateStatus, string> = {
   unfinished: 'bg-gray-100 text-gray-800',
   'submitted-not-approved': 'bg-blue-100 text-blue-800',
+  rejected: 'bg-red-100 text-red-800',
   'approved-lacking-possession': 'bg-orange-100 text-orange-800',
   'approved-disbursed': 'bg-green-100 text-green-800',
 };
@@ -102,6 +104,30 @@ interface DocRow {
   optional?: boolean;
   hasTemplate?: boolean;
   templateName?: string;
+}
+
+function fieldLabelForKey(key: EditableFieldKey, isRetrofit: boolean): string {
+  const labels: Record<EditableFieldKey, string> = {
+    firstName: 'Individual first name(s)',
+    lastName: 'Individual last name(s)',
+    dateOfBirth: 'Date of Birth',
+    gender: 'Gender?',
+    vehicleType: 'Vehicle Type?',
+    phoneNumber: 'Phone Number',
+    email: 'Email',
+    tin: 'TIN (Tax Identification Number)',
+    nationalId: 'National ID',
+    motoLicense: "Motorcycle Driver's License",
+    supplier: 'E-Moto Provider',
+    model: 'E-Moto Model',
+    retrofitAssembler: 'Retrofit Assembler',
+    retailCost: isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)',
+    loanAmount: 'Total Contract Repayment Amount (RWF)',
+    loanTerm: 'Contract Term (months)',
+    repaymentFrequency: 'Repayment Frequency',
+    monthlyRepayment: 'Repayment Amount (RWF)',
+  };
+  return labels[key];
 }
 
 function formatRwf(value?: number) {
@@ -173,7 +199,7 @@ function applyFieldValue(
     case 'gender': {
       const isWoman = trimmed === 'Woman';
       next.isWoman = isWoman;
-      next.gender = isWoman ? 'Female' : 'Male';
+      next.gender = isWoman ? 'Woman' : 'Man';
       next.rebateAmount = calculateRebateAmount(next.retailCost || 0, {
         isWoman: next.isWoman,
         isRetrofit: next.isRetrofit,
@@ -237,27 +263,7 @@ function applyFieldValue(
       break;
   }
 
-  const labelForKey: Partial<Record<EditableFieldKey, string>> = {
-    firstName: 'Individual first name(s)',
-    lastName: 'Individual last name(s)',
-    dateOfBirth: 'Date of Birth',
-    gender: 'Gender?',
-    vehicleType: 'Vehicle Type?',
-    phoneNumber: 'Phone Number',
-    email: 'Email',
-    tin: 'TIN (Tax Identification Number)',
-    nationalId: 'National ID',
-    motoLicense: "Motorcycle Driver's License",
-    supplier: 'E-Moto Provider',
-    model: 'E-Moto Model',
-    retrofitAssembler: 'Retrofit Assembler',
-    retailCost: next.isRetrofit ? 'Retrofit Cost (RWF)' : 'Retail E-Moto Price (RWF)',
-    loanAmount: 'Total Contract Repayment Amount (RWF)',
-    loanTerm: 'Contract Term (months)',
-    repaymentFrequency: 'Repayment Frequency',
-    monthlyRepayment: 'Repayment Amount (RWF)',
-  };
-  const label = labelForKey[key];
+  const label = fieldLabelForKey(key, next.isRetrofit);
   if (label && next.missingFields?.length) {
     next.missingFields = next.missingFields.filter((f) => f !== label && !f.toLowerCase().includes(key.toLowerCase()));
   }
@@ -274,6 +280,7 @@ export function RebateApplicationDetailsPage({
 }: RebateApplicationDetailsPageProps) {
   const isProposalReview = variant === 'proposal-review';
   const isUnfinished = data.status === 'unfinished';
+  const isRejected = data.status === 'rejected';
   const canEditDocs = isProposalReview || isUnfinished;
   const canFillMissing = canEditDocs;
 
@@ -362,6 +369,7 @@ export function RebateApplicationDetailsPage({
       toast.error('Choose a file to upload.');
       return;
     }
+    const wasFlagged = !!record.rejectedDocuments?.includes(docModal.key);
     setDocStatus((prev) => ({ ...prev, [docModal.key]: true }));
     let next = { ...record };
     if (docModal.key === 'affidavit') next = { ...next, affidavitUploaded: true };
@@ -380,8 +388,16 @@ export function RebateApplicationDetailsPage({
         ),
       };
     }
+    if (next.rejectedDocuments?.includes(docModal.key)) {
+      next = {
+        ...next,
+        rejectedDocuments: next.rejectedDocuments.filter((k) => k !== docModal.key),
+      };
+    }
     persistRecord(next);
-    toast.success(`${docModal.label} uploaded`, { description: docFileName });
+    toast.success(wasFlagged ? `${docModal.label} replaced` : `${docModal.label} uploaded`, {
+      description: docFileName,
+    });
     setDocModal(null);
     setDocFileName('');
   };
@@ -439,13 +455,6 @@ export function RebateApplicationDetailsPage({
   const mandatoryDocs: DocRow[] = [
     { key: 'signedLease', label: DOC_NAMES.signedFinancingAgreement, mandatory: true },
     {
-      key: 'affidavit',
-      label: DOC_NAMES.notarizedAffidavit,
-      mandatory: true,
-      hasTemplate: true,
-      templateName: DOC_TEMPLATE_FILES.notarizedAffidavit,
-    },
-    {
       key: 'afFinancialNeed',
       label: DOC_NAMES.afConfirmationFinancialNeed,
       mandatory: true,
@@ -472,6 +481,13 @@ export function RebateApplicationDetailsPage({
   ];
 
   const optionalDocs: DocRow[] = [
+    {
+      key: 'affidavit',
+      label: DOC_NAMES.notarizedAffidavit,
+      optional: true,
+      hasTemplate: true,
+      templateName: DOC_TEMPLATE_FILES.notarizedAffidavit,
+    },
     {
       key: 'possessionConfirmation',
       label: DOC_NAMES.possessionStatement,
@@ -527,14 +543,22 @@ export function RebateApplicationDetailsPage({
     {
       key: 'loanAmount',
       label: 'Total Contract Repayment Amount (RWF)',
-      optional: true,
+      required: !isMarketingAgent,
+      optional: isMarketingAgent,
       kind: 'number',
     },
-    { key: 'loanTerm', label: 'Contract Term (months)', optional: true, kind: 'text' },
+    {
+      key: 'loanTerm',
+      label: 'Contract Term (months)',
+      required: !isMarketingAgent,
+      optional: isMarketingAgent,
+      kind: 'text',
+    },
     {
       key: 'repaymentFrequency',
       label: 'Repayment Frequency',
-      optional: true,
+      required: !isMarketingAgent,
+      optional: isMarketingAgent,
       kind: 'select',
       selectOptions: [
         { value: 'daily', label: 'Daily' },
@@ -542,7 +566,13 @@ export function RebateApplicationDetailsPage({
         { value: 'monthly', label: 'Monthly' },
       ],
     },
-    { key: 'monthlyRepayment', label: 'Repayment Amount (RWF)', optional: true, kind: 'number' },
+    {
+      key: 'monthlyRepayment',
+      label: 'Repayment Amount (RWF)',
+      required: !isMarketingAgent,
+      optional: isMarketingAgent,
+      kind: 'number',
+    },
   ];
 
   const displayValue = (field: FieldDef) => {
@@ -598,7 +628,7 @@ export function RebateApplicationDetailsPage({
         <FieldLabel as="span" required={field.required} optional={field.optional} className="mb-1">
           {field.label}
         </FieldLabel>
-        <div className="min-h-8 flex items-center">
+        <div className="min-h-8 flex items-center gap-2">
           {missing && canFillMissing ? (
             <AddMissingButton
               onClick={() => openFieldModal(field)}
@@ -608,6 +638,19 @@ export function RebateApplicationDetailsPage({
             <span className="inline-flex items-center rounded-md bg-[#023F40]/10 px-2 py-1 text-xs font-medium text-[#023F40] ring-1 ring-inset ring-[#023F40]/20">
               Missing
             </span>
+          ) : isRejected ? (
+            <>
+              <p className="font-medium text-gray-900">{value || '—'}</p>
+              <button
+                type="button"
+                onClick={() => openFieldModal(field)}
+                aria-label={`Edit ${field.label}`}
+                title={`Edit ${field.label}`}
+                className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-gray-300 bg-white text-gray-600 hover:border-[#023F40] hover:text-[#023F40] transition-colors"
+              >
+                <Pencil className="h-3 w-3" strokeWidth={2.5} />
+              </button>
+            </>
           ) : (
             <p className="font-medium text-gray-900">{value || '—'}</p>
           )}
@@ -637,10 +680,16 @@ export function RebateApplicationDetailsPage({
 
   const renderDocRow = (doc: DocRow) => {
     const uploaded = !!docStatus[doc.key];
+    const flagged = isRejected && !!record.rejectedDocuments?.includes(doc.key);
     return (
-      <div key={doc.key} className="flex items-center gap-4 p-3 rounded-lg border bg-white">
+      <div
+        key={doc.key}
+        className={`flex items-center gap-4 p-3 rounded-lg border bg-white ${flagged ? 'border-red-300 bg-red-50/40' : ''}`}
+      >
         <div className="flex-shrink-0">
-          {uploaded ? (
+          {flagged ? (
+            <AlertCircle className="w-5 h-5 text-red-600" />
+          ) : uploaded ? (
             <CheckCircle2 className="w-5 h-5 text-green-600" />
           ) : (
             <FileText className="w-5 h-5 text-gray-500" />
@@ -654,6 +703,9 @@ export function RebateApplicationDetailsPage({
               <span className="text-xs text-gray-500 ml-2">(optional — can be submitted later)</span>
             ) : null}
           </p>
+          {flagged && (
+            <p className="text-xs text-red-700 mt-0.5">Flagged by RGF — replace this document.</p>
+          )}
         </div>
         <div className="flex-shrink-0 flex items-center gap-2">
           {doc.hasTemplate && (canEditDocs || !uploaded) ? (
@@ -668,21 +720,41 @@ export function RebateApplicationDetailsPage({
               Template
             </Button>
           ) : null}
-          {uploaded ? (
+          {uploaded && (
             <Button size="sm" variant="outline" onClick={() => openDocument(doc.label)}>
               <Eye className="w-3.5 h-3.5 mr-1" />
               View
             </Button>
-          ) : canFillMissing ? (
+          )}
+          {flagged ? (
+            <Button
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => openDocModal(doc)}
+            >
+              <Upload className="w-3.5 h-3.5 mr-1" />
+              Replace
+            </Button>
+          ) : isRejected && uploaded ? (
+            <button
+              type="button"
+              onClick={() => openDocModal(doc)}
+              aria-label={`Replace ${doc.label}`}
+              title={`Replace ${doc.label}`}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-gray-300 bg-white text-gray-600 hover:border-[#023F40] hover:text-[#023F40] transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </button>
+          ) : !uploaded && (canFillMissing || isRejected) ? (
             <Button size="sm" variant="outline" onClick={() => openDocModal(doc)}>
               <Upload className="w-3.5 h-3.5 mr-1" />
               Add file
             </Button>
-          ) : (
+          ) : !uploaded ? (
             <span className="inline-flex items-center rounded-md bg-[#023F40]/10 px-2 py-1 text-xs font-medium text-[#023F40] ring-1 ring-inset ring-[#023F40]/20">
               Missing
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -693,9 +765,17 @@ export function RebateApplicationDetailsPage({
     : 'Details on Individual Rebates';
   const pageSubtitle = isProposalReview
     ? 'This page provides details on individual rebates that your marketing Rebate Team members and external designated agents have developed for your consideration. If the proposed individual meets financing and rebate eligibility requirements, please add the missing mandatory information and documents and submit to RGF.'
-    : 'This page provides details on individual rebates. Please add any missing mandatory information and documents for rebates in your pipeline before submitting to RGF.';
+    : isMarketingAgent
+      ? 'This page provides details on individual rebates. Please add any missing mandatory information and documents for rebates in your pipeline before submitting to your Asset Financier.'
+      : 'This page provides details on individual rebates. Please add any missing mandatory information and documents for rebates in your pipeline before submitting to RGF.';
 
-  const showBottomActions = isUnfinished || isProposalReview;
+  const allDocRows: DocRow[] = [...identityDocs, ...mandatoryDocs, ...retrofitDocs, ...optionalDocs];
+  const flaggedDocLabels = (record.rejectedDocuments || []).map(
+    (key) => allDocRows.find((d) => d.key === key)?.label || key
+  );
+  const hasUnresolvedRejectionItems = (record.rejectedDocuments?.length || 0) > 0;
+
+  const showBottomActions = isUnfinished || isProposalReview || isRejected;
 
   return (
     <div className="space-y-6">
@@ -712,6 +792,30 @@ export function RebateApplicationDetailsPage({
         <p className="text-gray-600 mt-1 text-sm">{pageSubtitle}</p>
         <p className="text-sm text-red-700 mt-2">Status: {AF_STATUS_DISPLAY[record.status]}</p>
       </div>
+
+      {isRejected && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-2">
+          <p className="text-sm font-semibold text-red-900 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            RGF rejected this rebate
+          </p>
+          {record.rejectionReason && (
+            <p className="text-sm text-red-800">"{record.rejectionReason}"</p>
+          )}
+          <p className="text-sm text-red-800">
+            Use the <Pencil className="h-3 w-3 inline -mt-0.5" strokeWidth={2.5} /> icon to correct any
+            field or replace any document below.
+            {flaggedDocLabels.length > 0 && ' The document(s) below marked Flagged must be replaced before resubmitting.'}
+          </p>
+          {flaggedDocLabels.length > 0 && (
+            <ul className="list-disc pl-5 text-sm text-red-800 space-y-0.5">
+              {flaggedDocLabels.map((label) => (
+                <li key={`doc-${label}`}>{label} — replace this document below</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -775,7 +879,7 @@ export function RebateApplicationDetailsPage({
               <p className="text-sm font-medium text-amber-900 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 Some required information or documents are still missing. Use Add on each gap, then
-                Submit to RGF.
+                {isMarketingAgent ? ' Submit to AF.' : ' Submit to RGF.'}
               </p>
             </div>
           )}
@@ -907,12 +1011,34 @@ export function RebateApplicationDetailsPage({
             )}
           </div>
 
-          {showBottomActions && (
+          {showBottomActions && isRejected ? (
+            <div className="border-t pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-xs text-gray-500">
+                {hasUnresolvedRejectionItems
+                  ? 'Resolve every flagged item above before resubmitting to RGF.'
+                  : 'All flagged items are resolved. You can resubmit this rebate to RGF.'}
+              </p>
+              <Button
+                className="bg-[#0a7d4b] hover:bg-[#0c6b42] disabled:opacity-50"
+                disabled={hasUnresolvedRejectionItems}
+                onClick={() => {
+                  if (hasUnresolvedRejectionItems) {
+                    toast.error('Resolve all flagged fields and documents before resubmitting.');
+                    return;
+                  }
+                  onSubmitApplication?.(record);
+                  toast.success('Rebate resubmitted to RGF');
+                }}
+              >
+                Resubmit to RGF
+              </Button>
+            </div>
+          ) : showBottomActions ? (
             <div className="border-t pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <p className="text-xs text-gray-500">
                 {hasMandatoryGaps
-                  ? 'Complete every required Add item above before submitting to RGF.'
-                  : 'All mandatory items are complete. You can submit this rebate to RGF.'}
+                  ? `Complete every required Add item above before submitting to ${isMarketingAgent ? 'AF' : 'RGF'}.`
+                  : `All mandatory items are complete. You can submit this rebate to ${isMarketingAgent ? 'your Asset Financier' : 'RGF'}.`}
               </p>
               <Button
                 className="bg-[#0a7d4b] hover:bg-[#0c6b42] disabled:opacity-50"
@@ -923,13 +1049,13 @@ export function RebateApplicationDetailsPage({
                     return;
                   }
                   onSubmitApplication?.(record);
-                  toast.success('Rebate submitted to RGF');
+                  toast.success(isMarketingAgent ? 'Rebate submitted to AF' : 'Rebate submitted to RGF');
                 }}
               >
-                Submit to RGF
+                {isMarketingAgent ? 'Submit to AF' : 'Submit to RGF'}
               </Button>
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

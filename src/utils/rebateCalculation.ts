@@ -82,6 +82,15 @@ export function getRebateEligibilityLabel(options: RebateRateOptions): string {
   return `Rebate percent for ${category}: ${percent} of ${priceBasis}`;
 }
 
+/** Standardizes any stored gender representation (Male/Female, M/W, etc.) to the display label "Man"/"Woman". */
+export function formatGenderLabel(gender?: string): string {
+  if (!gender) return '—';
+  const normalized = gender.trim().toLowerCase();
+  if (['female', 'woman', 'w', 'f'].includes(normalized)) return 'Woman';
+  if (['male', 'man', 'm'].includes(normalized)) return 'Man';
+  return gender;
+}
+
 export function generateTicketPreview(): string {
   const seq = Math.floor(Math.random() * 900) + 100;
   return `REB-${seq}`;

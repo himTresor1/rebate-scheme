@@ -1,8 +1,12 @@
 import { DOC_NAMES, DOC_TEMPLATE_FILES } from './documentNames';
+import { formatDisplayDate } from './dateFormat';
+import { getRebatePercent } from './rebateCalculation';
+import { ReportColumn } from './reportExport';
 
 export type AfRebateStatus =
   | 'unfinished'
   | 'submitted-not-approved'
+  | 'rejected'
   | 'approved-lacking-possession'
   | 'approved-disbursed';
 
@@ -24,7 +28,7 @@ export interface AfRebateRecord {
   nationalId: string;
   dateOfBirth: string;
   motoLicense: string;
-  gender: 'Male' | 'Female';
+  gender: 'Man' | 'Woman';
   isWoman: boolean;
   vehicleType: 'New E-Moto' | 'Retrofit';
   isRetrofit: boolean;
@@ -46,11 +50,16 @@ export interface AfRebateRecord {
   monthlyRepayment?: number;
   tin?: string;
   missingFields?: string[];
+  /** RGF's free-text explanation for why this rebate was rejected (no per-field detail is captured). */
+  rejectionReason?: string;
+  /** Keys of uploaded documents QA explicitly marked rejected (see DocRow.key) — the only part of a rejection that's tracked per-item. */
+  rejectedDocuments?: string[];
 }
 
 export const AF_STATUS_DISPLAY: Record<AfRebateStatus, string> = {
   unfinished: 'In your Pipeline – Not yet submitted to RGF',
   'submitted-not-approved': 'Submitted to RGF but not Approved',
+  rejected: 'Rejected by RGF – Needs Correction',
   'approved-lacking-possession': 'Approved but lacking E-Moto Possession',
   'approved-disbursed': 'Disbursement Authorized',
 };
@@ -116,7 +125,7 @@ export function formDataToUnfinishedRecord(
     nationalId: formData.nationalId,
     dateOfBirth: formData.dateOfBirth,
     motoLicense: formData.driversLicense,
-    gender: isWoman ? 'Female' : 'Male',
+    gender: isWoman ? 'Woman' : 'Man',
     isWoman,
     vehicleType: formData.isRetrofit ? 'Retrofit' : 'New E-Moto',
     isRetrofit: formData.isRetrofit,
@@ -204,7 +213,7 @@ export const AF_METRIC_REPORT_TITLES: Record<AfMetricCategory, string> = {
 };
 
 export function getPipelineRecords(records: AfRebateRecord[]): AfRebateRecord[] {
-  return records.filter((r) => r.status === 'unfinished');
+  return records.filter((r) => r.status === 'unfinished' || r.status === 'rejected');
 }
 
 export function getPipelineSummary(records: AfRebateRecord[]) {
@@ -243,7 +252,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '',
     dateOfBirth: '',
     motoLicense: '',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -276,7 +285,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780012345678',
     dateOfBirth: '1992-03-14',
     motoLicense: 'DL-2024-1022',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -291,6 +300,33 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     iceAgreementUploaded: false,
   },
   {
+    ticketNumber: 'AF-BOK-101R',
+    submittedBy: 'Grace Mukandori',
+    submittedAt: '2026-06-20',
+    firstName: 'Diane',
+    lastName: 'Mukamana',
+    nationalId: '1198780055667788',
+    dateOfBirth: '1994-09-02',
+    motoLicense: 'DL-2024-3390',
+    gender: 'Woman',
+    isWoman: true,
+    vehicleType: 'New E-Moto',
+    isRetrofit: false,
+    supplier: 'Ampersand',
+    model: 'AMP-E2',
+    phoneNumber: '0788445566',
+    retailCost: 2900000,
+    rebateAmount: 522000,
+    status: 'rejected',
+    supportingDocuments: [DOC_NAMES.signedFinancingAgreement],
+    affidavitUploaded: true,
+    afFinancialNeedUploaded: true,
+    iceAgreementUploaded: false,
+    rejectionReason:
+      'The retail price does not match the supplier invoice on file, and the signed financing agreement is missing a page. Please correct the price and re-upload the agreement.',
+    rejectedDocuments: ['signedLease'],
+  },
+  {
     ticketNumber: 'AF-BOK-102',
     submittedBy: 'Kevin Agent',
     submittedAt: '2026-05-08',
@@ -299,7 +335,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780098765432',
     dateOfBirth: '1998-11-22',
     motoLicense: 'DL-2023-8831',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'Retrofit',
     isRetrofit: true,
@@ -331,7 +367,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780033333333',
     dateOfBirth: '1995-07-08',
     motoLicense: 'DL-2025-4201',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -354,7 +390,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780044444444',
     dateOfBirth: '1990-01-30',
     motoLicense: 'DL-2022-7710',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'Retrofit',
     isRetrofit: true,
@@ -378,7 +414,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780055555555',
     dateOfBirth: '1997-09-12',
     motoLicense: 'DL-2024-3301',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -401,7 +437,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780066666666',
     dateOfBirth: '1993-12-05',
     motoLicense: 'DL-2023-1190',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -425,7 +461,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780099999999',
     dateOfBirth: '1994-02-18',
     motoLicense: 'DL-2024-5501',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -449,7 +485,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780011111111',
     dateOfBirth: '1989-11-03',
     motoLicense: 'DL-2023-4402',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'Retrofit',
     isRetrofit: true,
@@ -474,7 +510,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780022222222',
     dateOfBirth: '1996-08-27',
     motoLicense: 'DL-2025-1108',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -498,7 +534,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780033333334',
     dateOfBirth: '1991-05-14',
     motoLicense: 'DL-2024-7788',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -522,7 +558,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780077777777',
     dateOfBirth: '1996-04-17',
     motoLicense: 'DL-2021-5522',
-    gender: 'Female',
+    gender: 'Woman',
     isWoman: true,
     vehicleType: 'Retrofit',
     isRetrofit: true,
@@ -546,7 +582,7 @@ export const AF_MOCK_REBATE_RECORDS: AfRebateRecord[] = [
     nationalId: '1198780088888888',
     dateOfBirth: '1991-08-03',
     motoLicense: 'DL-2024-9012',
-    gender: 'Male',
+    gender: 'Man',
     isWoman: false,
     vehicleType: 'New E-Moto',
     isRetrofit: false,
@@ -584,3 +620,52 @@ export const AF_DOCUMENT_TEMPLATES = [
     file: DOC_TEMPLATE_FILES.retrofitSuitability!,
   },
 ];
+
+const AF_REBATE_REPORT_COLUMNS: ReportColumn[] = [
+  { header: 'Ticket No.', key: 'ticketNumber' },
+  { header: 'Originated by NAME (AF designated person)', key: 'submittedBy' },
+  { header: 'Date of Origination', key: 'submittedAt' },
+  { header: 'Applicant First Name(s)', key: 'firstName' },
+  { header: 'Applicant Last Name(s)', key: 'lastName' },
+  { header: 'National ID', key: 'nationalId' },
+  { header: 'DOB', key: 'dateOfBirth' },
+  { header: 'Moto License', key: 'motoLicense' },
+  { header: 'Gender', key: 'gender' },
+  { header: 'Vehicle Type', key: 'vehicleType' },
+  { header: 'E-Moto Provider', key: 'supplier' },
+  { header: 'Retrofit Assembler', key: 'retrofitAssembler' },
+  { header: 'Retail Cost of E-Moto (RWF)', key: 'retailCost' },
+  { header: 'Rebate Amount (RWF)', key: 'rebateAmount' },
+  { header: 'Rebate Percentage (%)', key: 'rebatePercent' },
+];
+
+const AF_REBATE_REPORT_COLUMNS_WITH_STATUS: ReportColumn[] = [
+  ...AF_REBATE_REPORT_COLUMNS,
+  { header: 'Status', key: 'status' },
+];
+
+/** Builds the full column/row set for an AfRebateRecord report export — every field the on-screen table shows. */
+export function afRebateRowsForExport(rows: AfRebateRecord[], showStatus = false) {
+  const reportRows = rows.map((r) => ({
+    ticketNumber: r.ticketNumber,
+    submittedBy: r.submittedBy,
+    submittedAt: formatDisplayDate(r.submittedAt),
+    firstName: r.firstName || '',
+    lastName: r.lastName || '',
+    nationalId: r.nationalId || '',
+    dateOfBirth: formatDisplayDate(r.dateOfBirth),
+    motoLicense: r.motoLicense || '',
+    gender: r.gender,
+    vehicleType: r.vehicleType,
+    supplier: r.supplier || '',
+    retrofitAssembler: r.isRetrofit ? r.retrofitAssembler || '' : '',
+    retailCost: r.retailCost,
+    rebateAmount: r.rebateAmount,
+    rebatePercent: getRebatePercent({ isWoman: r.isWoman, isRetrofit: r.isRetrofit }),
+    status: AF_STATUS_DISPLAY[r.status],
+  }));
+  return {
+    columns: showStatus ? AF_REBATE_REPORT_COLUMNS_WITH_STATUS : AF_REBATE_REPORT_COLUMNS,
+    rows: reportRows,
+  };
+}

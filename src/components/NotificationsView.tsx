@@ -12,16 +12,12 @@ import {
   DollarSign,
   Clock,
   XCircle,
-  Check,
-  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDisplayDate } from '../utils/dateFormat';
 import {
   AppNotification,
-  deleteUserNotification,
   getNotificationsForUser,
-  markAllNotificationsRead,
   markNotificationRead,
   NOTIFICATIONS_CHANGED_EVENT,
 } from '../utils/notifications';
@@ -89,16 +85,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
     toast.success('Marked as read');
   };
 
-  const markAllAsRead = () => {
-    markAllNotificationsRead(user);
-    toast.success('All notifications marked as read');
-  };
-
-  const deleteNotification = (notifId: string) => {
-    deleteUserNotification(user, notifId);
-    toast.success('Notification deleted');
-  };
-
   const filteredNotifications =
     filter === 'unread' ? notifications.filter((n) => !n.read) : notifications;
 
@@ -117,17 +103,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
           <Badge variant="outline" className="text-[#023F40] border-[#023F40]">
             {unreadCount} Unread
           </Badge>
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={markAllAsRead}
-              className="text-[#023F40] hover:bg-[#023F40]/10"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Mark All Read
-            </Button>
-          )}
         </div>
       </div>
 
@@ -201,13 +176,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                             title="Unread"
                           />
                         )}
-                        <button
-                          onClick={() => deleteNotification(notification.id)}
-                          className="text-gray-400 hover:text-red-600 transition-colors"
-                          title="Delete notification"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                     <p
@@ -223,16 +191,6 @@ export function NotificationsView({ user, onAction }: NotificationsViewProps) {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {!notification.read && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={() => markAsRead(notification.id)}
-                          >
-                            Mark read
-                          </Button>
-                        )}
                         {notification.actionable && (
                           <Button
                             size="sm"

@@ -174,13 +174,22 @@ export function SubmitApplicationForm({
     if (formData.isRetrofit && !formData.retrofitCost) missing.push('Retrofit Cost (RWF)');
     if (!formData.isRetrofit && !formData.purchasePrice) missing.push('Retail E-Moto Price (RWF)');
 
+    if (!isAfProposal) {
+      // AF: contract/financing fields are mandatory. Marketing agents can leave these
+      // for the AF to fill in when they review the proposal.
+      if (!formData.loanAmount) missing.push('Total Contract Repayment Amount (RWF)');
+      if (!formData.loanTerm) missing.push('Contract Term (months)');
+      if (!formData.repaymentFrequency) missing.push('Repayment Frequency');
+      if (!formData.monthlyRepayment) missing.push('Repayment Amount (RWF)');
+    }
+
     // Identity doc uploads (required for both modes)
     if (!formData.identityDocuments?.nationalIdDoc?.uploaded) missing.push(DOC_NAMES.nationalIdCopy);
     if (!formData.identityDocuments?.driversLicenseDoc?.uploaded) missing.push(DOC_NAMES.motorcycleDriversLicense);
 
     if (isAfProposal) {
       // Marketing agent: no signed lease / AF confirmation required
-      // Affidavit is optional ("can be submitted later")
+      // Affidavit is optional (never required for submission)
       if (formData.isRetrofit && !formData.documents?.retrofitSuitability?.uploaded) {
         missing.push(DOC_NAMES.retrofitSuitability);
       }
@@ -188,9 +197,8 @@ export function SubmitApplicationForm({
         missing.push(DOC_NAMES.iceEngineDisposal);
       }
     } else {
-      // AF: require full AF document set
+      // AF: require full AF document set. Affidavit is optional — can be submitted later.
       if (!formData.documents?.signedLease?.uploaded) missing.push(DOC_NAMES.signedFinancingAgreement);
-      if (!formData.documents?.affidavit?.uploaded) missing.push(DOC_NAMES.notarizedAffidavit);
       if (!formData.documents?.afFinancialNeed?.uploaded) {
         missing.push(DOC_NAMES.afConfirmationFinancialNeed);
       }
@@ -510,7 +518,9 @@ export function SubmitApplicationForm({
             isAfProposal={isAfProposal}
           />
         )}
-        {currentStep === 'vehicle' && <VehicleStep formData={formData} setFormData={setFormData} />}
+        {currentStep === 'vehicle' && (
+          <VehicleStep formData={formData} setFormData={setFormData} isAfProposal={isAfProposal} />
+        )}
         {currentStep === 'documents' && (
           <DocumentsStep
             isRetrofit={formData.isRetrofit}
@@ -807,7 +817,15 @@ function IdentityStep({
 
 
 
-function VehicleStep({ formData, setFormData }: { formData: any, setFormData: any }) {
+function VehicleStep({
+  formData,
+  setFormData,
+  isAfProposal,
+}: {
+  formData: any;
+  setFormData: any;
+  isAfProposal: boolean;
+}) {
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Step 3: Specify vehicle and costs</h3>
@@ -886,7 +904,9 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               />
             </div>
             <div>
-              <FieldLabel optional>Total Contract Repayment Amount (RWF)</FieldLabel>
+              <FieldLabel required={!isAfProposal} optional={isAfProposal}>
+                Total Contract Repayment Amount (RWF)
+              </FieldLabel>
               <Input
                 type="number"
                 placeholder="2,550,000"
@@ -923,7 +943,9 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <FieldLabel optional>Contract Term (months)</FieldLabel>
+              <FieldLabel required={!isAfProposal} optional={isAfProposal}>
+                Contract Term (months)
+              </FieldLabel>
               <Input
                 type="number"
                 min="1"
@@ -938,7 +960,9 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
               />
             </div>
             <div>
-              <FieldLabel optional>Repayment Frequency</FieldLabel>
+              <FieldLabel required={!isAfProposal} optional={isAfProposal}>
+                Repayment Frequency
+              </FieldLabel>
               <Select 
                 value={formData.repaymentFrequency || 'daily'}
                 onValueChange={(value: string) => setFormData({ ...formData, repaymentFrequency: value })}
@@ -957,7 +981,9 @@ function VehicleStep({ formData, setFormData }: { formData: any, setFormData: an
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <FieldLabel optional>Repayment Amount (RWF)</FieldLabel>
+              <FieldLabel required={!isAfProposal} optional={isAfProposal}>
+                Repayment Amount (RWF)
+              </FieldLabel>
               <Input
                 type="number"
                 placeholder="4,167"
@@ -1193,9 +1219,9 @@ function MarketingDocumentsSection({
           )}
         </div>
 
-        {/* Mandatory — can submit later */}
+        {/* Optional — can submit later */}
         <div className="border-t pt-4">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Mandatory document that can be submitted later</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Optional — can be submitted later</p>
           <div className="space-y-2">
             {renderDocRow('affidavit', DOC_NAMES.notarizedAffidavit, {
               template: DOC_TEMPLATE_FILES.notarizedAffidavit,
@@ -1439,7 +1465,8 @@ function ReviewStep({
               <SummaryRow
                 label="Total Contract Repayment Amount (RWF)"
                 value={formatRwf(formData.loanAmount)}
-                optional
+                required={!isAfProposal}
+                optional={isAfProposal}
               />
               <SummaryRow
                 label="Rebate Amount (RWF) — auto-calculated"
@@ -1455,13 +1482,20 @@ function ReviewStep({
               <SummaryRow
                 label="Contract Term (months)"
                 value={display(formData.loanTerm)}
-                optional
+                required={!isAfProposal}
+                optional={isAfProposal}
               />
-              <SummaryRow label="Repayment Frequency" value={repaymentFrequencyLabel} optional />
+              <SummaryRow
+                label="Repayment Frequency"
+                value={repaymentFrequencyLabel}
+                required={!isAfProposal}
+                optional={isAfProposal}
+              />
               <SummaryRow
                 label="Repayment Amount (RWF)"
                 value={formatRwf(formData.monthlyRepayment)}
-                optional
+                required={!isAfProposal}
+                optional={isAfProposal}
               />
             </div>
           </div>
@@ -1476,7 +1510,6 @@ function ReviewStep({
                   { label: DOC_NAMES.signedFinancingAgreement, uploaded: !!formData.documents?.signedLease?.uploaded },
                   { label: DOC_NAMES.afConfirmationFinancialNeed, uploaded: !!formData.documents?.afFinancialNeed?.uploaded },
                 ] : []),
-                { label: DOC_NAMES.notarizedAffidavit, uploaded: !!formData.documents?.affidavit?.uploaded },
                 ...(formData.isRetrofit
                   ? [
                       { label: DOC_NAMES.retrofitSuitability, uploaded: !!formData.documents?.retrofitSuitability?.uploaded },
@@ -1497,15 +1530,27 @@ function ReviewStep({
 
             <div className="mt-4 pt-3 border-t border-gray-200">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Optional (can be submitted later)</p>
-              <div className="flex items-center gap-2 text-sm">
-                {formData.documents?.possessionConfirmation?.uploaded ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                ) : (
-                  <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
-                )}
-                <span className={formData.documents?.possessionConfirmation?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
-                  {DOC_NAMES.possessionStatement}
-                </span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-sm">
+                  {formData.documents?.affidavit?.uploaded ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
+                  )}
+                  <span className={formData.documents?.affidavit?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
+                    {DOC_NAMES.notarizedAffidavit}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  {formData.documents?.possessionConfirmation?.uploaded ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" />
+                  )}
+                  <span className={formData.documents?.possessionConfirmation?.uploaded ? 'text-gray-700' : 'text-gray-500'}>
+                    {DOC_NAMES.possessionStatement}
+                  </span>
+                </div>
               </div>
             </div>
 

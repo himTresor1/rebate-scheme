@@ -110,7 +110,13 @@ export function AssetFinancierAdminDashboard({
     setPipelineRecords((prev) =>
       prev.map((r) =>
         r.ticketNumber === ticketNumber
-          ? { ...r, status: 'submitted-not-approved' as const, missingFields: [] }
+          ? {
+              ...r,
+              status: 'submitted-not-approved' as const,
+              missingFields: [],
+              rejectionReason: undefined,
+              rejectedDocuments: [],
+            }
           : r
       )
     );
@@ -193,11 +199,15 @@ export function AssetFinancierAdminDashboard({
         {currentPage === 'notifications' ? (
           <NotificationsView
             user={user}
-            onAction={(data) => {
+            onAction={(data: any) => {
               if (data.type === 'open-application') {
                 setTargetAppId(data.appId);
                 setActiveTab('applications');
                 onNavigate('applications');
+              }
+              if (data.type === 'open-possession') {
+                setActiveTab('possession');
+                onNavigate('possession');
               }
             }}
           />
@@ -414,10 +424,12 @@ export function AssetFinancierAdminDashboard({
             initialCategory={reportCategory}
             records={pipelineRecords}
             onDetailOpenChange={setHideHeaderActions}
+            isMarketingAgent={isMarketingAgent}
+            currentUserName={user.name}
           />
         )}
         {activeTab === 'af-templates' && currentPage === 'af-templates' && <AfTemplatesView />}
-        {activeTab === 'possession' && currentPage === 'possession' && <PossessionConfirmationView />}
+        {activeTab === 'possession' && currentPage === 'possession' && <PossessionConfirmationView user={user} />}
         {activeTab === 'client-transfer' && currentPage === 'client-transfer' && (
           <ClientTransferForm organizationId={user.assetFinancierId || user.organizationId || user.id} />
         )}

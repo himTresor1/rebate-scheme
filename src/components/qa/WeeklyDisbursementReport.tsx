@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { Printer, Send } from 'lucide-react';
+import { FileText, Send } from 'lucide-react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { Textarea } from '../ui/textarea';
 import { matchesGenderFilter, matchesVehicleTypeFilter } from '../../utils/filterLabels';
 import { QA_DEFAULT_FILTER_VALUES, QaStandardFilters } from './QaStandardFilters';
+import { exportReportToExcel, exportReportToPdf, ReportColumn } from '../../utils/reportExport';
 
 const AF_CHART_COLORS = ['#023F40', '#6DB27F', '#047a7c', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
 
@@ -246,50 +247,70 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
           ? `Until ${formatDisplayDate(dateTo)}`
           : 'All dates';
 
+  const disbursementReportColumns: ReportColumn[] = [
+    { header: 'Ticket No.', key: 'ticket' },
+    { header: 'Applicant Name', key: 'applicant' },
+    { header: 'Gender', key: 'gender' },
+    { header: 'Retrofit', key: 'retrofit' },
+    { header: 'Asset Financier', key: 'af' },
+    { header: 'E-Moto Provider', key: 'provider' },
+    { header: 'Retrofit Assembler', key: 'assembler' },
+    { header: 'E-Moto Retail Cost (RWF)', key: 'retailCost' },
+    { header: 'Rebate Amount (RWF)', key: 'amount' },
+    { header: 'Rebate Percentage (%)', key: 'rebatePercent' },
+    { header: 'Date of AF Submission', key: 'afSubmittedAt' },
+    { header: 'Date of Rebate Team Verification', key: 'rebateVerifiedAt' },
+    { header: 'Date of QA Team Approval', key: 'qaApprovedAt' },
+  ];
+
+  const buildDisbursementReportRows = () =>
+    filteredRows.map((r) => ({
+      ticket: r.ticket,
+      applicant: r.applicant,
+      gender: r.woman ? 'Woman' : 'Man',
+      retrofit: r.retrofit ? 'Yes' : 'No',
+      af: r.af,
+      provider: r.provider,
+      assembler: r.assembler,
+      retailCost: r.retailCost,
+      amount: r.amount,
+      rebatePercent: r.rebatePercent,
+      afSubmittedAt: formatDisplayDate(r.afSubmittedAt),
+      rebateVerifiedAt: formatDisplayDate(r.rebateVerifiedAt),
+      qaApprovedAt: formatDisplayDate(r.qaApprovedAt),
+    }));
+
+  const CFO_SIGNATURE_LINES = [
+    'QA Team Lead — Name & Signature',
+    'Designated Finance Officer — Name & Signature',
+    'CFO / E-Moto Program Manager — Name & Signature',
+  ];
+
   const exportExcel = (withSignature: boolean) => {
-    const headers = [
-      'Ticket No.',
-      'Applicant Name',
-      'Woman',
-      'Retrofit',
-      'Asset Financier',
-      'E-Moto Provider',
-      'Retrofit Assembler',
-      'E-Moto Retail Cost (RWF)',
-      'Rebate Amount (RWF)',
-      'Rebate Percentage (%)',
-      'Date of AF Submission',
-      'Date of Rebate Team Verification',
-      'Date of QA Team Approval',
-    ];
-    const rows = filteredRows.map((r) => [
-      r.ticket,
-      r.applicant,
-      r.woman ? 'Yes' : 'No',
-      r.retrofit ? 'Yes' : 'No',
-      r.af,
-      r.provider,
-      r.assembler,
-      formatNumber(r.retailCost),
-      formatNumber(r.amount),
-      r.rebatePercent,
-      formatDisplayDate(r.afSubmittedAt),
-      formatDisplayDate(r.rebateVerifiedAt),
-      formatDisplayDate(r.qaApprovedAt),
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cfo_disbursement_request_${dateFrom}_${dateTo}${withSignature ? '_signature' : ''}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportReportToExcel({
+      filename: `cfo_disbursement_request_${dateFrom}_${dateTo}${withSignature ? '_signature' : ''}`,
+      title: `Request for CFO Disbursement Approval — ${dateRangeLabel}`,
+      columns: disbursementReportColumns,
+      rows: buildDisbursementReportRows(),
+    });
     toast.success('Excel disbursement report downloaded', {
       description: withSignature
         ? 'Include signature page when circulating for CFO approval.'
+        : 'Each AF can be sent their approved rebate list separately.',
+    });
+  };
+
+  const exportPdf = (withSignature: boolean) => {
+    exportReportToPdf({
+      filename: `cfo_disbursement_request_${dateFrom}_${dateTo}${withSignature ? '_signature' : ''}`,
+      title: `Request for CFO Disbursement Approval — ${dateRangeLabel}`,
+      columns: disbursementReportColumns,
+      rows: buildDisbursementReportRows(),
+      signatureLines: withSignature ? CFO_SIGNATURE_LINES : undefined,
+    });
+    toast.success('PDF disbursement report downloaded', {
+      description: withSignature
+        ? 'Signature page included for CFO approval.'
         : 'Each AF can be sent their approved rebate list separately.',
     });
   };
@@ -326,8 +347,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
       exportExcel(printWithSignature);
       return;
     }
-    toast.info(printWithSignature ? 'Opening PDF with signature page…' : 'Opening PDF print view…');
-    setTimeout(() => window.print(), 150);
+    exportPdf(printWithSignature);
   };
 
   if (mode === 'af-notification') {
@@ -517,7 +537,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
                   <th className="pb-2 pr-3 font-medium">Date of Rebate Team Verification</th>
                   <th className="pb-2 pr-3 font-medium">Date of QA Team Approval</th>
                   <th className="pb-2 pr-3 font-medium">Applicant Name</th>
-                  <th className="pb-2 pr-3 font-medium">Woman</th>
+                  <th className="pb-2 pr-3 font-medium">Gender</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit</th>
                   <th className="pb-2 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-2 pr-3 font-medium">E-Moto Provider</th>
@@ -535,7 +555,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
                     <td className="py-2 pr-3">{formatDisplayDate(r.rebateVerifiedAt)}</td>
                     <td className="py-2 pr-3">{formatDisplayDate(r.qaApprovedAt)}</td>
                     <td className="py-2 pr-3">{r.applicant}</td>
-                    <td className="py-2 pr-3">{r.woman ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">{r.woman ? 'Woman' : 'Man'}</td>
                     <td className="py-2 pr-3">{r.retrofit ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.af}</td>
                     <td className="py-2 pr-3">{r.provider}</td>
@@ -585,8 +605,8 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
               {submitted ? 'Resubmit to CFO' : 'Submit to CFO'}
             </Button>
             <Button variant="outline" onClick={openPrintDialog}>
-              <Printer className="w-4 h-4 mr-2" />
-              Print / Export Report
+              <FileText className="w-4 h-4 mr-2" />
+              Download Report
             </Button>
             {submitted && (
               <span className="text-sm text-[#6DB27F] font-medium">Submitted for CFO review</span>
@@ -669,10 +689,10 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
       <Dialog open={printOpen} onOpenChange={setPrintOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Print Approved Disbursement Report</DialogTitle>
+            <DialogTitle>Download Approved Disbursement Report</DialogTitle>
             <DialogDescription>
-              Labeled as rebates approved by the RGF Rebate QA Team. Date range appears at the top. Export PDF or
-              Excel; each AF can receive their approved list and amounts.
+              Labeled as rebates approved by the RGF Rebate QA Team. Date range appears at the top. Download as PDF
+              or Excel; each AF can receive their approved list and amounts.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -683,8 +703,8 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pdf">PDF (print)</SelectItem>
-                  <SelectItem value="excel">Excel (CSV)</SelectItem>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="excel">Excel (.xlsx)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -709,7 +729,7 @@ export function WeeklyDisbursementReport({ mode = 'cfo-authorization' }: WeeklyD
               Cancel
             </Button>
             <Button className="bg-[#6DB27F] hover:bg-[#5da170]" onClick={confirmPrint}>
-              Continue
+              Download
             </Button>
           </DialogFooter>
         </DialogContent>

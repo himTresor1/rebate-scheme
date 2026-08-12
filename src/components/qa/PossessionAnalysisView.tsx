@@ -1,11 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { ArrowLeft, Filter, Upload, Eye, X } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
+import { ArrowLeft, Filter, Eye, X, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer,
@@ -31,190 +40,91 @@ import {
   matchesVehicleTypeFilter,
   VEHICLE_TYPE_FILTER_OPTIONS,
 } from '../../utils/filterLabels';
+import { addNotificationForRoles } from '../../utils/notifications';
+import {
+  getPossessionRecords,
+  POSSESSION_CHANGED_EVENT,
+  PossessionStatementRecord,
+  resolvePossessionStatement,
+} from '../../utils/possessionStore';
+import { APPROVED_POSSESSION_CASES, ApprovedPossessionCase } from '../../utils/possessionCatalog';
 
-type PossessionStatus = 'awaiting-confirmation' | 'confirmation-submitted';
+type PossessionStatus = 'awaiting-confirmation' | 'pending-verification' | 'verified' | 'rejected';
 
-type PossessionAnalysisRow = {
-  ticketNumber: string;
-  assetFinancier: string;
-  submittedBy: string;
-  firstName: string;
-  lastName: string;
-  nationalId: string;
-  motoLicense: string;
-  isWoman: boolean;
-  isRetrofit: boolean;
-  retailCost: number;
-  rebateAmount: number;
-  supplier: string;
-  model: string;
-  retrofitAssembler: string;
-  supportingDocuments: string[];
-  affidavitUploaded: boolean;
-  iceAgreementUploaded: boolean | null; // null = N/A for new e-moto
-  possessionStatus: PossessionStatus;
-  phone?: string;
-  email?: string;
-  qaApprovedAt?: string;
-};
+type PossessionAnalysisRow = ApprovedPossessionCase;
 
-const MOCK_POSSESSION_ANALYSIS: PossessionAnalysisRow[] = [
-  {
-    ticketNumber: 'REB-001',
-    assetFinancier: 'Bank of Kigali',
-    submittedBy: 'Pamela Mugabe',
-    firstName: 'Jean Claude',
-    lastName: 'Ndayisaba',
-    nationalId: '1198780012345678',
-    motoLicense: 'DL-2024-1022',
-    isWoman: false,
-    isRetrofit: false,
-    retailCost: 830000,
-    rebateAmount: 150000,
-    supplier: 'Ampersand',
-    model: 'AMP-E2',
-    retrofitAssembler: 'N/A',
-    supportingDocuments: ['Signed financing contract', 'National ID'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: null,
-    possessionStatus: 'awaiting-confirmation',
-    phone: '+250-788-1001',
-    email: 'j.ndayisaba@example.rw',
-    qaApprovedAt: '2026-06-01',
-  },
-  {
-    ticketNumber: 'REB-002',
-    assetFinancier: 'Bboxx',
-    submittedBy: 'Claire Mukamana',
-    firstName: 'Grace',
-    lastName: 'Uwase',
-    nationalId: '1198780098765432',
-    motoLicense: 'DL-2023-8831',
-    isWoman: true,
-    isRetrofit: true,
-    retailCost: 800000,
-    rebateAmount: 200000,
-    supplier: 'Spiro',
-    model: 'SP-Retrofit',
-    retrofitAssembler: 'REM',
-    supportingDocuments: ['Retrofit suitability statement'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: true,
-    possessionStatus: 'awaiting-confirmation',
-    phone: '+250-788-1002',
-    email: 'g.uwase@example.rw',
-    qaApprovedAt: '2026-06-02',
-  },
-  {
-    ticketNumber: 'REB-005',
-    assetFinancier: 'Equity Bank',
-    submittedBy: 'James Uwizeye',
-    firstName: 'Marie Claire',
-    lastName: 'Uwimana',
-    nationalId: '1198780033333333',
-    motoLicense: 'DL-2025-4201',
-    isWoman: true,
-    isRetrofit: false,
-    retailCost: 750000,
-    rebateAmount: 187500,
-    supplier: 'Safi',
-    model: 'City',
-    retrofitAssembler: 'N/A',
-    supportingDocuments: ['AF confirmation of financial need'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: null,
-    possessionStatus: 'awaiting-confirmation',
-    phone: '+250-788-1003',
-    email: 'm.uwimana@example.rw',
-    qaApprovedAt: '2026-06-03',
-  },
-  {
-    ticketNumber: 'AF-BOK-1',
-    assetFinancier: 'Bank of Kigali',
-    submittedBy: 'Pamela Mugabe',
-    firstName: 'Patrick',
-    lastName: 'N',
-    nationalId: '1198780070707070',
-    motoLicense: 'DL-2024-5500',
-    isWoman: false,
-    isRetrofit: false,
-    retailCost: 3500000,
-    rebateAmount: 630000,
-    supplier: 'Ampersand',
-    model: 'Pro',
-    retrofitAssembler: 'N/A',
-    supportingDocuments: ['Signed financing contract', 'Mobile money statement'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: null,
-    possessionStatus: 'confirmation-submitted',
-    phone: '+250-788-1004',
-    email: 'patrick.n@example.rw',
-    qaApprovedAt: '2026-06-14',
-  },
-  {
-    ticketNumber: 'AF-EQB-12',
-    assetFinancier: 'Equity Bank',
-    submittedBy: 'Divine Agent',
-    firstName: 'Divine',
-    lastName: 'Mukamana',
-    nationalId: '1198780099999999',
-    motoLicense: 'DL-2024-6600',
-    isWoman: true,
-    isRetrofit: true,
-    retailCost: 2900000,
-    rebateAmount: 725000,
-    supplier: 'Rem',
-    model: 'Retrofit Kit',
-    retrofitAssembler: 'Safi',
-    supportingDocuments: ['ICE disposal agreement'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: true,
-    possessionStatus: 'awaiting-confirmation',
-    phone: '+250-788-1005',
-    email: 'd.mukamana@example.rw',
-    qaApprovedAt: '2026-06-05',
-  },
-  {
-    ticketNumber: 'AF-REM-8',
-    assetFinancier: 'REM',
-    submittedBy: 'Claire Mukamana',
-    firstName: 'Eric',
-    lastName: 'Habimana',
-    nationalId: '1198780044444444',
-    motoLicense: 'DL-2023-7700',
-    isWoman: false,
-    isRetrofit: true,
-    retailCost: 2800000,
-    rebateAmount: 560000,
-    supplier: 'Rem',
-    model: 'Retrofit Kit',
-    retrofitAssembler: 'Rem',
-    supportingDocuments: ['Retrofit suitability statement'],
-    affidavitUploaded: true,
-    iceAgreementUploaded: true,
-    possessionStatus: 'confirmation-submitted',
-    phone: '+250-788-1006',
-    email: 'e.habimana@example.rw',
-    qaApprovedAt: '2026-06-01',
-  },
-];
+const MOCK_POSSESSION_ANALYSIS: PossessionAnalysisRow[] = APPROVED_POSSESSION_CASES;
 
 function statusBadge(status: PossessionStatus) {
-  if (status === 'confirmation-submitted') {
-    return <Badge className="bg-green-100 text-green-800">Confirmation submitted</Badge>;
+  if (status === 'verified') {
+    return (
+      <Badge className="bg-green-100 text-green-800">
+        <CheckCircle2 className="w-3 h-3 mr-1" />
+        Confirmed
+      </Badge>
+    );
   }
-  return <Badge className="bg-amber-100 text-amber-800">Awaiting confirmation</Badge>;
+  if (status === 'pending-verification') {
+    return <Badge className="bg-blue-100 text-blue-800">Awaiting your review</Badge>;
+  }
+  if (status === 'rejected') {
+    return (
+      <Badge className="bg-red-100 text-red-800">
+        <XCircle className="w-3 h-3 mr-1" />
+        Rejected
+      </Badge>
+    );
+  }
+  return <Badge className="bg-amber-100 text-amber-800">Awaiting AF submission</Badge>;
 }
 
-export function PossessionAnalysisView() {
-  const [rows, setRows] = useState(MOCK_POSSESSION_ANALYSIS);
+interface PossessionAnalysisViewProps {
+  currentUserName?: string;
+  autoOpenTicket?: string | null;
+  onAutoOpenHandled?: () => void;
+}
+
+export function PossessionAnalysisView({
+  currentUserName = 'RGF Rebate Team',
+  autoOpenTicket,
+  onAutoOpenHandled,
+}: PossessionAnalysisViewProps = {}) {
+  const [rows] = useState(MOCK_POSSESSION_ANALYSIS);
+  const [submissions, setSubmissions] = useState<Record<string, PossessionStatementRecord>>(() =>
+    getPossessionRecords()
+  );
   const [query, setQuery] = useState('');
   const [filterAf, setFilterAf] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterGender, setFilterGender] = useState('all');
   const [filterVehicleType, setFilterVehicleType] = useState('all');
   const [selected, setSelected] = useState<PossessionAnalysisRow | null>(null);
-  const [uploadFileName, setUploadFileName] = useState('');
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
+  const [acceptComment, setAcceptComment] = useState('');
+
+  useEffect(() => {
+    const sync = () => setSubmissions(getPossessionRecords());
+    sync();
+    window.addEventListener(POSSESSION_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(POSSESSION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!autoOpenTicket) return;
+    const row = rows.find((r) => r.ticketNumber === autoOpenTicket);
+    if (row) {
+      setSelected(row);
+      onAutoOpenHandled?.();
+    }
+  }, [autoOpenTicket, rows, onAutoOpenHandled]);
+
+  const statusFor = (ticketNumber: string): PossessionStatus =>
+    submissions[ticketNumber]?.status || 'awaiting-confirmation';
 
   const financiers = useMemo(
     () => Array.from(new Set(rows.map((r) => r.assetFinancier))).sort(),
@@ -245,17 +155,19 @@ export function PossessionAnalysisView() {
         return false;
       }
       if (filterAf !== 'all' && r.assetFinancier !== filterAf) return false;
-      if (filterStatus !== 'all' && r.possessionStatus !== filterStatus) return false;
+      if (filterStatus !== 'all' && statusFor(r.ticketNumber) !== filterStatus) return false;
       if (!matchesGenderFilter(r.isWoman, filterGender)) return false;
       if (!matchesVehicleTypeFilter(r.isRetrofit, filterVehicleType)) return false;
       return true;
     });
-  }, [rows, query, filterAf, filterStatus, filterGender, filterVehicleType]);
+  }, [rows, query, filterAf, filterStatus, filterGender, filterVehicleType, submissions]);
 
-  const awaitingCount = rows.filter((r) => r.possessionStatus === 'awaiting-confirmation').length;
-  const submittedCount = rows.filter((r) => r.possessionStatus === 'confirmation-submitted').length;
+  const awaitingCount = rows.filter((r) => statusFor(r.ticketNumber) === 'awaiting-confirmation').length;
+  const pendingReviewCount = rows.filter((r) => statusFor(r.ticketNumber) === 'pending-verification').length;
+  const verifiedCount = rows.filter((r) => statusFor(r.ticketNumber) === 'verified').length;
+  const rejectedCount = rows.filter((r) => statusFor(r.ticketNumber) === 'rejected').length;
   const totalCount = rows.length;
-  const submittedShare = totalCount === 0 ? 0 : Math.round((submittedCount / totalCount) * 100);
+  const verifiedShare = totalCount === 0 ? 0 : Math.round((verifiedCount / totalCount) * 100);
 
   const applyStatusFilter = (status: string) => {
     setFilterStatus(status);
@@ -263,16 +175,18 @@ export function PossessionAnalysisView() {
   };
 
   const possessionOverview = [
-    { name: 'Confirmation submitted', count: submittedCount, fill: '#6DB27F' },
-    { name: 'Awaiting confirmation', count: awaitingCount, fill: '#023F40' },
+    { name: 'Confirmed', count: verifiedCount, fill: '#6DB27F' },
+    { name: 'Awaiting your review', count: pendingReviewCount, fill: '#2563eb' },
+    { name: 'Rejected', count: rejectedCount, fill: '#dc2626' },
+    { name: 'Awaiting AF submission', count: awaitingCount, fill: '#023F40' },
   ].filter((d) => d.count > 0);
 
   const byAfPossession = useMemo(() => {
     const map = new Map<string, { awaiting: number; submitted: number }>();
     for (const r of rows) {
       const entry = map.get(r.assetFinancier) || { awaiting: 0, submitted: 0 };
-      if (r.possessionStatus === 'confirmation-submitted') entry.submitted += 1;
-      else entry.awaiting += 1;
+      if (statusFor(r.ticketNumber) === 'awaiting-confirmation') entry.awaiting += 1;
+      else entry.submitted += 1;
       map.set(r.assetFinancier, entry);
     }
     return Array.from(map.entries())
@@ -283,31 +197,58 @@ export function PossessionAnalysisView() {
         submitted: v.submitted,
         total: v.awaiting + v.submitted,
       }));
-  }, [rows]);
+  }, [rows, submissions]);
 
-  const openUploadPage = (row: PossessionAnalysisRow) => {
-    setSelected(row);
-    setUploadFileName('');
+  const notifyAf = (ticket: PossessionAnalysisRow, decision: 'verified' | 'rejected', comment: string) => {
+    addNotificationForRoles(
+      ['ASSET_FINANCIER_ADMIN', 'ASSET_FINANCIER_STAFF', 'ASSET_FINANCIER_OFFICER', 'CLAIMS_OFFICER'],
+      decision === 'verified'
+        ? {
+            type: 'success',
+            title: 'E-Moto Possession Statement verified',
+            message: `RGF confirmed the E-Moto Possession Statement for ${ticket.applicantName} (${ticket.ticketNumber}). The rebate is now eligible for disbursement authorization.`,
+            actionable: true,
+            actionLabel: 'View possession status',
+            actionUrl: '/possession',
+            actionData: { type: 'open-possession' },
+          }
+        : {
+            type: 'error',
+            title: 'E-Moto Possession Statement rejected',
+            message: `RGF rejected the E-Moto Possession Statement for ${ticket.applicantName} (${ticket.ticketNumber}): "${comment}". Please upload a corrected statement.`,
+            actionable: true,
+            actionLabel: 'Resubmit possession statement',
+            actionUrl: '/possession',
+            actionData: { type: 'open-possession' },
+          }
+    );
   };
 
-  const handleConfirmUpload = () => {
+  const handleAccept = () => {
     if (!selected) return;
-    if (!uploadFileName.trim()) {
-      toast.error('Please select the verified E-Moto Possession Statement to upload.');
+    resolvePossessionStatement(selected.ticketNumber, 'verified', acceptComment, currentUserName);
+    notifyAf(selected, 'verified', acceptComment);
+    toast.success(`Possession statement accepted for ${selected.ticketNumber}`, {
+      description: 'The Asset Financier has been notified. This rebate is now eligible for disbursement authorization.',
+    });
+    setAcceptComment('');
+    setSelected(null);
+  };
+
+  const handleReject = () => {
+    if (!selected) return;
+    if (!rejectComment.trim()) {
+      toast.error('A comment is required to reject the possession statement.');
       return;
     }
-    setRows((prev) =>
-      prev.map((r) =>
-        r.ticketNumber === selected.ticketNumber
-          ? { ...r, possessionStatus: 'confirmation-submitted' as const }
-          : r
-      )
-    );
-    toast.success(`Possession statement uploaded for ${selected.ticketNumber}`, {
-      description: 'Rebate moved to confirmation submitted and can be included in the CFO request once eligible.',
+    resolvePossessionStatement(selected.ticketNumber, 'rejected', rejectComment, currentUserName);
+    notifyAf(selected, 'rejected', rejectComment);
+    toast.success(`Possession statement rejected for ${selected.ticketNumber}`, {
+      description: 'The Asset Financier has been notified and asked to resubmit.',
     });
+    setShowRejectDialog(false);
+    setRejectComment('');
     setSelected(null);
-    setUploadFileName('');
   };
 
   if (selected) {
@@ -318,10 +259,10 @@ export function PossessionAnalysisView() {
           Back to Possession Analysis
         </Button>
         <div>
-          <h2 className="text-lg sm:text-xl text-[#023F40]">Upload Verified E-Moto Possession Statement</h2>
+          <h2 className="text-lg sm:text-xl text-[#023F40]">Review E-Moto Possession Statement</h2>
           <p className="text-sm text-gray-600 mt-1 max-w-3xl">
-            Review the complete rebate information and documentation, then upload the verified AF/Client
-            Confirmation of Individual E-Moto Possession.
+            Review the complete rebate information and the E-Moto Possession Statement uploaded by the Asset
+            Financier, then accept or reject it.
           </p>
         </div>
 
@@ -394,7 +335,7 @@ export function PossessionAnalysisView() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Status</p>
-              <div className="mt-1">{statusBadge(selected.possessionStatus)}</div>
+              <div className="mt-1">{statusBadge(statusFor(selected.ticketNumber))}</div>
             </div>
           </CardContent>
         </Card>
@@ -433,34 +374,126 @@ export function PossessionAnalysisView() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-[#023F40]">
-              Upload Verified E-Moto Possession Statement
+              {DOC_NAMES.possessionStatement}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="possession-file">{DOC_NAMES.possessionStatement}</Label>
-              <Input
-                id="possession-file"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="mt-2"
-                onChange={(e) => setUploadFileName(e.target.files?.[0]?.name || '')}
-              />
-              {uploadFileName && (
-                <p className="text-xs text-gray-500 mt-2">Selected: {uploadFileName}</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setSelected(null)}>
-                Cancel
-              </Button>
-              <Button className="bg-[#023F40] hover:bg-[#035f60]" onClick={handleConfirmUpload}>
-                <Upload className="w-4 h-4 mr-2" />
-                Upload &amp; Mark Submitted
-              </Button>
-            </div>
+            {(() => {
+              const submission = submissions[selected.ticketNumber];
+              if (!submission) {
+                return (
+                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    The Asset Financier has not yet submitted the E-Moto Possession Statement for this
+                    rebate.
+                  </p>
+                );
+              }
+              return (
+                <>
+                  <div className="flex items-center justify-between border rounded-lg p-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{submission.fileName}</p>
+                      <p className="text-xs text-gray-500">
+                        Uploaded {new Date(submission.uploadedAt).toLocaleString()} by{' '}
+                        {submission.submittedBy} · Possession date{' '}
+                        {new Date(submission.possessionDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const blob = new Blob([`Demo document preview for ${submission.fileName}`], {
+                          type: 'text/plain',
+                        });
+                        window.open(URL.createObjectURL(blob), '_blank');
+                      }}
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      View
+                    </Button>
+                  </div>
+
+                  {submission.status === 'pending-verification' && (
+                    <div className="space-y-3 border-t pt-4">
+                      <div>
+                        <Label htmlFor="possession-accept-comment">Comment (optional)</Label>
+                        <Textarea
+                          id="possession-accept-comment"
+                          value={acceptComment}
+                          onChange={(e) => setAcceptComment(e.target.value)}
+                          placeholder="Add an optional comment for the record..."
+                          rows={2}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                          onClick={() => setShowRejectDialog(true)}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button className="bg-[#0a7d4b] hover:bg-[#0c6b42]" onClick={handleAccept}>
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Accept
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {submission.status !== 'pending-verification' && (
+                    <div
+                      className={`border-t pt-4 text-sm space-y-1 ${
+                        submission.status === 'verified' ? 'text-green-800' : 'text-red-800'
+                      }`}
+                    >
+                      <p className="font-medium">
+                        {submission.status === 'verified' ? 'Accepted' : 'Rejected'} by{' '}
+                        {submission.reviewedBy} ·{' '}
+                        {submission.reviewedAt && new Date(submission.reviewedAt).toLocaleString()}
+                      </p>
+                      {submission.reviewComment && <p>"{submission.reviewComment}"</p>}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
+
+        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject E-Moto Possession Statement</DialogTitle>
+              <DialogDescription>
+                Explain why the statement for {selected.ticketNumber} is being rejected. The Asset Financier
+                will see this comment and be asked to resubmit.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="possession-reject-comment">Comment (required)</Label>
+              <Textarea
+                id="possession-reject-comment"
+                value={rejectComment}
+                onChange={(e) => setRejectComment(e.target.value)}
+                placeholder="e.g. The signature does not match the client's ID, or the document is illegible..."
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleReject}>
+                Confirm rejection
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -470,14 +503,13 @@ export function PossessionAnalysisView() {
       <div>
         <h2 className="text-lg sm:text-xl text-[#023F40]">Analysis of Individual E-Moto Possession</h2>
         <p className="text-sm text-gray-600 mt-1 max-w-4xl">
-          This page enables the Rebate Team and QA Team to track approved e-moto rebates that do not yet have an
-          AF/Client E-Moto Possession Statement. The Rebate Team can upload verified possession statements after
-          confirmation. Once uploaded, the rebate moves to Confirmation submitted and can be included in the QA
-          CFO disbursement request when eligible.
+          This page enables the Rebate Team and QA Team to review E-Moto Possession Statements uploaded by
+          Asset Financiers. Accept a statement to make the rebate eligible for disbursement authorization, or
+          reject it with a comment so the Asset Financier can resubmit.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card
           role="button"
           tabIndex={0}
@@ -501,25 +533,62 @@ export function PossessionAnalysisView() {
         <Card
           role="button"
           tabIndex={0}
-          aria-pressed={filterStatus === 'confirmation-submitted'}
-          onClick={() => applyStatusFilter('confirmation-submitted')}
+          aria-pressed={filterStatus === 'pending-verification'}
+          onClick={() => applyStatusFilter('pending-verification')}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              applyStatusFilter('confirmation-submitted');
+              applyStatusFilter('pending-verification');
             }
           }}
-          className={`cursor-pointer transition-colors hover:border-[#6DB27F]/60 hover:shadow-md ${
-            filterStatus === 'confirmation-submitted' ? 'ring-2 ring-[#6DB27F]/50 border-[#6DB27F]/60' : ''
+          className={`cursor-pointer transition-colors hover:border-blue-400 hover:shadow-md ${
+            filterStatus === 'pending-verification' ? 'ring-2 ring-blue-300 border-blue-400' : ''
           }`}
         >
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Confirmation submitted</p>
-            <p className="text-2xl font-bold text-[#023F40]">
-              {submittedCount}
-              <span className="text-base font-medium text-gray-500"> / {totalCount}</span>
-            </p>
-            <p className="text-xs text-gray-500 mt-1">{submittedShare}% of total</p>
+            <p className="text-sm text-gray-600">Awaiting your review</p>
+            <p className="text-2xl font-bold text-blue-700">{pendingReviewCount}</p>
+          </CardContent>
+        </Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filterStatus === 'verified'}
+          onClick={() => applyStatusFilter('verified')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyStatusFilter('verified');
+            }
+          }}
+          className={`cursor-pointer transition-colors hover:border-[#6DB27F]/60 hover:shadow-md ${
+            filterStatus === 'verified' ? 'ring-2 ring-[#6DB27F]/50 border-[#6DB27F]/60' : ''
+          }`}
+        >
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">Confirmed</p>
+            <p className="text-2xl font-bold text-[#023F40]">{verifiedCount}</p>
+            <p className="text-xs text-gray-500 mt-1">{verifiedShare}% of total</p>
+          </CardContent>
+        </Card>
+        <Card
+          role="button"
+          tabIndex={0}
+          aria-pressed={filterStatus === 'rejected'}
+          onClick={() => applyStatusFilter('rejected')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              applyStatusFilter('rejected');
+            }
+          }}
+          className={`cursor-pointer transition-colors hover:border-red-400 hover:shadow-md ${
+            filterStatus === 'rejected' ? 'ring-2 ring-red-300 border-red-400' : ''
+          }`}
+        >
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-600">Rejected</p>
+            <p className="text-2xl font-bold text-red-700">{rejectedCount}</p>
           </CardContent>
         </Card>
         <Card
@@ -538,14 +607,8 @@ export function PossessionAnalysisView() {
           }`}
         >
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Awaiting confirmation</p>
+            <p className="text-sm text-gray-600">Awaiting AF submission</p>
             <p className="text-2xl font-bold text-[#023F40]">{awaitingCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Asset Financiers in scope</p>
-            <p className="text-2xl font-bold text-[#023F40]">{byAfPossession.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -684,8 +747,10 @@ export function PossessionAnalysisView() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{ALL_STATUSES_LABEL}</SelectItem>
-                  <SelectItem value="awaiting-confirmation">Awaiting confirmation</SelectItem>
-                  <SelectItem value="confirmation-submitted">Confirmation submitted</SelectItem>
+                  <SelectItem value="pending-verification">Awaiting your review</SelectItem>
+                  <SelectItem value="verified">Confirmed</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="awaiting-confirmation">Awaiting AF submission</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -751,7 +816,7 @@ export function PossessionAnalysisView() {
                   <th className="pb-2 pr-3 font-medium">Last Name(s) / First Name(s)</th>
                   <th className="pb-2 pr-3 font-medium">National ID</th>
                   <th className="pb-2 pr-3 font-medium">Moto license</th>
-                  <th className="pb-2 pr-3 font-medium">Woman</th>
+                  <th className="pb-2 pr-3 font-medium">Gender</th>
                   <th className="pb-2 pr-3 font-medium">Retrofit</th>
                   <th className="pb-2 pr-3 font-medium">Asset Financier</th>
                   <th className="pb-2 pr-3 font-medium">Retail Cost of E-Moto (RWF)</th>
@@ -777,7 +842,7 @@ export function PossessionAnalysisView() {
                     </td>
                     <td className="py-2 pr-3">{r.nationalId}</td>
                     <td className="py-2 pr-3">{r.motoLicense}</td>
-                    <td className="py-2 pr-3">{r.isWoman ? 'Yes' : 'No'}</td>
+                    <td className="py-2 pr-3">{r.isWoman ? 'Woman' : 'Man'}</td>
                     <td className="py-2 pr-3">{r.isRetrofit ? 'Yes' : 'No'}</td>
                     <td className="py-2 pr-3">{r.assetFinancier}</td>
                     <td className="py-2 pr-3">{formatNumber(r.retailCost)}</td>
@@ -797,19 +862,18 @@ export function PossessionAnalysisView() {
                           ? 'Uploaded'
                           : 'Missing'}
                     </td>
-                    <td className="py-2 pr-3">{statusBadge(r.possessionStatus)}</td>
+                    <td className="py-2 pr-3">{statusBadge(statusFor(r.ticketNumber))}</td>
                     <td className="py-2">
-                      {r.possessionStatus === 'awaiting-confirmation' ? (
+                      {statusFor(r.ticketNumber) === 'pending-verification' ? (
                         <Button
                           size="sm"
                           className="h-8 bg-[#023F40] hover:bg-[#035f60]"
-                          onClick={() => openUploadPage(r)}
+                          onClick={() => setSelected(r)}
                         >
-                          <Upload className="w-3 h-3 mr-1" />
-                          Upload Possession Statement
+                          Review
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" className="h-8" onClick={() => openUploadPage(r)}>
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => setSelected(r)}>
                           View
                         </Button>
                       )}

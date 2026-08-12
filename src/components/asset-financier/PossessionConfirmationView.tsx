@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload, X } from 'lucide-react';
+import { Bike, Bell, CheckCircle2, Filter, ArrowUpDown, Upload, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '../ui/input';
 import { DateInput } from '../ui/date-input';
@@ -27,6 +27,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
+import { User } from '../../utils/auth';
+import { addNotificationForRoles } from '../../utils/notifications';
+import {
+  getPossessionRecords,
+  POSSESSION_CHANGED_EVENT,
+  submitPossessionStatement,
+} from '../../utils/possessionStore';
+import { APPROVED_POSSESSION_CASES } from '../../utils/possessionCatalog';
 
 interface PossessionRecord {
   ticketNumber: string;
@@ -37,20 +45,30 @@ interface PossessionRecord {
   isWoman: boolean;
   daysSinceSubmission: number;
   rebateAmount: number;
-  hasPossession: boolean;
 }
 
-const MOCK_RECORDS: PossessionRecord[] = [
-  { ticketNumber: 'REB-001', applicantName: 'Jean Claude Ndayisaba', submittedAt: '2026-04-26', vehicleType: 'New E-Moto', brand: 'Ampersand', isWoman: false, daysSinceSubmission: 4, rebateAmount: 150000, hasPossession: false },
-  { ticketNumber: 'REB-002', applicantName: 'Grace UWASE', submittedAt: '2026-04-27', vehicleType: 'Retrofit', brand: 'Ampersand', isWoman: true, daysSinceSubmission: 3, rebateAmount: 200000, hasPossession: false },
-  { ticketNumber: 'REB-004', applicantName: 'Jean HABIMANA', submittedAt: '2026-05-01', vehicleType: 'New E-Moto', brand: 'Ampersand', isWoman: false, daysSinceSubmission: 1, rebateAmount: 150000, hasPossession: false },
-  { ticketNumber: 'REB-003', applicantName: 'Alice Mutoni', submittedAt: '2026-03-20', vehicleType: 'New E-Moto', brand: 'Spiro', isWoman: true, daysSinceSubmission: 12, rebateAmount: 175000, hasPossession: true },
-];
+const MOCK_RECORDS: PossessionRecord[] = APPROVED_POSSESSION_CASES.filter(
+  (c) => c.assetFinancier === 'Bank of Kigali'
+).map((c) => {
+  const approvedAt = new Date(c.qaApprovedAt).getTime();
+  const daysSinceSubmission = Math.max(0, Math.floor((Date.now() - approvedAt) / 86400000));
+  return {
+    ticketNumber: c.ticketNumber,
+    applicantName: `${c.firstName} ${c.lastName}`,
+    submittedAt: c.qaApprovedAt,
+    vehicleType: c.isRetrofit ? 'Retrofit' : 'New E-Moto',
+    brand: c.supplier,
+    isWoman: c.isWoman,
+    daysSinceSubmission,
+    rebateAmount: c.rebateAmount,
+  };
+});
 
 type SortOption = 'date-oldest' | 'date-newest' | 'days-high' | 'days-low' | 'amount-high' | 'amount-low' | 'name-az';
 
-export function PossessionConfirmationView() {
-  const [records, setRecords] = useState(MOCK_RECORDS);
+export function PossessionConfirmationView({ user }: { user: User }) {
+  const [records] = useState(MOCK_RECORDS);
+  const [statuses, setStatuses] = useState(() => getPossessionRecords());
   const [filter, setFilter] = useState('pending');
   const [sortBy, setSortBy] = useState<SortOption>('date-oldest');
   const [filterGender, setFilterGender] = useState('all');
@@ -62,8 +80,25 @@ export function PossessionConfirmationView() {
   const [possessionProofName, setPossessionProofName] = useState('');
   const [possessionDate, setPossessionDate] = useState('');
 
-  const pending = records.filter((r) => !r.hasPossession);
-  const provided = records.filter((r) => r.hasPossession);
+  useEffect(() => {
+    const sync = () => setStatuses(getPossessionRecords());
+    sync();
+    window.addEventListener(POSSESSION_CHANGED_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(POSSESSION_CHANGED_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  const pending = records.filter((r) => {
+    const s = statuses[r.ticketNumber]?.status;
+    return !s || s === 'rejected';
+  });
+  const provided = records.filter((r) => {
+    const s = statuses[r.ticketNumber]?.status;
+    return s === 'pending-verification' || s === 'verified';
+  });
 
   const isFiltered =
     search !== '' ||
@@ -134,9 +169,22 @@ export function PossessionConfirmationView() {
     }
     setConfirming(true);
     await new Promise((r) => setTimeout(r, 800));
-    setRecords((prev) =>
-      prev.map((r) => (r.ticketNumber === confirmTarget.ticketNumber ? { ...r, hasPossession: true } : r))
-    );
+    submitPossessionStatement({
+      ticketNumber: confirmTarget.ticketNumber,
+      applicantName: confirmTarget.applicantName,
+      submittedBy: user.name || 'AF User',
+      fileName: possessionProofName,
+      possessionDate,
+    });
+    addNotificationForRoles(['REBATE_ANALYST', 'analyst', 'REBATE_MANAGER'], {
+      type: 'application',
+      title: 'E-Moto Possession Statement uploaded',
+      message: `${confirmTarget.applicantName} (${confirmTarget.ticketNumber}) — the Asset Financier uploaded the E-Moto Possession Statement. Review and accept or reject it.`,
+      actionable: true,
+      actionLabel: 'Review possession statement',
+      actionUrl: '/possession-analysis',
+      actionData: { type: 'open-possession-review', ticketNumber: confirmTarget.ticketNumber },
+    });
     toast.success('RGF notified of e-moto possession', {
       description: `${confirmTarget.applicantName} — possession proof received (${possessionProofName}), date ${possessionDate}`,
     });
@@ -284,11 +332,33 @@ export function PossessionConfirmationView() {
                     {getRebatePercent({ isWoman: r.isWoman, isRetrofit: r.vehicleType === 'Retrofit' })}
                   </td>
                   <td className="py-4">
-                    {r.hasPossession ? (
+                    {statuses[r.ticketNumber]?.status === 'verified' ? (
                       <Badge className="bg-green-100 text-green-800">
                         <CheckCircle2 className="w-3 h-3 mr-1" />
                         Confirmed
                       </Badge>
+                    ) : statuses[r.ticketNumber]?.status === 'pending-verification' ? (
+                      <Badge className="bg-blue-100 text-blue-800">Awaiting RGF review</Badge>
+                    ) : statuses[r.ticketNumber]?.status === 'rejected' ? (
+                      <div className="space-y-1">
+                        <Badge className="bg-red-100 text-red-800">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Rejected by RGF
+                        </Badge>
+                        {statuses[r.ticketNumber]?.reviewComment && (
+                          <p className="text-xs text-red-700 max-w-[220px]">
+                            "{statuses[r.ticketNumber]?.reviewComment}"
+                          </p>
+                        )}
+                        <Button
+                          size="sm"
+                          className="bg-[#023F40] hover:bg-[#035f60]"
+                          onClick={() => setConfirmTarget(r)}
+                        >
+                          <Bell className="w-3 h-3 mr-1" />
+                          Resubmit
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         size="sm"

@@ -25,6 +25,7 @@ import {
 } from '../../utils/analystRebateData';
 // import { ReassignmentCheckingPage } from './ReassignmentCheckingPage';
 import { AnalystReportsView } from './AnalystReportsView';
+import { PossessionAnalysisView } from '../qa/PossessionAnalysisView';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import {
   ALL_ASSET_FINANCIERS_LABEL,
@@ -99,6 +100,7 @@ export function AnalystDashboard({ user, currentPage, onNavigate }: AnalystDashb
   const [search, setSearch] = useState('');
   const [recommendations, setRecommendations] = useState<Record<string, RecommendationRecord>>({});
   const [reportCategory, setReportCategory] = useState<AnalystMetricCategory>('not-yet-verified');
+  const [autoOpenPossessionTicket, setAutoOpenPossessionTicket] = useState<string | null>(null);
 
   useEffect(() => {
     loadApplications();
@@ -135,7 +137,7 @@ export function AnalystDashboard({ user, currentPage, onNavigate }: AnalystDashb
 
   const toVehicleLabel = (app: Application) => (app.isRetrofit ? 'Retrofit' : 'New E-Moto');
 
-  const toGenderLabel = (app: Application) => (isWomanApplicant(app) ? 'W' : 'M');
+  const toGenderLabel = (app: Application) => (isWomanApplicant(app) ? 'Woman' : 'Man');
 
   const toPipelineStatusLabel = (app: Application) => {
     if (app.status === 'under-review') return 'Review in process';
@@ -274,7 +276,28 @@ export function AnalystDashboard({ user, currentPage, onNavigate }: AnalystDashb
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         <PageHeader />
-        <NotificationsView user={user} />
+        <NotificationsView
+          user={user}
+          onAction={(data: any) => {
+            if (data?.type === 'open-possession-review') {
+              setAutoOpenPossessionTicket(data.ticketNumber);
+              onNavigate?.('possession-analysis');
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (currentPage === 'possession-analysis') {
+    return (
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <PageHeader />
+        <PossessionAnalysisView
+          currentUserName={user.name}
+          autoOpenTicket={autoOpenPossessionTicket}
+          onAutoOpenHandled={() => setAutoOpenPossessionTicket(null)}
+        />
       </div>
     );
   }
@@ -549,7 +572,7 @@ export function AnalystDashboard({ user, currentPage, onNavigate }: AnalystDashb
                     <th className="pb-3 pr-3 font-medium">Date Received</th>
                     <th className="pb-3 pr-3 font-medium">Financier</th>
                     <th className="pb-3 pr-3 font-medium">Vehicle Type</th>
-                    <th className="pb-3 pr-3 font-medium">Gender [M, W]</th>
+                    <th className="pb-3 pr-3 font-medium">Gender</th>
                     <th className="pb-3 pr-3 font-medium">Days after Receipt</th>
                     <th className="pb-3 font-medium">Status</th>
                   </tr>

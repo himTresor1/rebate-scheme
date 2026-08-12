@@ -26,7 +26,7 @@ export function AnalystRebateReportTable({
     <table className="w-full min-w-[1100px] text-sm border-collapse">
       <thead>
         <tr className="border-b text-left text-gray-600">
-          <th className="pb-3 pr-2 pl-1 pt-3 font-medium whitespace-nowrap">Ticket No</th>
+          <th className="pb-3 pr-2 pl-1 font-medium whitespace-nowrap">Ticket No</th>
           <th className="pb-3 pr-2 font-medium whitespace-nowrap">Date</th>
           <th className="pb-3 pr-2 font-medium whitespace-nowrap">First Name</th>
           <th className="pb-3 pr-2 font-medium whitespace-nowrap">Last Name</th>

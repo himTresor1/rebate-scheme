@@ -164,6 +164,7 @@ export function Sidebar({ user, currentPage, onNavigate, onSignOut, onExpandedCh
           // { icon: GitBranch, label: 'Reassignment Checking', page: 'reassignment-checking' },
           // { icon: FileText, label: 'Assigned Rebates', page: 'assigned' }, // same as pipeline
           { icon: Printer, label: 'All Rebates', page: 'analyst-reports' },
+          { icon: Bike, label: 'Possession Statements', page: 'possession-analysis' },
           { icon: UserCircle, label: 'Profile Settings', page: 'profile' }
         ];
         

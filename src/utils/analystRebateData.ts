@@ -1,3 +1,7 @@
+import { formatDisplayDate } from './dateFormat';
+import { getRebatePercent } from './rebateCalculation';
+import { ReportColumn } from './reportExport';
+
 export type AnalystVerificationStatus = 'In Process' | 'Verified' | 'Rejected';
 
 export type AnalystMetricCategory =
@@ -16,7 +20,7 @@ export interface AnalystRebateRecord {
   nationalId: string;
   dateOfBirth: string;
   motoLicense: string;
-  gender: 'Male' | 'Female';
+  gender: 'Man' | 'Woman';
   isWoman: boolean;
   vehicleType: 'New E-Moto' | 'Retrofit';
   isRetrofit: boolean;
@@ -93,7 +97,7 @@ function buildRecord(
     nationalId: `11987800${String(10000000 + index).slice(0, 8)}`,
     dateOfBirth: `199${index % 10}-0${(index % 8) + 1}-1${index % 9}`,
     motoLicense: `DL-${1000 + index}`,
-    gender: isWoman ? 'Female' : 'Male',
+    gender: isWoman ? 'Woman' : 'Man',
     isWoman,
     vehicleType: isRetrofit ? 'Retrofit' : 'New E-Moto',
     isRetrofit,
@@ -165,4 +169,44 @@ export function metricCount(category: AnalystMetricCategory): number {
     default:
       return 0;
   }
+}
+
+const ANALYST_REBATE_REPORT_COLUMNS: ReportColumn[] = [
+  { header: 'Ticket No', key: 'ticketNumber' },
+  { header: 'Date', key: 'originatedAt' },
+  { header: 'First Name', key: 'firstName' },
+  { header: 'Last Name', key: 'lastName' },
+  { header: 'National ID', key: 'nationalId' },
+  { header: 'DOB', key: 'dateOfBirth' },
+  { header: 'License', key: 'motoLicense' },
+  { header: 'Gender', key: 'gender' },
+  { header: 'Vehicle', key: 'vehicleType' },
+  { header: 'E-Moto Provider', key: 'eMotoProvider' },
+  { header: 'Assembler', key: 'retrofitAssembler' },
+  { header: 'Retail (RWF)', key: 'retailCost' },
+  { header: 'Rebate Amount (RWF)', key: 'rebateAmount' },
+  { header: 'Rebate Percentage (%)', key: 'rebatePercent' },
+  { header: 'Status', key: 'status' },
+];
+
+/** Builds the full column/row set for an AnalystRebateRecord report export — every field the on-screen table shows. */
+export function analystRebateRowsForExport(rows: AnalystRebateRecord[]) {
+  const reportRows = rows.map((r) => ({
+    ticketNumber: r.ticketNumber,
+    originatedAt: formatDisplayDate(r.originatedAt),
+    firstName: r.firstName || '',
+    lastName: r.lastName || '',
+    nationalId: r.nationalId || '',
+    dateOfBirth: formatDisplayDate(r.dateOfBirth),
+    motoLicense: r.motoLicense || '',
+    gender: r.gender,
+    vehicleType: r.vehicleType,
+    eMotoProvider: r.isRetrofit ? '' : r.eMotoProvider || '',
+    retrofitAssembler: r.isRetrofit ? r.retrofitAssembler || '' : '',
+    retailCost: r.retailCost,
+    rebateAmount: r.rebateAmount,
+    rebatePercent: getRebatePercent({ isWoman: r.isWoman, isRetrofit: r.isRetrofit }),
+    status: ANALYST_STATUS_DISPLAY[r.verificationStatus],
+  }));
+  return { columns: ANALYST_REBATE_REPORT_COLUMNS, rows: reportRows };
 }

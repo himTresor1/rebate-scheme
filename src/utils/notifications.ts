@@ -29,6 +29,44 @@ type StoredNotifState = {
   deletedIds: string[];
 };
 
+const DYNAMIC_STORAGE_KEY = 'rgf-dynamic-notifications';
+
+interface DynamicNotification extends AppNotification {
+  roles: string[];
+}
+
+function loadDynamicNotifications(): DynamicNotification[] {
+  try {
+    const raw = localStorage.getItem(DYNAMIC_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDynamicNotifications(notifications: DynamicNotification[]) {
+  localStorage.setItem(DYNAMIC_STORAGE_KEY, JSON.stringify(notifications));
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+}
+
+/** Creates a real notification for every user whose role is in `roles`, visible across tabs/sessions. */
+export function addNotificationForRoles(
+  roles: string[],
+  notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>
+) {
+  const notifications = loadDynamicNotifications();
+  notifications.push({
+    ...notification,
+    id: `dyn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: new Date().toISOString(),
+    read: false,
+    roles,
+  });
+  saveDynamicNotifications(notifications);
+}
+
 function storageKey(user: User): string {
   return `rgf-notif-state:${user.id || user.email || user.role}`;
 }
@@ -412,7 +450,11 @@ function buildMockNotifications(role: string): AppNotification[] {
 
 export function getNotificationsForUser(user: User): AppNotification[] {
   const state = loadState(user);
-  return buildMockNotifications(user.role)
+  const dynamic = loadDynamicNotifications().filter((n) => n.roles.includes(user.role));
+  const all = [...buildMockNotifications(user.role), ...dynamic].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  return all
     .filter((n) => !state.deletedIds.includes(n.id))
     .map((n) => ({
       ...n,

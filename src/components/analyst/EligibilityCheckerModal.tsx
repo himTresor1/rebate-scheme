@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDisplayDate } from '../../utils/dateFormat';
+import { formatGenderLabel } from '../../utils/rebateCalculation';
 import {
   mockSocialRegistryCheck,
   mockRuraRraCheck,
@@ -293,7 +294,7 @@ export function EligibilityCheckerModal({
                       <p className="text-green-800 font-semibold">✓ National ID Verified</p>
                       <p className="text-gray-700">Name: {checkData.name}</p>
                       <p className="text-gray-700">Date of Birth: {checkData.dateOfBirth}</p>
-                      <p className="text-gray-700">Gender: {checkData.gender}</p>
+                      <p className="text-gray-700">Gender: {formatGenderLabel(checkData.gender)}</p>
                       <p className="text-gray-700">Location: {checkData.district}, {checkData.province}</p>
                     </>
                   ) : (

@@ -29,7 +29,7 @@ export function IdentityVerificationStep({ formData, setFormData }: IdentityVeri
       firstName: 'Jean Baptiste',
       lastName: 'MUGISHA',
       dateOfBirth: '1987-03-15',
-      gender: 'Male',
+      gender: 'Man',
       nationalId: formData.nationalId || '1198780012345678',
       placeOfBirth: 'Kigali',
       residence: {
